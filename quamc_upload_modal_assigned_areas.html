@@ -1,0 +1,505 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1f3d;--navy2:#1a3260;--gold:#c9a84c;--gold-lt:#fdf6e3;
+  --teal:#0f6e56;--teal-lt:#e1f5ee;--blue:#185fa5;--blue-lt:#e6f1fb;
+  --amber:#854f0b;--amb-lt:#faeeda;--red:#9b1c1c;--red-lt:#fef2f2;
+  --success:#1a7a4a;--suc-lt:#e8f5ee;--purple:#3c3489;--purp-lt:#eeedfe;
+  --gray-50:#f8f9fc;--gray-100:#f0f2f8;--gray-200:#dde1ed;--gray-300:#b8bfd4;
+  --gray-400:#8892aa;--gray-600:#4a5470;--gray-800:#1e2640;--w:#fff;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--gray-100);color:var(--gray-800)}
+.page-bg{min-height:680px;display:flex;align-items:flex-start;justify-content:center;padding:20px;position:relative;background:var(--gray-100)}
+.bg-cards{position:absolute;inset:0;padding:20px;display:flex;flex-direction:column;gap:10px;opacity:0.3;pointer-events:none;overflow:hidden}
+.bg-card{background:var(--w);border:1px solid var(--gray-200);border-radius:10px}
+
+/* ROLE SWITCHER */
+.role-switcher{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:20;background:rgba(255,255,255,0.92);padding:6px 10px;border-radius:20px;border:1px solid var(--gray-200);white-space:nowrap}
+.role-lbl{font-size:10.5px;font-weight:600;color:var(--gray-400);padding:0 4px;align-self:center}
+.role-btn{padding:5px 12px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--gray-200);background:var(--w);color:var(--gray-600);font-family:'DM Sans',sans-serif;transition:all .15s}
+.role-btn.active{background:var(--navy);color:var(--w);border-color:var(--navy)}
+
+.overlay{position:absolute;inset:0;background:rgba(15,31,61,0.52);display:flex;align-items:center;justify-content:center;z-index:10;padding-top:52px}
+.modal{background:var(--w);border-radius:16px;width:520px;max-width:96%;box-shadow:0 20px 60px rgba(15,31,61,0.25);overflow:hidden}
+
+/* HEADER */
+.modal-hdr{background:var(--navy);padding:0}
+.modal-hdr-top{padding:16px 20px 12px;display:flex;align-items:flex-start;gap:12px}
+.hdr-icon{width:38px;height:38px;background:rgba(201,168,76,0.18);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.hdr-text{flex:1}
+.modal-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--w)}
+.modal-sub{font-size:11px;color:rgba(255,255,255,0.45);margin-top:3px}
+.modal-close{background:rgba(255,255,255,0.1);border:none;border-radius:7px;width:28px;height:28px;cursor:pointer;color:rgba(255,255,255,0.55);font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.modal-close:hover{background:rgba(255,255,255,0.2);color:var(--w)}
+
+/* BREADCRUMB */
+.breadcrumb-trail{padding:9px 20px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.14)}
+.bc-item{font-size:10.5px;font-weight:500;color:rgba(255,255,255,0.38);transition:color .15s}
+.bc-item.active{color:var(--gold);font-weight:600}
+.bc-item.done{color:rgba(255,255,255,0.65)}
+.bc-sep{color:rgba(255,255,255,0.18);font-size:10px}
+
+/* STEPS BAR */
+.steps-bar{display:flex;background:var(--navy);border-top:1px solid rgba(255,255,255,0.06)}
+.step-dot{flex:1;text-align:center;padding:7px 0;font-size:9.5px;font-weight:600;color:rgba(255,255,255,0.28);letter-spacing:.04em;text-transform:uppercase;position:relative;transition:color .2s}
+.step-dot.active{color:var(--gold)}
+.step-dot.done{color:rgba(255,255,255,0.55)}
+.step-dot.active::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:2px;background:var(--gold);border-radius:2px}
+
+/* ASSIGNMENT NOTICE */
+.assign-notice{display:flex;align-items:flex-start;gap:10px;background:var(--purp-lt);border:1px solid #d4c8f8;border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.assign-notice-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.assign-notice-text{font-size:11.5px;color:var(--purple);line-height:1.6}
+.assign-notice-text strong{font-weight:600}
+
+/* BODY */
+.modal-body{padding:18px 20px}
+.step-panel{display:none}
+.step-panel.active{display:block;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.step-label{font-size:10.5px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.step-label::after{content:'';flex:1;height:1px;background:var(--gray-100)}
+
+/* OPTION CARDS */
+.option-grid{display:flex;flex-direction:column;gap:7px}
+.option-grid.cols2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.option-card{border:1.5px solid var(--gray-200);border-radius:10px;padding:11px 14px;cursor:pointer;transition:all .15s;position:relative;background:var(--w)}
+.option-card:hover{border-color:var(--navy);background:var(--gray-50)}
+.option-card.selected{border-color:var(--navy);background:#f0f3fa}
+.option-card.selected::after{content:'✓';position:absolute;top:8px;right:10px;font-size:11px;font-weight:700;color:var(--navy)}
+.option-card.locked{opacity:0.45;cursor:not-allowed;pointer-events:none}
+.opt-name{font-size:13px;font-weight:600;color:var(--navy)}
+.opt-sub{font-size:11px;color:var(--gray-400);margin-top:2px}
+.opt-tag{display:inline-flex;font-size:9.5px;font-weight:600;padding:2px 7px;border-radius:4px;margin-top:5px;font-family:'DM Mono',monospace}
+.tag-dean{background:var(--purp-lt);color:var(--purple)}
+.tag-notassigned{background:var(--gray-100);color:var(--gray-400)}
+.empty-state{text-align:center;padding:24px 16px;color:var(--gray-400)}
+.empty-state-icon{font-size:28px;margin-bottom:8px}
+.empty-state-text{font-size:12.5px;font-weight:500;color:var(--gray-600)}
+.empty-state-sub{font-size:11.5px;margin-top:4px;color:var(--gray-400)}
+
+/* DOC TYPE CARDS */
+.doctype-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.doctype-card{border:1.5px solid var(--gray-200);border-radius:10px;padding:13px;cursor:pointer;transition:all .15s;text-align:center;background:var(--w)}
+.doctype-card:hover{transform:translateY(-2px);border-color:var(--navy)}
+.doctype-card.input.selected{border-color:#378add;background:var(--blue-lt)}
+.doctype-card.process.selected{border-color:#ba7517;background:var(--amb-lt)}
+.doctype-card.outcome.selected{border-color:#1d9e75;background:var(--teal-lt)}
+.doctype-icon{width:34px;height:34px;border-radius:8px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.doctype-card.input .doctype-icon{background:var(--blue-lt)}
+.doctype-card.process .doctype-icon{background:var(--amb-lt)}
+.doctype-card.outcome .doctype-icon{background:var(--teal-lt)}
+.doctype-label{font-size:13px;font-weight:700}
+.doctype-card.input .doctype-label{color:#0c447c}
+.doctype-card.process .doctype-label{color:#633806}
+.doctype-card.outcome .doctype-label{color:#085041}
+.doctype-desc{font-size:10px;color:var(--gray-400);margin-top:4px;line-height:1.5}
+
+/* FILE UPLOAD */
+.dropzone{border:2px dashed var(--gray-200);border-radius:12px;padding:26px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gray-50)}
+.dropzone:hover{border-color:var(--navy);background:var(--gold-lt)}
+.drop-icon{font-size:28px;margin-bottom:8px}
+.drop-text{font-size:13px;color:var(--gray-600);font-weight:500}
+.drop-sub{font-size:11px;color:var(--gray-400);margin-top:4px}
+.type-tags{display:flex;justify-content:center;gap:5px;margin-top:10px;flex-wrap:wrap}
+.type-tag{font-size:9.5px;font-weight:600;font-family:'DM Mono',monospace;background:var(--navy);color:var(--w);padding:2px 7px;border-radius:4px}
+.file-preview{display:none;border:1.5px solid var(--gray-200);border-radius:10px;padding:11px 14px;margin-top:10px;align-items:center;gap:12px}
+.file-preview.show{display:flex}
+.file-ico{width:38px;height:38px;background:var(--blue-lt);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:13px;font-weight:600;color:var(--gray-800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-size{font-size:11px;color:var(--gray-400);margin-top:2px;font-family:'DM Mono',monospace}
+.file-remove{font-size:16px;color:var(--gray-300);cursor:pointer;flex-shrink:0;transition:color .15s}
+.file-remove:hover{color:var(--red)}
+.field{margin-top:13px}
+.field-label{font-size:11.5px;font-weight:600;color:var(--gray-600);margin-bottom:5px;display:block}
+.req{color:var(--red)}
+.field-input{width:100%;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray-800);outline:none;transition:border-color .15s;background:var(--w)}
+.field-input:focus{border-color:var(--navy)}
+.field-input::placeholder{color:var(--gray-300)}
+textarea.field-input{resize:none}
+
+/* SUCCESS */
+.success-state{text-align:center;padding:26px 20px}
+.success-icon{width:58px;height:58px;background:var(--suc-lt);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px}
+.success-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.success-desc{font-size:12.5px;color:var(--gray-600);line-height:1.7}
+.success-meta{background:var(--suc-lt);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:12px;color:var(--success);font-weight:500;line-height:1.7}
+
+/* FOOTER */
+.modal-footer{padding:13px 20px;border-top:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;background:var(--gray-50)}
+.footer-nav{display:flex;gap:8px}
+.prog-text{font-size:11.5px;color:var(--gray-400)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--navy);color:var(--w)}
+.btn-primary:hover{background:var(--navy2)}
+.btn-gold{background:var(--gold);color:var(--navy);font-weight:600}
+.btn-gold:hover{background:#e8c96d}
+.btn-ghost{background:var(--w);color:var(--gray-600);border:1px solid var(--gray-200)}
+.btn-ghost:hover{background:var(--gray-100)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+</style>
+
+<div class="page-bg">
+  <div class="bg-cards">
+    <div class="bg-card" style="height:56px"></div>
+    <div class="bg-card" style="height:90px"></div>
+    <div class="bg-card" style="height:56px"></div>
+    <div class="bg-card" style="height:110px"></div>
+    <div class="bg-card" style="height:56px"></div>
+  </div>
+
+  <!-- ROLE SWITCHER -->
+  <div class="role-switcher">
+    <span class="role-lbl">Demo role:</span>
+    <button class="role-btn active" onclick="switchRole('coord1',this)">Juan (BSIT — Area 3)</button>
+    <button class="role-btn" onclick="switchRole('coord2',this)">Maria (BSBA — Area 1,2)</button>
+    <button class="role-btn" onclick="switchRole('coord3',this)">Pedro (BSIT — All areas)</button>
+  </div>
+
+  <div class="overlay">
+    <div class="modal">
+
+      <!-- HEADER -->
+      <div class="modal-hdr">
+        <div class="modal-hdr-top">
+          <div class="hdr-icon">↑</div>
+          <div class="hdr-text">
+            <div class="modal-title">Upload Evidence</div>
+            <div class="modal-sub" id="modal-sub">Your assigned program</div>
+          </div>
+          <button class="modal-close" onclick="resetAll()">✕</button>
+        </div>
+        <div class="breadcrumb-trail">
+          <span class="bc-item active" id="bc0">Program</span>
+          <span class="bc-sep">›</span>
+          <span class="bc-item" id="bc1">Area</span>
+          <span class="bc-sep">›</span>
+          <span class="bc-item" id="bc2">Sub-area</span>
+          <span class="bc-sep">›</span>
+          <span class="bc-item" id="bc3">Type</span>
+          <span class="bc-sep">›</span>
+          <span class="bc-item" id="bc4">Upload</span>
+        </div>
+        <div class="steps-bar">
+          <div class="step-dot active" id="sd0">Program</div>
+          <div class="step-dot" id="sd1">Area</div>
+          <div class="step-dot" id="sd2">Sub-area</div>
+          <div class="step-dot" id="sd3">Type</div>
+          <div class="step-dot" id="sd4">Upload</div>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div class="modal-body">
+
+        <!-- STEP 1: Program -->
+        <div class="step-panel active" id="sp-0">
+          <div class="step-label">Your program</div>
+          <div class="assign-notice">
+            <span class="assign-notice-icon">🔒</span>
+            <div class="assign-notice-text">You are uploading evidence for your assigned program only. Contact your Dean if you need access to other programs.</div>
+          </div>
+          <div class="option-grid cols2" id="prog-grid"></div>
+        </div>
+
+        <!-- STEP 2: Area -->
+        <div class="step-panel" id="sp-1">
+          <div class="step-label">Your assigned areas</div>
+          <div class="assign-notice">
+            <span class="assign-notice-icon">🔑</span>
+            <div class="assign-notice-text"><strong>Assigned by Dean.</strong> Only areas your Dean has assigned to you are shown. Greyed-out areas exist in the system but are not assigned to you.</div>
+          </div>
+          <div class="option-grid" id="area-grid"></div>
+        </div>
+
+        <!-- STEP 3: Sub-area -->
+        <div class="step-panel" id="sp-2">
+          <div class="step-label">Sub-areas</div>
+          <div class="option-grid" id="subarea-grid"></div>
+        </div>
+
+        <!-- STEP 4: Type -->
+        <div class="step-panel" id="sp-3">
+          <div class="step-label">Document type</div>
+          <div class="doctype-grid">
+            <div class="doctype-card input" onclick="selectType('input',this)">
+              <div class="doctype-icon">↓</div>
+              <div class="doctype-label">Input</div>
+              <div class="doctype-desc">Plans, policies, resources provided before activity</div>
+            </div>
+            <div class="doctype-card process" onclick="selectType('process',this)">
+              <div class="doctype-icon">⟳</div>
+              <div class="doctype-label">Process</div>
+              <div class="doctype-desc">Records, minutes, activities during implementation</div>
+            </div>
+            <div class="doctype-card outcome" onclick="selectType('outcome',this)">
+              <div class="doctype-icon">✓</div>
+              <div class="doctype-label">Outcome</div>
+              <div class="doctype-desc">Results, outputs, achievements produced</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5: Upload -->
+        <div class="step-panel" id="sp-4">
+          <div class="step-label">Upload file</div>
+          <div class="dropzone" id="dropzone" onclick="simulateFile()">
+            <div class="drop-icon">📎</div>
+            <div class="drop-text">Drop file here or click to browse</div>
+            <div class="drop-sub">Maximum 50 MB per file</div>
+            <div class="type-tags">
+              <span class="type-tag">PDF</span>
+              <span class="type-tag">DOCX</span>
+              <span class="type-tag">XLSX</span>
+              <span class="type-tag">JPG</span>
+              <span class="type-tag">PNG</span>
+            </div>
+          </div>
+          <div class="file-preview" id="file-preview">
+            <div class="file-ico">📄</div>
+            <div class="file-info">
+              <div class="file-name" id="fname">file.pdf</div>
+              <div class="file-size" id="fsize">—</div>
+            </div>
+            <span class="file-remove" onclick="removeFile()">✕</span>
+          </div>
+          <div class="field">
+            <label class="field-label">Document title <span class="req">*</span></label>
+            <input class="field-input" id="doc-title" placeholder="e.g. CMO Alignment Matrix AY 2024-2025" oninput="checkReady()"/>
+          </div>
+          <div class="field">
+            <label class="field-label">Notes <span style="font-weight:400;color:var(--gray-300)">(optional)</span></label>
+            <textarea class="field-input" id="doc-notes" rows="2" placeholder="Version notes or context…"></textarea>
+          </div>
+        </div>
+
+        <!-- SUCCESS -->
+        <div class="step-panel" id="sp-success">
+          <div class="success-state">
+            <div class="success-icon">✓</div>
+            <div class="success-title">Evidence submitted!</div>
+            <div class="success-desc" id="success-desc"></div>
+            <div class="success-meta" id="success-meta"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer" id="modal-footer">
+        <div class="prog-text">Step <span id="step-num">1</span> of 5</div>
+        <div class="footer-nav">
+          <button class="btn btn-ghost" id="btn-back" onclick="goBack()" style="display:none">← Back</button>
+          <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Next →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const ROLES = {
+  coord1: {
+    name:'Juan Santos', program:{id:1,name:'BSIT',full:'Bachelor of Science in IT'},
+    assignedAreas:[3],
+  },
+  coord2: {
+    name:'Maria Reyes', program:{id:2,name:'BSBA',full:'Bachelor of Science in Business Admin'},
+    assignedAreas:[1,2],
+  },
+  coord3: {
+    name:'Pedro Cruz', program:{id:1,name:'BSIT',full:'Bachelor of Science in IT'},
+    assignedAreas:[1,2,3,4],
+  },
+};
+
+const ALL_AREAS = [
+  {id:1,name:'Area 1',full:'Vision, Mission, Goals'},
+  {id:2,name:'Area 2',full:'Faculty'},
+  {id:3,name:'Area 3',full:'Curriculum'},
+  {id:4,name:'Area 4',full:'Students'},
+];
+
+const SUBAREAS = {
+  1:[{id:1,name:'1.1 Institutional Vision'},{id:2,name:'1.2 Program Alignment'}],
+  2:[{id:3,name:'2.1 Faculty Qualifications'},{id:4,name:'2.2 Faculty Development'},{id:5,name:'2.3 Faculty Workload'}],
+  3:[{id:6,name:'3.1 Course Offerings'},{id:7,name:'3.2 Syllabus Quality'},{id:8,name:'3.3 CMO Compliance'}],
+  4:[{id:9,name:'4.1 Student Admission'},{id:10,name:'4.2 Student Services'}],
+};
+
+let currentRole = ROLES.coord1;
+let step = 0;
+let sel = {program:null,area:null,subarea:null,type:null,file:false};
+
+function switchRole(key, btn) {
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentRole = ROLES[key];
+  resetAll();
+}
+
+function updateBreadcrumb() {
+  const labels = [
+    sel.program ? sel.program.name : 'Program',
+    sel.area ? `Area ${sel.area.id}` : 'Area',
+    sel.subarea ? sel.subarea.name.split(' ').slice(0,2).join(' ') : 'Sub-area',
+    sel.type ? sel.type.charAt(0).toUpperCase()+sel.type.slice(1) : 'Type',
+    sel.file ? 'File ready' : 'Upload',
+  ];
+  labels.forEach((lbl,i)=>{
+    const el = document.getElementById('bc'+i);
+    el.textContent = lbl;
+    el.className = 'bc-item'+(i===step?' active':i<step?' done':'');
+  });
+  for(let i=0;i<5;i++){
+    const d=document.getElementById('sd'+i);
+    d.className='step-dot'+(i===step?' active':i<step?' done':'');
+  }
+  document.getElementById('step-num').textContent = step+1;
+
+  const subs = [
+    `Your assigned program`,
+    `${sel.program?.name} — assigned areas only`,
+    sel.area ? `${sel.area.name} — ${sel.area.full}` : 'Select sub-area',
+    sel.subarea ? sel.subarea.name : 'Select document type',
+    sel.type ? `${sel.type.charAt(0).toUpperCase()+sel.type.slice(1)} evidence for ${sel.subarea?.name}` : '',
+  ];
+  document.getElementById('modal-sub').textContent = subs[step] || '';
+}
+
+function renderStep() {
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('sp-'+step)?.classList.add('active');
+
+  const back = document.getElementById('btn-back');
+  const next = document.getElementById('btn-next');
+  back.style.display = step>0?'flex':'none';
+
+  if(step===0){
+    next.textContent='Next →'; next.disabled=!sel.program;
+    document.getElementById('prog-grid').innerHTML = `
+      <div class="option-card${sel.program?.id===currentRole.program.id?' selected':''}" onclick="selectProgram()">
+        <div class="opt-name">${currentRole.program.name}</div>
+        <div class="opt-sub">${currentRole.program.full}</div>
+        <span class="opt-tag tag-dean">Your program</span>
+      </div>`;
+  }
+  else if(step===1){
+    next.textContent='Next →'; next.disabled=!sel.area;
+    document.getElementById('area-grid').innerHTML = ALL_AREAS.map(a=>{
+      const assigned = currentRole.assignedAreas.includes(a.id);
+      return `<div class="option-card${sel.area?.id===a.id?' selected':''}${!assigned?' locked':''}" onclick="${assigned?`selectArea(${a.id})`:''}">
+        <div class="opt-name">${a.name} — ${a.full}</div>
+        ${assigned
+          ? `<span class="opt-tag tag-dean">Assigned by Dean</span>`
+          : `<span class="opt-tag tag-notassigned">Not assigned to you</span>`}
+      </div>`;
+    }).join('');
+  }
+  else if(step===2){
+    next.textContent='Next →'; next.disabled=!sel.subarea;
+    const subs = SUBAREAS[sel.area?.id]||[];
+    document.getElementById('subarea-grid').innerHTML = subs.map(s=>`
+      <div class="option-card${sel.subarea?.id===s.id?' selected':''}" onclick="selectSubarea(${s.id},'${s.name}')">
+        <div class="opt-name">${s.name}</div>
+        <div class="opt-sub">Input · Process · Outcome slots</div>
+      </div>`).join('');
+  }
+  else if(step===3){
+    next.textContent='Next →'; next.disabled=!sel.type;
+    document.querySelectorAll('.doctype-card').forEach(c=>{
+      const t=c.classList.contains('input')?'input':c.classList.contains('process')?'process':'outcome';
+      c.classList.toggle('selected',sel.type===t);
+    });
+  }
+  else if(step===4){
+    next.textContent='Submit evidence'; next.disabled=!(sel.file&&document.getElementById('doc-title').value.trim());
+  }
+  updateBreadcrumb();
+}
+
+function selectProgram() {
+  sel.program = currentRole.program;
+  document.getElementById('btn-next').disabled=false;
+  renderStep();
+}
+function selectArea(id) {
+  const a=ALL_AREAS.find(x=>x.id===id);
+  sel.area=a; sel.subarea=null; sel.type=null;
+  document.getElementById('btn-next').disabled=false;
+  renderStep();
+}
+function selectSubarea(id,name) {
+  sel.subarea={id,name}; sel.type=null;
+  document.getElementById('btn-next').disabled=false;
+  renderStep();
+}
+function selectType(type,el) {
+  sel.type=type;
+  document.getElementById('btn-next').disabled=false;
+  renderStep();
+}
+function simulateFile() {
+  sel.file=true;
+  document.getElementById('dropzone').style.display='none';
+  document.getElementById('file-preview').classList.add('show');
+  const n=`${currentRole.program.name}_${sel.subarea?.name.replace(/\s+/g,'_')}_${sel.type}.pdf`;
+  document.getElementById('fname').textContent=n;
+  document.getElementById('fsize').textContent='1.24 MB · PDF';
+  if(!document.getElementById('doc-title').value)
+    document.getElementById('doc-title').value=`${sel.subarea?.name} — ${sel.type?.charAt(0).toUpperCase()+sel.type?.slice(1)} AY 2024-2025`;
+  checkReady();
+}
+function removeFile() {
+  sel.file=false;
+  document.getElementById('dropzone').style.display='block';
+  document.getElementById('file-preview').classList.remove('show');
+  checkReady();
+}
+function checkReady() {
+  if(step===4) document.getElementById('btn-next').disabled=!(sel.file&&document.getElementById('doc-title').value.trim());
+}
+function goNext() {
+  if(step===4){submitEvidence();return;}
+  step++; renderStep();
+}
+function goBack() {
+  if(step<=0)return; step--; renderStep();
+}
+function submitEvidence() {
+  const title=document.getElementById('doc-title').value;
+  document.getElementById('success-desc').textContent=
+    `"${title}" has been submitted for review under ${sel.subarea?.name} (${sel.type?.charAt(0).toUpperCase()+sel.type?.slice(1)}).`;
+  document.getElementById('success-meta').innerHTML=
+    `${sel.program?.name} &nbsp;·&nbsp; ${sel.area?.name} &nbsp;·&nbsp; ${sel.subarea?.name} &nbsp;·&nbsp; ${sel.type?.toUpperCase()} &nbsp;·&nbsp; Version 1`;
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('sp-success').classList.add('active');
+  document.getElementById('modal-footer').innerHTML=`
+    <div></div>
+    <div class="footer-nav">
+      <button class="btn btn-ghost" onclick="resetAll()">Upload another</button>
+      <button class="btn btn-gold" onclick="resetAll()">Done</button>
+    </div>`;
+  for(let i=0;i<5;i++) document.getElementById('sd'+i).className='step-dot done';
+  document.getElementById('modal-sub').textContent='Evidence submitted successfully';
+}
+function resetAll() {
+  step=0; sel={program:null,area:null,subarea:null,type:null,file:false};
+  document.getElementById('dropzone').style.display='block';
+  document.getElementById('file-preview').classList.remove('show');
+  document.getElementById('doc-title').value='';
+  document.getElementById('doc-notes').value='';
+  document.getElementById('modal-footer').innerHTML=`
+    <div class="prog-text">Step <span id="step-num">1</span> of 5</div>
+    <div class="footer-nav">
+      <button class="btn btn-ghost" id="btn-back" onclick="goBack()" style="display:none">← Back</button>
+      <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Next →</button>
+    </div>`;
+  renderStep();
+}
+resetAll();
+</script>
