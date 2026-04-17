@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Area;
+use App\Models\Document;
 use App\Models\Program;
 use App\Models\SubArea;
+use App\Models\SubAreaNote;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -39,6 +41,7 @@ class AreaController extends Controller
             ->with([
                 'subAreas' => fn ($q) => $q->where('is_archived', false)->orderBy('order_number'),
                 'subAreas.documents' => fn ($q) => $q->with('uploader'),
+                'subAreas.notes',
                 'assignments.user',
             ])
             ->orderBy('order_number')
@@ -66,6 +69,12 @@ class AreaController extends Controller
                 'sub_areas' => $area->subAreas->map(function ($sa) use ($isCoord, $isDean, $canAct, $user) {
                     $docs = $sa->documents->keyBy('doc_type');
 
+                    // Return note for this user's program
+                    $programId  = $user->program_id;
+                    $returnNote = $programId
+                        ? $sa->notes->firstWhere('program_id', $programId)?->notes
+                        : null;
+
                     $slotMap = fn($type) => $docs->has($type) ? [
                         'id'               => $docs[$type]->id,
                         'title'            => $docs[$type]->title,
@@ -74,17 +83,18 @@ class AreaController extends Controller
                         'rejection_reason' => $docs[$type]->rejection_reason,
                         'version'          => 'v' . $docs[$type]->current_version,
                         'uploader'         => $docs[$type]->uploader?->name,
-                        'can_edit'         => $canAct,    // all 3 roles can upload/version
-                        'can_approve'      => $isDean,    // dean only approves/rejects
+                        'can_edit'         => $canAct,
+                        'can_approve'      => $isDean,
                         'doc_id'           => $docs[$type]->id,
                     ] : null;
 
                     return [
-                        'id'                => $sa->id,
-                        'name'              => $sa->name,
-                        'order_number'      => $sa->order_number,
-                        'submission_status' => $sa->submission_status,
+                        'id'                   => $sa->id,
+                        'name'                 => $sa->name,
+                        'order_number'         => $sa->order_number,
+                        'submission_status'    => $sa->submission_status,
                         'submitted_by_dean_at' => $sa->submitted_by_dean_at?->format('M j, Y'),
+                        'return_notes'         => $returnNote,
                         'slots' => [
                             'input'   => $slotMap('input'),
                             'process' => $slotMap('process'),
@@ -149,9 +159,28 @@ class AreaController extends Controller
         $data = $request->validate([
             'name'         => 'required|string|max:200',
             'order_number' => 'nullable|integer|min:0',
+            'sub_areas'    => 'nullable|array',
+            'sub_areas.*'  => 'string|max:200',
         ]);
 
-        Area::create([...$data, 'created_by' => $request->user()->id]);
+        $area = Area::create([
+            'name'         => $data['name'],
+            'order_number' => $data['order_number'] ?? 0,
+            'created_by'   => $request->user()->id,
+        ]);
+
+        // Bulk-create optional sub-areas
+        foreach ($data['sub_areas'] ?? [] as $idx => $subName) {
+            if (trim($subName) !== '') {
+                SubArea::create([
+                    'area_id'           => $area->id,
+                    'name'              => trim($subName),
+                    'order_number'      => $idx + 1,
+                    'submission_status' => 'draft',
+                    'created_by'        => $request->user()->id,
+                ]);
+            }
+        }
 
         return back()->with('success', "Area \"{$data['name']}\" created.");
     }

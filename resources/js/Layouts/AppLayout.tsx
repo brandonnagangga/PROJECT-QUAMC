@@ -18,7 +18,7 @@ const ALL = ['admin', 'director', 'dean', 'program-coordinator', 'area-coordinat
 
 const allNavItems = [
     { label: 'Overview', items: [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', screen: 'dashboard', roles: ALL },
+        { name: 'Dashboard', icon: LayoutDashboard, href: '/', screen: 'dashboard', roles: ALL },
         { name: 'Documents', icon: FileText, href: '/documents', screen: 'documents', roles: ALL },
     ]},
     { label: 'Accreditation', items: [
@@ -83,12 +83,12 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     };
 
     const isActive = (href: string) => {
-        if (href === '/dashboard') return currentPath === '/dashboard' || currentPath === '/';
+        if (href === '/') return currentPath === '/' || currentPath === '/dashboard';
         return currentPath.startsWith(href);
     };
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'DM Sans', sans-serif", background: '#f8f9fc', color: '#1e2640' }}>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: '#f8f9fc', color: '#1e2640' }}>
             {/* SIDEBAR */}
             <aside style={{
                 width: 240, background: '#0f1f3d', height: '100vh', display: 'flex', flexDirection: 'column',
@@ -151,7 +151,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                             <Icon size={15} color={active ? '#e8c96d' : 'rgba(255,255,255,0.5)'} />
                                         </div>
                                         <span style={{
-                                            fontSize: 12.5, fontWeight: 500, flex: 1,
+                                            fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
                                             color: active ? '#e8c96d' : 'rgba(255,255,255,0.65)',
                                         }}>{item.name}</span>
                                         {'badge' in item && item.badge !== null && (
@@ -209,11 +209,11 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
                 {/* TOPBAR */}
                 <div style={{
-                    height: 60, background: '#fff', borderBottom: '1px solid #dde1ed',
+                    height: 72, background: '#fff', borderBottom: '1px solid #dde1ed',
                     display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
                 }}>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 600, color: '#0f1f3d' }}>
+                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 800, color: '#0f1f3d', lineHeight: 1.1 }}>
                             {title}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8892aa' }}>

@@ -17,7 +17,46 @@
     --color-info-light: #eff6ff;
     --color-pending: #6b3fa0;
     --color-pending-light: #f3eeff;
-    --font-sans: 'DM Sans', sans-serif;
+
+    /* Font Guide
+     * Header  → Playfair Display  38px  weight 800
+     * Sidebar → Inter             15px  weight 600
+     * Body    → Inter             14px  weight 400
+     */
+    --font-sans: 'Inter', sans-serif;
     --font-serif: 'Playfair Display', serif;
     --font-mono: 'DM Mono', monospace;
+
+    /* Font-size tokens */
+    --fs-header:  38px;
+    --fs-sidebar: 15px;
+    --fs-body:    14px;
+
+    /* Font-weight tokens */
+    --fw-header:  800;
+    --fw-sidebar: 600;
+    --fw-body:    400;
 }
+
+/* ── Global base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    font-size: var(--fs-body);
+    font-weight: var(--fw-body);
+    color: #1e2640;
+    background: #f8f9fc;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page-level headers (h1) use Playfair Display at 38px/800 */
+h1.page-header {
+    font-family: 'Playfair Display', serif;
+    font-size: var(--fs-header);
+    font-weight: var(--fw-header);
+    color: #0f1f3d;
+    line-height: 1.15;
+}
+

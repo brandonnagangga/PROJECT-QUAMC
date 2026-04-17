@@ -6,7 +6,8 @@ import { confirmAction } from '@/utils/toast';
 import Swal from 'sweetalert2';
 import {
     ChevronDown, ChevronUp, Upload, CheckCircle, Clock, RotateCcw,
-    FileText, Download, Eye, ArrowRight, Pencil, ThumbsUp, ThumbsDown, CloudUpload,
+    FileText, Download, Eye, ArrowRight, Pencil, ThumbsUp, ThumbsDown,
+    CloudUpload, StickyNote, X,
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -19,6 +20,7 @@ interface DocSlot {
 interface SubAreaData {
     id: number; name: string; order_number: number;
     submission_status: string; submitted_by_dean_at: string | null;
+    return_notes: string | null;
     slots: Record<number, { input: DocSlot | null; process: DocSlot | null; outcome: DocSlot | null }>;
 }
 interface AreaData {
@@ -62,7 +64,34 @@ const APPROVAL_CONFIG = {
     rejected: { bg: '#fef2f2', color: '#9b1c1c', label: 'Rejected' },
 };
 
-/* ── SlotCard: a self-contained card component for each doc-type slot ── */
+/* ── Shared Modal Shell ── */
+function ModalShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+                padding: '16px',
+            }}
+            onClick={onClose}
+        >
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                    background: '#fff', borderRadius: 16, padding: '28px 32px',
+                    width: '100%', maxWidth: 560,
+                    boxShadow: '0 20px 60px rgba(15,31,61,0.18)',
+                    maxHeight: '90vh', overflowY: 'auto',
+                    position: 'relative',
+                }}
+            >
+                {children}
+            </div>
+        </div>
+    );
+}
+
+/* ── SlotCard ── */
 function SlotCard({
     type, doc, sa, area, selectedProgram, role, can_act,
     onUpload,
@@ -79,9 +108,7 @@ function SlotCard({
     const isDean = role === 'dean';
     const st = SLOT_STYLES[type];
 
-    // Hover state for the action bar
     const [hovered, setHovered] = useState(false);
-    // Dean approve/reject UI state
     const [showDeanBar, setShowDeanBar] = useState<null | 'approve' | 'reject'>(null);
     const [rejectReason, setRejectReason] = useState('');
 
@@ -113,11 +140,9 @@ function SlotCard({
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { setHovered(false); if (showDeanBar) setShowDeanBar(null); }}
         >
-            {/* Top color bar */}
             <div style={{ height: 2, background: st.color }} />
 
             <div style={{ padding: '10px 12px' }}>
-                {/* Slot label */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
                     <span style={{ fontSize: 13, color: st.color }}>{st.icon}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{st.label}</span>
@@ -128,7 +153,6 @@ function SlotCard({
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#0f1f3d', marginBottom: 3, lineHeight: 1.3 }}>{doc.title}</div>
                         <div style={{ fontSize: 9.5, color: '#8892aa', marginBottom: 6 }}>{doc.version} · {doc.uploader}</div>
 
-                        {/* Doc status + approval badge */}
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
                             <span style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -138,7 +162,6 @@ function SlotCard({
                                 fontWeight: 600,
                             }}>{doc.status === 'pending_review' ? 'Pending' : doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}</span>
 
-                            {/* Approval status badge */}
                             {approvalCfg && (
                                 <span style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -148,14 +171,12 @@ function SlotCard({
                             )}
                         </div>
 
-                        {/* Rejection reason if rejected */}
                         {doc.approval_status === 'rejected' && doc.rejection_reason && (
                             <div style={{ fontSize: 9, color: '#9b1c1c', fontStyle: 'italic', marginBottom: 6 }}>
                                 "{doc.rejection_reason}"
                             </div>
                         )}
 
-                        {/* ── Action Buttons (bottom-right, shown on hover) ── */}
                         {can_act && (
                             <div style={{
                                 display: 'flex', gap: 4, justifyContent: 'flex-end',
@@ -164,7 +185,6 @@ function SlotCard({
                                 transition: 'opacity 0.18s, transform 0.18s',
                                 marginTop: 4,
                             }}>
-                                {/* Upload new version (Edit) */}
                                 <button
                                     title="Upload new version"
                                     onClick={() => onUpload(sa.id, area.id, type, area.name, sa.name)}
@@ -177,7 +197,6 @@ function SlotCard({
                                     <Pencil size={12} />
                                 </button>
 
-                        {/* View document detail */}
                                 <Link
                                     href={`/documents/${doc.doc_id}`}
                                     title="View details & version history"
@@ -190,7 +209,6 @@ function SlotCard({
                                     <Eye size={12} />
                                 </Link>
 
-                                {/* Download latest */}
                                 <a
                                     href={`/documents/${doc.doc_id}/download`}
                                     title="Download latest version"
@@ -205,38 +223,23 @@ function SlotCard({
                             </div>
                         )}
 
-                        {/* ── Dean: Approve / Reject slide-up bar ── */}
                         {isDean && doc.approval_status === 'pending' && hovered && !showDeanBar && (
-                            <div style={{
-                                display: 'flex', gap: 5, marginTop: 8,
-                                animation: 'slideUp 0.18s ease-out',
-                            }}>
+                            <div style={{ display: 'flex', gap: 5, marginTop: 8, animation: 'slideUp 0.18s ease-out' }}>
                                 <button
                                     onClick={() => setShowDeanBar('approve')}
-                                    title="Approve this document"
-                                    style={{
-                                        flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
-                                        background: '#e8f5ee', color: '#1a7a4a', fontSize: 10, fontWeight: 700,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                                    }}
+                                    style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#e8f5ee', color: '#1a7a4a', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                                 >
                                     <ThumbsUp size={11} /> Approve
                                 </button>
                                 <button
                                     onClick={() => setShowDeanBar('reject')}
-                                    title="Reject this document"
-                                    style={{
-                                        flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
-                                        background: '#fef2f2', color: '#9b1c1c', fontSize: 10, fontWeight: 700,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                                    }}
+                                    style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#9b1c1c', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                                 >
                                     <ThumbsDown size={11} /> Reject
                                 </button>
                             </div>
                         )}
 
-                        {/* Approve confirmation */}
                         {isDean && showDeanBar === 'approve' && (
                             <div style={{ marginTop: 8, padding: '8px 10px', background: '#e8f5ee', borderRadius: 8, border: '1px solid #a7f3d0' }}>
                                 <div style={{ fontSize: 10, color: '#1a7a4a', fontWeight: 700, marginBottom: 6 }}>Confirm Approval?</div>
@@ -247,7 +250,6 @@ function SlotCard({
                             </div>
                         )}
 
-                        {/* Reject with reason */}
                         {isDean && showDeanBar === 'reject' && (
                             <div style={{ marginTop: 8, padding: '8px 10px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
                                 <div style={{ fontSize: 10, color: '#9b1c1c', fontWeight: 700, marginBottom: 5 }}>Reason (optional)</div>
@@ -265,7 +267,6 @@ function SlotCard({
                             </div>
                         )}
 
-                        {/* Dean re-approve option if already rejected */}
                         {isDean && doc.approval_status === 'rejected' && hovered && (
                             <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
                                 <button
@@ -281,7 +282,6 @@ function SlotCard({
                     <>
                         <div style={{ fontSize: 10, color: '#b8bfd4', fontStyle: 'italic', marginBottom: 6 }}>No file yet</div>
 
-                        {/* Upload button (always visible when slot is empty and user can act) */}
                         {can_act && (
                             <button
                                 onClick={() => onUpload(sa.id, area.id, type, area.name, sa.name)}
@@ -331,9 +331,9 @@ function UploadModal({
     const [docType, setDocType] = useState<string>(preselect?.doc_type ?? '');
     const [areas, setAreas] = useState<{ id: number; name: string; sub_areas: { id: number; name: string }[] }[]>([]);
     const [loading, setLoading] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
-    // Sync preselect into local state whenever the modal opens or preselect changes
     useEffect(() => {
         if (open && preselect) {
             if (preselect.area_id)     setAreaId(preselect.area_id);
@@ -341,14 +341,13 @@ function UploadModal({
             if (preselect.doc_type)    setDocType(preselect.doc_type);
         }
         if (!open) {
-            // Reset file & title on close so next open is clean
             setFile(null);
             setTitle('');
             setNotes('');
         }
     }, [open, preselect]);
 
-    // Only fetch areas list if NOT fully preselected (i.e., general upload from header button)
+    // Only fetch areas list if NOT fully preselected
     if (open && !isPreselected && areas.length === 0) {
         fetch('/documents/upload-data')
             .then(r => r.json())
@@ -369,7 +368,9 @@ function UploadModal({
         fd.append('sub_area_id', String(subAreaId));
         fd.append('doc_type', docType);
 
+        // Use Inertia router with forceFormData to correctly send multipart file uploads
         router.post('/documents', fd as any, {
+            forceFormData: true,
             preserveScroll: true,
             onSuccess: () => { onClose(); setFile(null); setTitle(''); setNotes(''); setLoading(false); },
             onError: () => setLoading(false),
@@ -384,115 +385,206 @@ function UploadModal({
         fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d',
     };
 
-    return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 28, width: 480, boxShadow: '0 20px 60px rgba(15,31,61,0.18)', maxHeight: '90vh', overflowY: 'auto' }}>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#0f1f3d', marginBottom: 4 }}>Upload Evidence</div>
-                <div style={{ fontSize: 11.5, color: '#8892aa', marginBottom: 20 }}>Upload a file to the selected slot. A new version will be created if a file already exists.</div>
+    const docTypeLabel = docType ? (docType.charAt(0).toUpperCase() + docType.slice(1)) : '';
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* Area: locked read-only when preselected, dropdown otherwise */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Area</label>
-                        {isPreselected ? (
-                            <div style={{ ...inp, background: '#f8f9fc', color: '#8892aa', display: 'flex', alignItems: 'center' }}>
-                                🔒 {preselect?.area_name}
+    return (
+        <ModalShell onClose={onClose}>
+            {/* Close button */}
+            <button
+                onClick={onClose}
+                style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: 8, border: '1px solid #dde1ed', background: '#f8f9fc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+                <X size={14} color="#8892aa" />
+            </button>
+
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#0f1f3d', marginBottom: 4 }}>Upload Evidence</div>
+            <div style={{ fontSize: 11.5, color: '#8892aa', marginBottom: 20 }}>A new version will be created if a file already exists for this slot.</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Context banner (replaces locked inputs when preselected) */}
+                {isPreselected ? (
+                    <div style={{
+                        background: 'linear-gradient(135deg, #e6f1fb, #eef5ff)',
+                        border: '1.5px solid #378add40',
+                        borderRadius: 10, padding: '12px 16px',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={18} color="#fff" />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 11, color: '#8892aa', fontWeight: 500, marginBottom: 2 }}>Uploading to</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f1f3d', lineHeight: 1.3 }}>
+                                {preselect?.area_name} &rsaquo; {preselect?.sub_area_name}
                             </div>
-                        ) : (
+                            <div style={{ fontSize: 11, color: '#185fa5', fontWeight: 600, marginTop: 2 }}>
+                                Document Type: {docTypeLabel}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Area dropdown */}
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Area</label>
                             <select style={inp} value={areaId} onChange={e => { setAreaId(Number(e.target.value)); setSubAreaId(''); }}>
                                 <option value="">Select area…</option>
                                 {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* Sub-area: locked when preselected */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Sub-area</label>
-                        {isPreselected ? (
-                            <div style={{ ...inp, background: '#f8f9fc', color: '#8892aa', display: 'flex', alignItems: 'center' }}>
-                                🔒 {preselect?.sub_area_name}
-                            </div>
-                        ) : (
+                        {/* Sub-area dropdown */}
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Sub-area</label>
                             <select style={inp} value={subAreaId} onChange={e => setSubAreaId(Number(e.target.value))} disabled={!areaId}>
                                 <option value="">Select sub-area…</option>
                                 {(areas.find(a => a.id === areaId)?.sub_areas ?? []).map(sa => <option key={sa.id} value={sa.id}>{sa.name}</option>)}
                             </select>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* Doc type: locked when preselected */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Type</label>
-                        {isPreselected ? (
-                            <div style={{ ...inp, background: '#f8f9fc', color: '#8892aa', display: 'flex', alignItems: 'center', textTransform: 'capitalize' }}>
-                                🔒 {preselect?.doc_type}
-                            </div>
-                        ) : (
+                        {/* Doc type dropdown */}
+                        <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Type</label>
                             <select style={inp} value={docType} onChange={e => setDocType(e.target.value)}>
                                 <option value="">Select type…</option>
                                 <option value="input">Input</option>
                                 <option value="process">Process</option>
                                 <option value="outcome">Outcome</option>
                             </select>
+                        </div>
+                    </>
+                )}
+
+                {/* Document Title */}
+                <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Title <span style={{ color: '#9b1c1c' }}>*</span></label>
+                    <input style={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CMO Alignment Matrix" />
+                </div>
+
+                {/* File picker with drag & drop */}
+                <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>File <span style={{ color: '#9b1c1c' }}>*</span></label>
+                    <div
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
+                        style={{
+                            border: `2px dashed ${dragOver ? '#185fa5' : '#dde1ed'}`,
+                            borderRadius: 10, padding: '24px 16px',
+                            textAlign: 'center', cursor: 'pointer',
+                            background: dragOver ? '#e6f1fb' : '#f8f9fc',
+                            transition: 'all 0.15s',
+                        }}
+                    >
+                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
+                        {file ? (
+                            <div>
+                                <FileText size={20} color="#0f1f3d" style={{ marginBottom: 6 }} />
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d' }}>{file.name}</div>
+                                <div style={{ fontSize: 10, color: '#8892aa', marginTop: 2 }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                            </div>
+                        ) : (
+                            <div>
+                                <CloudUpload size={24} color="#b8bfd4" style={{ marginBottom: 6 }} />
+                                <div style={{ fontSize: 12, color: '#8892aa' }}>Click to browse or drag & drop</div>
+                                <div style={{ fontSize: 10, color: '#b8bfd4', marginTop: 3 }}>PDF, DOCX, XLSX up to 50 MB</div>
+                            </div>
                         )}
                     </div>
+                </div>
 
-                    {/* Title */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Title</label>
-                        <input style={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CMO Alignment Matrix" />
-                    </div>
+                {/* Notes */}
+                <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Notes <span style={{ color: '#8892aa', fontWeight: 400 }}>(optional)</span></label>
+                    <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' } as any} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any relevant notes…" />
+                </div>
 
-                    {/* File picker */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>File</label>
-                        <div
-                            onClick={() => fileRef.current?.click()}
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>Cancel</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading || !file || !title || !selectedProgram || !subAreaId || !docType}
+                        style={{
+                            padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700,
+                            background: '#0f1f3d', color: '#c9a84c', cursor: 'pointer',
+                            opacity: (loading || !file || !title || !selectedProgram || !subAreaId || !docType) ? 0.55 : 1,
+                            transition: 'opacity 0.15s',
+                        }}
+                    >
+                        {loading ? 'Uploading…' : 'Upload Evidence'}
+                    </button>
+                </div>
+            </div>
+        </ModalShell>
+    );
+}
+
+/* ── Return Note Banner (coordinator + dean visible, dean can edit) ── */
+function ReturnNoteBanner({ sa, isDean, selectedProgram }: { sa: SubAreaData; isDean: boolean; selectedProgram: number | null }) {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(sa.return_notes ?? '');
+
+    if (!sa.return_notes && !isDean) return null;
+    if (!sa.return_notes && isDean) {
+        // Dean can add a note even if none exists
+    }
+
+    const handleSave = () => {
+        if (!selectedProgram) return;
+        router.post(`/sub-areas/${sa.id}/note`, { notes: draft, program_id: selectedProgram }, {
+            preserveScroll: true,
+            onSuccess: () => setEditing(false),
+        });
+    };
+
+    return (
+        <div style={{
+            margin: '8px 0 4px 0',
+            background: 'linear-gradient(135deg, #fffbe6, #fef3c7)',
+            border: '1.5px solid #f59e0b40',
+            borderRadius: 9, padding: '10px 14px',
+            display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+            <StickyNote size={15} color="#b45309" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Return Note {isDean && <span style={{ fontWeight: 400, textTransform: 'none', color: '#b45309' }}>(visible to coordinators)</span>}
+                </div>
+                {editing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <textarea
+                            value={draft}
+                            onChange={e => setDraft(e.target.value)}
+                            autoFocus
+                            rows={3}
                             style={{
-                                border: '2px dashed #dde1ed', borderRadius: 10, padding: '22px 16px',
-                                textAlign: 'center', cursor: 'pointer', background: '#f8f9fc',
-                                transition: 'all 0.15s',
+                                width: '100%', fontSize: 12, borderRadius: 6, border: '1.5px solid #f59e0b',
+                                padding: '6px 8px', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                                background: '#fffde7', fontFamily: "'DM Sans', sans-serif",
                             }}
-                        >
-                            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
-                            {file ? (
-                                <div>
-                                    <FileText size={18} color="#0f1f3d" style={{ marginBottom: 4 }} />
-                                    <div style={{ fontSize: 12, fontWeight: 500, color: '#0f1f3d' }}>{file.name}</div>
-                                    <div style={{ fontSize: 10, color: '#8892aa', marginTop: 2 }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <CloudUpload size={22} color="#b8bfd4" style={{ marginBottom: 5 }} />
-                                    <div style={{ fontSize: 12, color: '#8892aa' }}>Click to browse · PDF, DOCX, XLSX up to 50MB</div>
-                                </div>
+                        />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={handleSave} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#b45309', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Save Note</button>
+                            <button onClick={() => { setEditing(false); setDraft(sa.return_notes ?? ''); }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
+                            {sa.return_notes && (
+                                <button onClick={() => { setDraft(''); router.post(`/sub-areas/${sa.id}/note`, { notes: '', program_id: selectedProgram }, { preserveScroll: true, onSuccess: () => setEditing(false) }); }} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', fontSize: 11, cursor: 'pointer', color: '#9b1c1c' }}>Clear</button>
                             )}
                         </div>
                     </div>
-
-                    {/* Notes */}
-                    <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Notes (optional)</label>
-                        <textarea style={{ ...inp, minHeight: 60, resize: 'vertical' } as any} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any relevant notes…" />
+                ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.5, flex: 1 }}>
+                            {sa.return_notes ?? <span style={{ fontStyle: 'italic', color: '#b45309', opacity: 0.7 }}>No note written yet.</span>}
+                        </div>
+                        {isDean && (
+                            <button onClick={() => setEditing(true)} style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 6, border: '1px solid #f59e0b', background: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', color: '#b45309', whiteSpace: 'nowrap' }}>
+                                <Pencil size={10} style={{ display: 'inline', marginRight: 3 }} />Edit
+                            </button>
+                        )}
                     </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-                        <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={loading || !file || !title || !selectedProgram || !subAreaId || !docType}
-                            style={{
-                                padding: '9px 22px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600,
-                                background: '#0f1f3d', color: '#c9a84c', cursor: 'pointer',
-                                opacity: (loading || !file || !title || !selectedProgram || !subAreaId || !docType) ? 0.6 : 1,
-                            }}
-                        >
-                            {loading ? 'Uploading…' : 'Upload Evidence'}
-                        </button>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );
@@ -503,6 +595,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
     const isDirector = role === 'director';
     const isDean     = role === 'dean';
     const isCoord    = ['area-coordinator', 'program-coordinator'].includes(role);
+    const showNotes  = isCoord || isDean; // director does NOT see return notes
 
     const [selectedProgram, setSelectedProgram] = useState<number | null>(programs[0]?.id ?? null);
     const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
@@ -553,7 +646,12 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
             confirmButtonText: 'Return',
             confirmButtonColor: '#9b1c1c',
         });
-        if (isConfirmed) router.post(`/sub-areas/${sa.id}/return`, { comment: comment || '' }, { preserveScroll: true });
+        if (isConfirmed) {
+            router.post(`/sub-areas/${sa.id}/return`, {
+                comment: comment || '',
+                program_id: selectedProgram,
+            }, { preserveScroll: true });
+        }
     };
 
     const getAreaProgress = (area: AreaData) => {
@@ -572,16 +670,12 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
         <AppLayout title="Areas" breadcrumb="Accreditation Areas">
             <Head title="Accreditation Areas" />
 
-            {/* Slide-up animation keyframe */}
             <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
 
-            {/* ── Header ── */}
+            {/* ── Subtitle & Actions ── */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 24 }}>
                 <div>
-                    <div style={{ fontFamily:"'Playfair Display',serif", fontSize: 22, fontWeight: 700, color:'#0f1f3d' }}>
-                        Accreditation Areas
-                    </div>
-                    <div style={{ fontSize: 12, color:'#8892aa', marginTop: 3 }}>
+                    <div style={{ fontSize: 13, color:'#4a5470' }}>
                         {isDirector ? 'Director view — final approvals' : isDean ? 'Dean view — review & approve documents' : 'Coordinator view — upload evidence per slot'}
                     </div>
                 </div>
@@ -605,7 +699,6 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                 </div>
             </div>
 
-            {/* ── Program Filter Tabs ── */}
             {/* ── Program Filter Tabs ── */}
             <div style={{ display:'flex', gap: 8, marginBottom: 24, flexWrap:'wrap' }}>
                 {programs.map(prog => (
@@ -647,7 +740,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 fontSize: 13, fontWeight: 800, color: color,
                                             }}>{area.order_number}</div>
                                             <div>
-                                                <div style={{ fontSize: 15, fontWeight: 700, color:'#0f1f3d', fontFamily:"'Playfair Display',serif" }}>
+                                                <div style={{ fontSize: 15, fontWeight: 600, color:'#0f1f3d', fontFamily:"'Inter', sans-serif" }}>
                                                     {area.name}
                                                 </div>
                                                 <div style={{ fontSize: 11, color:'#8892aa', marginTop: 1 }}>
@@ -667,7 +760,6 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 <div style={{ width: prog.pct + '%', height: '100%', background: color, borderRadius: 2, transition:'width 0.4s' }} />
                                             </div>
                                         </div>
-                                        {/* Export Area Survey PDF */}
                                         {selectedProgram && (
                                             <a
                                                 href={`/export/area/${area.id}?program_id=${selectedProgram}`}
@@ -711,7 +803,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 background: si % 2 === 0 ? '#fff' : '#fafbfe',
                                             }}>
                                                 {/* Sub-area header row */}
-                                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 10 }}>
+                                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
                                                     <div>
                                                         <span style={{ fontSize: 13, fontWeight: 600, color:'#0f1f3d' }}>{sa.name}</span>
                                                         {sa.submitted_by_dean_at && (
@@ -722,22 +814,18 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                         <span style={{ display:'inline-flex', alignItems:'center', gap: 4, padding:'3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: ss.bg, color: ss.color }}>
                                                             <SsIcon size={10} /> {ss.label}
                                                         </span>
-                                                        {/* Export PDF */}
                                                         {selectedProgram && (
                                                             <a href={`/export/sub-area/${sa.id}?program_id=${selectedProgram}`}
                                                                 style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#f0f2f8', color:'#4a5470', border:'1px solid #dde1ed', textDecoration:'none', display:'inline-flex', alignItems:'center', gap: 3 }}>
                                                                 ⬇ Export PDF
                                                             </a>
                                                         )}
-                                                        {/* Coordinator: no Submit button — coordinators only upload */}
-                                                        {/* Dean: Submit to Director or Return */}
                                                         {isDean && ['draft','submitted_to_dean','returned_by_dean','returned'].includes(sa.submission_status) && (
                                                             <>
                                                                 <button onClick={() => handleForwardToDirector(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#185fa5', color:'#fff', border:'none', cursor:'pointer' }}>↑ Submit to Director</button>
                                                                 <button onClick={() => handleReturn(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return</button>
                                                             </>
                                                         )}
-                                                        {/* Director: Approve + Return */}
                                                         {isDirector && sa.submission_status === 'submitted_to_director' && (
                                                             <>
                                                                 <button onClick={() => handleApproveDirector(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#e8f5ee', color:'#1a7a4a', border:'1px solid #a7f3d0', cursor:'pointer' }}>✓ Approve</button>
@@ -747,7 +835,12 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                     </div>
                                                 </div>
 
-                                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 8 }}>
+                                                {/* Return Note Banner — coordinator & dean only */}
+                                                {showNotes && (sa.return_notes || isDean) && (
+                                                    <ReturnNoteBanner sa={sa} isDean={isDean} selectedProgram={selectedProgram} />
+                                                )}
+
+                                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
                                                     {(['input','process','outcome'] as const).map(type => {
                                                         const progSlots = selectedProgram ? sa.slots[selectedProgram] : null;
                                                         return (
@@ -756,10 +849,10 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                                 type={type}
                                                                 doc={progSlots ? progSlots[type] : null}
                                                                 sa={sa}
-                                                            area={area}
-                                                            selectedProgram={selectedProgram}
-                                                            role={role}
-                                                            can_act={can_act}
+                                                                area={area}
+                                                                selectedProgram={selectedProgram}
+                                                                role={role}
+                                                                can_act={can_act}
                                                                 onUpload={openUpload}
                                                             />
                                                         );

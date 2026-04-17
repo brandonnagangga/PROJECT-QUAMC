@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
 
     // ── Areas (global — Director manages structure) ──
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
@@ -45,6 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sub-areas/{subArea}/forward', [SubAreaSubmissionController::class, 'forwardToDirector'])->name('sub-areas.forward');
     Route::post('/sub-areas/{subArea}/approve', [SubAreaSubmissionController::class, 'approveDirector'])->name('sub-areas.approve');
     Route::post('/sub-areas/{subArea}/return', [SubAreaSubmissionController::class, 'returnSubArea'])->name('sub-areas.return');
+    Route::post('/sub-areas/{subArea}/note', [SubAreaSubmissionController::class, 'updateNote'])->name('sub-areas.note');
 
     // ── Exports ──
     Route::get('/export/sub-area/{subArea}', [ExportController::class, 'subArea'])->name('export.subArea');
@@ -91,6 +93,7 @@ Route::middleware('auth')->group(function () {
     // ── Reports ──
     Route::get('/reports/readiness', [ReadinessController::class, 'index'])->name('reports.readiness');
     Route::get('/reports/readiness/export', [ReadinessController::class, 'export'])->name('reports.readiness.export');
+    Route::get('/reports/readiness/export/{program}', [ReadinessController::class, 'exportProgram'])->name('reports.readiness.exportProgram');
 
     // ── Accreditation Cycles ──
     Route::get('/cycles', [CycleController::class, 'index'])->name('cycles.index');

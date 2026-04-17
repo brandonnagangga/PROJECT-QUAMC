@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubArea;
+use App\Models\SubAreaNote;
 use Illuminate\Http\Request;
 
 class SubAreaSubmissionController extends Controller
@@ -70,7 +71,10 @@ class SubAreaSubmissionController extends Controller
      */
     public function returnSubArea(SubArea $subArea, Request $request)
     {
-        $request->validate(['comment' => 'nullable|string|max:500']);
+        $request->validate([
+            'comment'    => 'nullable|string|max:1000',
+            'program_id' => 'nullable|exists:programs,id',
+        ]);
         $user = $request->user();
 
         $isDean     = $user->hasRole('dean');
@@ -91,7 +95,45 @@ class SubAreaSubmissionController extends Controller
         $newStatus = $isDean ? 'returned_by_dean' : 'returned';
         $subArea->update(['submission_status' => $newStatus]);
 
+        // Save return note per program when a comment is provided
+        $programId = $request->program_id ?? $user->program_id;
+        if (!empty($request->comment) && $programId) {
+            SubAreaNote::updateOrCreate(
+                ['sub_area_id' => $subArea->id, 'program_id' => $programId],
+                ['notes' => $request->comment, 'updated_by' => $user->id]
+            );
+        }
+
         return back()->with('success', "\"{$subArea->name}\" returned for revision.");
+    }
+
+    /**
+     * Dean: update or clear the return note for a specific program's sub-area.
+     */
+    public function updateNote(SubArea $subArea, Request $request)
+    {
+        $request->validate([
+            'notes'      => 'nullable|string|max:1000',
+            'program_id' => 'required|exists:programs,id',
+        ]);
+
+        $user = $request->user();
+        if (!$user->hasRole('dean')) {
+            return back()->with('error', 'Only Deans can update return notes.');
+        }
+
+        if (empty($request->notes)) {
+            SubAreaNote::where('sub_area_id', $subArea->id)
+                ->where('program_id', $request->program_id)
+                ->delete();
+        } else {
+            SubAreaNote::updateOrCreate(
+                ['sub_area_id' => $subArea->id, 'program_id' => $request->program_id],
+                ['notes' => $request->notes, 'updated_by' => $user->id]
+            );
+        }
+
+        return back()->with('success', 'Return note updated.');
     }
 
     /* ── Director-only Sub-area CRUD ── */
