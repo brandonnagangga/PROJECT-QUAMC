@@ -142,10 +142,25 @@ export default function Readiness({ programs, summary }: Props) {
                                     </div>
                                 </div>
                             </div>
-                            <div style={{
-                                fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700,
-                                color: program.pct >= 80 ? '#1a7a4a' : program.pct > 0 ? '#c9a84c' : '#b8bfd4',
-                            }}>{program.pct}%</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <a
+                                    href={`/reports/readiness/export/${program.id}`}
+                                    title={`Export ${program.code} Readiness PDF`}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                                        padding: '7px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                        background: '#f0f2f8', color: '#4a5470',
+                                        border: '1px solid #dde1ed', textDecoration: 'none',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    <Download size={12} /> Export {program.code} PDF
+                                </a>
+                                <div style={{
+                                    fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700,
+                                    color: program.pct >= 80 ? '#1a7a4a' : program.pct > 0 ? '#c9a84c' : '#b8bfd4',
+                                }}>{program.pct}%</div>
+                            </div>
                         </div>
 
                         {/* Mini stats */}

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAreaRequest;
 use App\Http\Requests\Admin\UpdateAreaRequest;
 use App\Models\Area;
+use App\Models\Document;
 use App\Models\Program;
 use App\Models\SubArea;
 use App\Services\AreaService;
@@ -46,6 +47,7 @@ class AreaController extends Controller
             ->with([
                 'subAreas' => fn ($q) => $q->where('is_archived', false)->orderBy('order_number'),
                 'subAreas.documents' => fn ($q) => $q->with('uploader'),
+                'subAreas.notes',
                 'assignments.user',
             ])
             ->orderBy('order_number')
@@ -73,6 +75,12 @@ class AreaController extends Controller
                 'sub_areas' => $area->subAreas->map(function ($sa) use ($isCoord, $isDean, $canAct, $user) {
                     $docs = $sa->documents->keyBy('doc_type');
 
+                    // Return note for this user's program
+                    $programId  = $user->program_id;
+                    $returnNote = $programId
+                        ? $sa->notes->firstWhere('program_id', $programId)?->notes
+                        : null;
+
                     $slotMap = fn($type) => $docs->has($type) ? [
                         'id'               => $docs[$type]->id,
                         'title'            => $docs[$type]->title,
@@ -81,17 +89,18 @@ class AreaController extends Controller
                         'rejection_reason' => $docs[$type]->rejection_reason,
                         'version'          => 'v' . $docs[$type]->current_version,
                         'uploader'         => $docs[$type]->uploader?->name,
-                        'can_edit'         => $canAct,    // all 3 roles can upload/version
-                        'can_approve'      => $isDean,    // dean only approves/rejects
+                        'can_edit'         => $canAct,
+                        'can_approve'      => $isDean,
                         'doc_id'           => $docs[$type]->id,
                     ] : null;
 
                     return [
-                        'id'                => $sa->id,
-                        'name'              => $sa->name,
-                        'order_number'      => $sa->order_number,
-                        'submission_status' => $sa->submission_status,
+                        'id'                   => $sa->id,
+                        'name'                 => $sa->name,
+                        'order_number'         => $sa->order_number,
+                        'submission_status'    => $sa->submission_status,
                         'submitted_by_dean_at' => $sa->submitted_by_dean_at?->format('M j, Y'),
+                        'return_notes'         => $returnNote,
                         'slots' => [
                             'input'   => $slotMap('input'),
                             'process' => $slotMap('process'),

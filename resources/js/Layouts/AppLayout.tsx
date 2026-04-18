@@ -19,7 +19,7 @@ const ALL = ['admin', 'director', 'dean', 'program-coordinator', 'area-coordinat
 
 const allNavItems = [
     { label: 'Overview', items: [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', screen: 'dashboard', roles: ALL },
+        { name: 'Dashboard', icon: LayoutDashboard, href: '/', screen: 'dashboard', roles: ALL },
         { name: 'Documents', icon: FileText, href: '/documents', screen: 'documents', roles: ALL },
         { name: 'Network Graph', icon: Network, href: '/network-graph', screen: 'network-graph', roles: ALL },
     ]},
@@ -98,15 +98,12 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     };
 
     const isActive = (href: string) => {
-        if (href === '/dashboard') return currentPath === '/dashboard' || currentPath === '/';
+        if (href === '/') return currentPath === '/' || currentPath === '/dashboard';
         return currentPath.startsWith(href);
     };
 
     return (
-        <div className={`app-container ${sidebarCollapsed ? 'app-container-sidebar-collapsed' : ''}`}>
-            <ThemeApplier />
-            <SeasonalDecorations />
-            
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: '#f8f9fc', color: '#1e2640' }}>
             {/* SIDEBAR */}
             <aside className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
                 <div className="app-sidebar-deco-1" />
@@ -142,7 +139,17 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                         <div className="app-nav-item-icon">
                                             <Icon size={15} color={getIconColor(active)} />
                                         </div>
-                                        {!sidebarCollapsed && <span className="app-nav-item-text">{item.name}</span>}
+                                        <span style={{
+                                            fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
+                                            color: active ? '#e8c96d' : 'rgba(255,255,255,0.65)',
+                                        }}>{item.name}</span>
+                                        {'badge' in item && item.badge !== null && (
+                                            <span style={{
+                                                background: '#c9a84c', color: '#0f1f3d',
+                                                fontSize: 10, fontWeight: 700, padding: '1px 6px',
+                                                borderRadius: 10, minWidth: 18, textAlign: 'center'
+                                            }}>{item.badge}</span>
+                                        )}
                                     </Link>
                                 );
                             })}
@@ -182,31 +189,18 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
             {/* MAIN */}
             <div className="app-main">
                 {/* TOPBAR */}
-                <div className="app-topbar">
-                    <div className="app-topbar-left">
-                        {/* Breadcrumb Navigation */}
-                        <div className="app-breadcrumb">
-                            <button
-                                className="app-breadcrumb-icon"
-                                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                                onClick={() => setSidebarCollapsed((prev) => !prev)}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                                </svg>
-                            </button>
-                            <button className="app-breadcrumb-icon" title="Favorites">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                                </svg>
-                            </button>
-                            <span className="app-breadcrumb-text">QUAMC</span>
-                            <span className="app-breadcrumb-separator">/</span>
-                            <span className="app-breadcrumb-current">{title}</span>
+                <div style={{
+                    height: 72, background: '#fff', borderBottom: '1px solid #dde1ed',
+                    display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
+                }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 800, color: '#0f1f3d', lineHeight: 1.1 }}>
+                            {title}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8892aa' }}>
+                            <span>QUAMC</span>
+                            <span style={{ color: '#b8bfd4' }}>›</span>
+                            <span>{breadcrumb || title}</span>
                         </div>
                     </div>
                     

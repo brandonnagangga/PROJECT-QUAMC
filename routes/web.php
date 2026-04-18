@@ -32,7 +32,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/', fn() => redirect('/dashboard'));
 
     // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
 
     // ── Areas (global — Director manages structure) ──
     Route::middleware('throttle:60,1')->group(function () {
@@ -48,11 +49,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/sub-areas/{subArea}', [SubAreaSubmissionController::class, 'update'])->name('sub-areas.update');
         Route::post('/sub-areas/{subArea}/archive', [SubAreaSubmissionController::class, 'archive'])->name('sub-areas.archive');
 
-        // Sub-area workflow (submission flow)
-        Route::post('/sub-areas/{subArea}/submit', [SubAreaSubmissionController::class, 'submit'])->name('sub-areas.submit');
-        Route::post('/sub-areas/{subArea}/forward', [SubAreaSubmissionController::class, 'forwardToDirector'])->name('sub-areas.forward');
-        Route::post('/sub-areas/{subArea}/approve', [SubAreaSubmissionController::class, 'approveDirector'])->name('sub-areas.approve');
-        Route::post('/sub-areas/{subArea}/return', [SubAreaSubmissionController::class, 'returnSubArea'])->name('sub-areas.return');
+    // Sub-area workflow (submission flow)
+    Route::post('/sub-areas/{subArea}/submit', [SubAreaSubmissionController::class, 'submit'])->name('sub-areas.submit');
+    Route::post('/sub-areas/{subArea}/forward', [SubAreaSubmissionController::class, 'forwardToDirector'])->name('sub-areas.forward');
+    Route::post('/sub-areas/{subArea}/approve', [SubAreaSubmissionController::class, 'approveDirector'])->name('sub-areas.approve');
+    Route::post('/sub-areas/{subArea}/return', [SubAreaSubmissionController::class, 'returnSubArea'])->name('sub-areas.return');
+    Route::post('/sub-areas/{subArea}/note', [SubAreaSubmissionController::class, 'updateNote'])->name('sub-areas.note');
 
         // ── Exports ──
         Route::get('/export/sub-area/{subArea}', [ExportController::class, 'subArea'])->name('export.subArea');
@@ -99,9 +101,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
-        // ── Reports ──
-        Route::get('/reports/readiness', [ReadinessController::class, 'index'])->name('reports.readiness');
-        Route::get('/reports/readiness/export', [ReadinessController::class, 'export'])->name('reports.readiness.export');
+    // ── Reports ──
+    Route::get('/reports/readiness', [ReadinessController::class, 'index'])->name('reports.readiness');
+    Route::get('/reports/readiness/export', [ReadinessController::class, 'export'])->name('reports.readiness.export');
+    Route::get('/reports/readiness/export/{program}', [ReadinessController::class, 'exportProgram'])->name('reports.readiness.exportProgram');
 
         // ── Accreditation Cycles ──
         Route::get('/cycles', [CycleController::class, 'index'])->name('cycles.index');

@@ -69,22 +69,19 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
         <AppLayout title="Programs" breadcrumb="Program Overview">
             <Head title="Programs" />
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
-                    Programs
-                </div>
-                {isAdmin && (
+            {/* Header Actions */}
+            {isAdmin && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
                     <button onClick={() => setShowAddProgram(true)} style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: '9px 18px', borderRadius: 8, border: 'none',
                         background: '#c9a84c', color: '#0f1f3d',
-                        fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                     }}>
                         <PlusCircle size={14} /> Add Program
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gap: 20 }}>
                 {programs.map(program => (
@@ -236,13 +233,13 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                 </div>
                             )}
 
-                            {/* Footer: View File Manager */}
+                            {/* Footer: View File Manager → takes user to Document Management page */}
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <Link href={`/programs/${program.id}`} style={{
+                                <Link href={`/documents`} style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 6,
                                     padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                                     background: '#0f1f3d', color: '#c9a84c', textDecoration: 'none',
-                                    fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
+                                    fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                                 }}
                                 onMouseEnter={(e) => { e.currentTarget.style.background = '#1a2d52'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.background = '#0f1f3d'; e.currentTarget.style.transform = 'translateY(0)'; }}

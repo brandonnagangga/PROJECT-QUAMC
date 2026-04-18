@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+// Models referenced in relationships
+use App\Models\SubAreaNote;
+
 class SubArea extends Model
 {
     protected $fillable = [
