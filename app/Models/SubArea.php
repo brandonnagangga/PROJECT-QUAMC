@@ -36,6 +36,16 @@ class SubArea extends Model
         return $this->hasMany(Document::class);
     }
 
+    public function standards(): HasMany
+    {
+        return $this->hasMany(Standard::class);
+    }
+
+    public function rubrics(): HasMany
+    {
+        return $this->hasMany(Rubric::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

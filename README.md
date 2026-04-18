@@ -1,59 +1,200 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# QUAMC - Quality Assurance and Accreditation Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A comprehensive web-based system for managing quality assurance and accreditation processes in educational institutions.
 
-## About Laravel
+## Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+QUAMC (Quality Assurance and Accreditation Management Committee) is a Laravel-based application designed to streamline the accreditation documentation process, evidence management, and workflow coordination between different stakeholders including deans, coordinators, and directors.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Document Management**: Upload, version control, and approval workflow for accreditation evidence
+- **Role-Based Access Control**: Separate interfaces for Admin, Dean, Program Coordinators, Area Coordinators, and Directors
+- **Area & Sub-Area Management**: Organize accreditation requirements by areas and sub-areas
+- **Approval Workflow**: Multi-level approval process (Coordinator → Dean → Director)
+- **Program Management**: Track multiple academic programs and their accreditation status
+- **Accreditation Cycles**: Manage different accreditation periods and deadlines
+- **Activity Logging**: Comprehensive audit trail of all system activities
+- **Export & Reporting**: Generate reports and export documentation
+- **Real-time Notifications**: Keep stakeholders informed of status changes
 
-## Learning Laravel
+## Technology Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- **Backend**: Laravel 12.x (PHP 8.4)
+- **Frontend**: React with Inertia.js, TypeScript
+- **Database**: MySQL 8.0
+- **Caching**: Redis
+- **Vector Search**: Qdrant
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Architecture
 
-## Laravel Sponsors
+The application follows clean architecture principles with:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **Service Layer**: Business logic separated from controllers
+- **Repository Pattern**: Data access abstraction
+- **Policy-Based Authorization**: Centralized permission management
+- **API Resources**: Consistent data transformation
+- **Form Requests**: Validation logic separation
 
-### Premium Partners
+## Quick Start
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Prerequisites
+
+- PHP 8.4 or higher
+- Composer
+- Node.js 20.x or higher
+- MySQL 8.0 or higher
+- Redis (optional, for caching)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/quamc.git
+   cd quamc
+   ```
+
+2. Install dependencies:
+   ```bash
+   composer install
+   npm install
+   ```
+
+3. Configure environment:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+4. Update `.env` with your database credentials
+
+5. Run migrations and seeders:
+   ```bash
+   php artisan migrate --seed
+   ```
+
+6. Build frontend assets:
+   ```bash
+   npm run build
+   ```
+
+7. Start the development server:
+   ```bash
+   php artisan serve
+   npm run dev
+   ```
+
+8. Access the application at `http://localhost:8000`
+
+## Docker Deployment
+
+For containerized deployment, see [Docker Setup Guide](docs/DOCKER.md)
+
+```bash
+# Quick start with Docker
+docker-compose up -d
+./docker-setup.sh
+```
+
+Qdrant is now part of the Docker stack for scalable RAG retrieval. The service is exposed on `http://localhost:6333`.
+
+## Project Structure
+
+```
+quamc/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── Admin/          # Admin-only controllers
+│   │   │   └── User/           # User-facing controllers
+│   │   ├── Requests/
+│   │   │   ├── Admin/          # Admin request validation
+│   │   │   └── User/           # User request validation
+│   │   └── Resources/          # API resources for data transformation
+│   ├── Models/                 # Eloquent models
+│   ├── Policies/               # Authorization policies
+│   └── Services/               # Business logic layer
+├── database/
+│   ├── migrations/             # Database migrations
+│   └── seeders/                # Database seeders
+├── resources/
+│   ├── js/                     # React/TypeScript frontend
+│   └── css/                    # Stylesheets
+├── docs/                       # Documentation
+└── docker/                     # Docker configuration
+```
+
+## User Roles
+
+- **Admin**: System administration and user management
+- **Director**: QUAMC Director with full oversight and final approval authority
+- **Dean**: Program-level oversight and approval
+- **Program Coordinator**: Manage program-wide documentation
+- **Area Coordinator**: Manage specific area documentation
+
+## Documentation
+
+- [Installation Guide](docs/INSTALLATION.md)
+- [Docker Setup](docs/DOCKER.md)
+- [API Documentation](docs/API.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
+
+## Development
+
+### Running Tests
+
+```bash
+php artisan test
+```
+
+### Code Style
+
+```bash
+# PHP CS Fixer
+composer format
+
+# ESLint
+npm run lint
+```
+
+### Database
+
+```bash
+# Fresh migration with seeding
+php artisan migrate:fresh --seed
+
+# Create new migration
+php artisan make:migration create_table_name
+```
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Code of Conduct
+## Security
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+If you discover any security-related issues, please email security@example.com instead of using the issue tracker.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is proprietary software. All rights reserved.
+
+## Support
+
+For support and questions, please contact:
+- Email: support@example.com
+- Documentation: [docs/](docs/)
+
+## Acknowledgments
+
+- Laravel Framework
+- Inertia.js
+- React
+- Tailwind CSS

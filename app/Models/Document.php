@@ -18,6 +18,10 @@ class Document extends Model
         'uploaded_by',
         'title',
         'status',
+        'approval_status',
+        'rejection_reason',
+        'approved_by',
+        'approved_at',
         'current_version',
         'submitted_at',
     ];
@@ -26,6 +30,7 @@ class Document extends Model
     {
         return [
             'submitted_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -56,9 +61,19 @@ class Document extends Model
         return $this->hasMany(WorkflowAction::class)->orderByDesc('acted_at');
     }
 
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class)->latest();
+    }
+
     public function latestVersion(): ?DocumentVersion
     {
         return $this->versions()->first();
+    }
+
+    public function latestEvaluation(): ?Evaluation
+    {
+        return $this->evaluations()->first();
     }
 
     /**

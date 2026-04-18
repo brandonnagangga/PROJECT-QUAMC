@@ -22,6 +22,22 @@ const eventColors: Record<string, { bg: string; color: string; icon: any }> = {
 
 const defaultEvent = { bg: '#f0f2f8', color: '#8892aa', icon: Activity };
 
+const formatEventName = (event: string): string => {
+    const eventLabels: Record<string, string> = {
+        'login': 'Login',
+        'logout': 'Logout',
+        'document.uploaded': 'Document Uploaded',
+        'document.submitted': 'Document Submitted',
+        'document.approved': 'Document Approved',
+        'document.returned': 'Document Returned',
+        'document.forwarded': 'Document Forwarded',
+    };
+    
+    return eventLabels[event] || event.split('.').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+};
+
 export default function LogsIndex({ logs }: Props) {
     const [search, setSearch] = useState('');
     const [filterEvent, setFilterEvent] = useState('');
@@ -55,7 +71,7 @@ export default function LogsIndex({ logs }: Props) {
                     fontFamily: "'DM Sans', sans-serif", color: '#4a5470', cursor: 'pointer', background: '#fff',
                 }}>
                     <option value="">All Events</option>
-                    {events.map(e => <option key={e} value={e}>{e}</option>)}
+                    {events.map(e => <option key={e} value={e}>{formatEventName(e)}</option>)}
                 </select>
                 <div style={{ fontSize: 12, color: '#8892aa', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Filter size={13} /> {filtered.length} entries
@@ -91,11 +107,11 @@ export default function LogsIndex({ logs }: Props) {
                                 >
                                     <td style={{ padding: '10px 14px' }}>
                                         <span style={{
-                                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                                            padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                            background: ev.bg, color: ev.color,
+                                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                                            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                            background: ev.bg, color: ev.color, lineHeight: 1,
                                         }}>
-                                            <Icon size={11} /> {log.event}
+                                            <Icon size={12} style={{ flexShrink: 0, display: 'block' }} /> {formatEventName(log.event)}
                                         </span>
                                     </td>
                                     <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>{log.user_name}</td>

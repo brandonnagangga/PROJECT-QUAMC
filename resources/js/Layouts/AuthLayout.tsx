@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { ReactNode } from 'react';
+import { ThemeApplier } from '@/contexts/ThemeContext';
 
 interface AuthLayoutProps {
     children: ReactNode;
@@ -10,6 +11,7 @@ export default function AuthLayout({ children, title = 'Login' }: AuthLayoutProp
     return (
         <>
             <Head title={title} />
+            <ThemeApplier />
             <div style={{
                 minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'linear-gradient(135deg, #0f1f3d 0%, #1a3260 50%, #243f7a 100%)',

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\AccreditationCycle;
+use App\Services\ThemeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -24,6 +25,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user() ? $request->user()->load('roles') : null,
             ],
+            'theme' => app(ThemeService::class)->getThemeConfig(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

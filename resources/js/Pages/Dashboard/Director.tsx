@@ -1,6 +1,9 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
+import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import AreaRelationshipGraph from '@/components/dashboard/AreaRelationshipGraph';
+import CalendarCard from '@/components/dashboard/CalendarCard';
 
 interface DashboardProps {
     stats: {
@@ -10,6 +13,10 @@ interface DashboardProps {
     programs: { id: number; name: string; code: string; pct: number; areas: { name: string; pct: number; cls: string }[] }[];
     recentDocs: { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string }[];
     activities: { icon: string; bg: string; color: string; text: string; time: string }[];
+    graphData: {
+        nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
+        links: { source: string; target: string }[];
+    };
 }
 
 const statCards = [
@@ -28,7 +35,16 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
     archived: { bg: '#eff6ff', color: '#1a4f8a' },
 };
 
-export default function Director({ stats, programs, recentDocs, activities }: DashboardProps) {
+export default function Director({ stats, programs, recentDocs, activities, graphData }: DashboardProps) {
+    const approvedCount = Number(stats.approved || 0);
+    const pendingCount = Number(stats.pending || 0);
+    const readiness = Number(String(stats.readiness).replace('%', '')) || 0;
+    const overviewSeries = programs.slice(0, 6).map((program) => ({ label: program.code, value: program.pct || 0 }));
+    const comparisonSeries = overviewSeries.map((program, index) => ({
+        label: program.label,
+        value: Math.max(0, program.value - ((index % 3) + 6)),
+    }));
+
     return (
         <AppLayout title="Accreditation Dashboard" breadcrumb="Dashboard">
             <Head title="Dashboard" />
@@ -62,6 +78,38 @@ export default function Director({ stats, programs, recentDocs, activities }: Da
                         </div>
                     );
                 })}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+                <SoftStatCard title="Programs" value={stats.programs} delta="+2.4%" tint="#f3f4ff" />
+                <SoftStatCard title="Readiness" value={stats.readiness} delta="+5.2%" tint="#eef5ff" />
+                <SoftStatCard title="Approved" value={stats.approved} delta="+11.0%" tint="#eefbf3" />
+                <SoftStatCard title="Pending" value={stats.pending} delta="-3.1%" tint="#f8f5ff" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <ChartPanel title="Program Readiness" subtitle="This cycle">
+                    <MinimalLineChart
+                        primary={overviewSeries}
+                        secondary={comparisonSeries}
+                        primaryColor="#111827"
+                        secondaryColor="#cbd5e1"
+                    />
+                </ChartPanel>
+                <CalendarCard />
+            </div>
+
+            {/* RELATIONSHIP GRAPH + METRICS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <AreaRelationshipGraph data={graphData} />
+                <MetricList
+                    title="Readiness by Program"
+                    data={programs.slice(0, 6).map((program) => ({
+                        label: program.code,
+                        value: program.pct,
+                        tone: '#111827',
+                    }))}
+                />
             </div>
 
             {/* TWO COLUMN */}

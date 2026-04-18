@@ -6,6 +6,9 @@ import {
     ArrowRight, AlertCircle
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
+import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import AreaRelationshipGraph from '@/components/dashboard/AreaRelationshipGraph';
+import CalendarCard from '@/components/dashboard/CalendarCard';
 
 interface AreaStat { name: string; pct: number; cls: string; }
 interface ProgramInfo { id: number; name: string; code: string; pct: number; areas: AreaStat[]; }
@@ -15,6 +18,10 @@ interface Stats { programs: string; readiness: string; readinessSub: string; app
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; areaItems: any[]; currentRole: string;
+    graphData: {
+        nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
+        links: { source: string; target: string }[];
+    };
 }
 
 const statusColors: Record<string, { bg: string; color: string; label: string }> = {
@@ -24,9 +31,18 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole }: Props) {
+export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole, graphData }: Props) {
     const { auth } = usePage<PageProps>().props;
     const isProgramCoord = currentRole === 'program-coordinator';
+    const approvedCount = Number(stats.approved || 0);
+    const pendingCount = Number(stats.pending || 0);
+    const returnedCount = recentDocs.filter(d => d.status === 'returned').length;
+    const draftCount = recentDocs.filter(d => d.status === 'draft').length;
+    const chartAreas = (areaItems ?? []).slice(0, 6).map((area: any) => ({ label: area.name, value: area.pct }));
+    const comparisonSeries = chartAreas.map((area: any, index: number) => ({
+        label: area.label,
+        value: Math.max(0, area.value - ((index % 3) * 6 + 4)),
+    }));
 
     return (
         <AppLayout title={isProgramCoord ? 'Program Coordinator Dashboard' : 'Area Coordinator Dashboard'} breadcrumb="Dashboard">
@@ -59,6 +75,39 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                         </div>
                     </div>
                 ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+                <SoftStatCard title={isProgramCoord ? 'Assigned Areas' : 'My Documents'} value={stats.programs} delta="+3.1%" tint="#f3f4ff" />
+                <SoftStatCard title="Area Progress" value={stats.readiness} delta="+5.0%" tint="#eef5ff" />
+                <SoftStatCard title="Approved" value={stats.approved} delta="+7.4%" tint="#eefbf3" />
+                <SoftStatCard title={isProgramCoord ? 'Pending' : 'Returned'} value={stats.pending} delta="-1.3%" tint="#f8f5ff" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <ChartPanel title="Area Progress" subtitle="Current scope">
+                    <MinimalLineChart
+                        primary={chartAreas}
+                        secondary={comparisonSeries}
+                        primaryColor="#111827"
+                        secondaryColor="#cbd5e1"
+                    />
+                </ChartPanel>
+                <CalendarCard />
+            </div>
+
+            {/* RELATIONSHIP GRAPH + METRICS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <AreaRelationshipGraph data={graphData} />
+                <MetricList
+                    title="Submission Mix"
+                    data={[
+                        { label: 'Approved', value: Math.min(100, approvedCount), tone: '#111827' },
+                        { label: 'Pending', value: Math.min(100, pendingCount), tone: '#94a3b8' },
+                        { label: 'Returned', value: Math.min(100, returnedCount * 10), tone: '#cbd5e1' },
+                        { label: 'Draft', value: Math.min(100, draftCount * 10), tone: '#e2e8f0' },
+                    ]}
+                />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>

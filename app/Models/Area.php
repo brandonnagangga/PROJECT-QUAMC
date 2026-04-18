@@ -36,6 +36,11 @@ class Area extends Model
         return $this->hasMany(AreaAssignment::class);
     }
 
+    public function standards(): HasMany
+    {
+        return $this->hasMany(Standard::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

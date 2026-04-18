@@ -144,4 +144,13 @@ export interface PageProps {
         error?: string;
     };
     notifications_count?: number;
+    active_cycle?: any;
+    theme?: {
+        mode: 'minimalist' | 'themed' | 'seasonal';
+        primary_color: string;
+        secondary_color: string;
+        seasonal_theme: string;
+        seasonal_enabled: boolean;
+    };
+    [key: string]: any; // Index signature for Inertia compatibility
 }

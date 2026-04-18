@@ -6,6 +6,9 @@ import {
     TrendingUp, ArrowRight
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
+import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import AreaRelationshipGraph from '@/components/dashboard/AreaRelationshipGraph';
+import CalendarCard from '@/components/dashboard/CalendarCard';
 
 interface AreaStat { name: string; pct: number; cls: string; }
 interface ProgramInfo { id: number; name: string; code: string; pct: number; areas: AreaStat[]; }
@@ -15,6 +18,10 @@ interface Stats { programs: string; readiness: string; readinessSub: string; app
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; currentRole: string;
+    graphData: {
+        nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
+        links: { source: string; target: string }[];
+    };
 }
 
 const statusColors: Record<string, { bg: string; color: string; label: string }> = {
@@ -24,8 +31,15 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole }: Props) {
+export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole, graphData }: Props) {
     const { auth } = usePage<PageProps>().props;
+    const approvedCount = Number(stats.approved || 0);
+    const pendingCount = Number(stats.pending || 0);
+    const areaData = (programs[0]?.areas ?? []).slice(0, 6).map((area) => ({ label: area.name, value: area.pct }));
+    const comparisonSeries = areaData.map((area, index) => ({
+        label: area.label,
+        value: Math.max(0, area.value - ((index % 2) * 8 + 5)),
+    }));
 
     return (
         <AppLayout title="Dean Dashboard" breadcrumb="Dashboard">
@@ -58,6 +72,38 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                         </div>
                     </div>
                 ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+                <SoftStatCard title="My Programs" value={stats.programs} delta="+1.8%" tint="#f3f4ff" />
+                <SoftStatCard title="Completion" value={stats.readiness} delta="+4.9%" tint="#eef5ff" />
+                <SoftStatCard title="Forwarded" value={stats.approved} delta="+9.6%" tint="#eefbf3" />
+                <SoftStatCard title="Pending" value={stats.pending} delta="-2.1%" tint="#f8f5ff" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <ChartPanel title="Area Completion" subtitle="This term">
+                    <MinimalLineChart
+                        primary={areaData}
+                        secondary={comparisonSeries}
+                        primaryColor="#111827"
+                        secondaryColor="#cbd5e1"
+                    />
+                </ChartPanel>
+                <CalendarCard />
+            </div>
+
+            {/* RELATIONSHIP GRAPH + METRICS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+                <AreaRelationshipGraph data={graphData} />
+                <MetricList
+                    title="Area Breakdown"
+                    data={(programs[0]?.areas ?? []).slice(0, 6).map((area) => ({
+                        label: area.name,
+                        value: area.pct,
+                        tone: '#111827',
+                    }))}
+                />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>

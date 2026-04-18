@@ -171,7 +171,7 @@ export default function CyclesIndex({ cycles }: Props) {
             {cycles.length === 0 ? (
                 <div style={{
                     background: '#fff', border: '1px solid #dde1ed', borderRadius: 14,
-                    padding: 60, textAlign: 'center',
+                    padding: 60, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
                     <Calendar size={40} color="#b8bfd4" style={{ opacity: 0.4, marginBottom: 12 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: '#4a5470' }}>No Cycles</div>
