@@ -3,6 +3,23 @@ import { MoreVertical } from 'lucide-react';
 import { OverviewAreaChart } from '@/components/dashboard/charts/OverviewAreaChart';
 import type { ReadinessTrendPoint, TimePeriod } from './types';
 
+const READINESS_CHART_COLOR_KEY = 'admin.readiness.chartColor';
+const DEFAULT_CHART_COLOR = '#0e9f6e';
+const CHART_COLORS = [
+    { label: 'Emerald', value: '#0e9f6e' },
+    { label: 'Blue', value: '#2563eb' },
+    { label: 'Purple', value: '#7c3aed' },
+    { label: 'Amber', value: '#d97706' },
+    { label: 'Rose', value: '#e11d48' },
+] as const;
+
+function getInitialChartColor() {
+    if (typeof window === 'undefined') return DEFAULT_CHART_COLOR;
+    const savedColor = window.localStorage.getItem(READINESS_CHART_COLOR_KEY);
+    if (!savedColor) return DEFAULT_CHART_COLOR;
+    return CHART_COLORS.some((c) => c.value === savedColor) ? savedColor : DEFAULT_CHART_COLOR;
+}
+
 export function ReadinessTrendPanel({
     readinessTrend = [],
     readinessPercent,
@@ -12,10 +29,22 @@ export function ReadinessTrendPanel({
 }) {
     const [showChartMenu, setShowChartMenu] = useState(false);
     const [showTimePeriodMenu, setShowTimePeriodMenu] = useState(false);
+    const [showColorMenu, setShowColorMenu] = useState(false);
     const [showGrid, setShowGrid] = useState(true);
     const [smoothCurve, setSmoothCurve] = useState(true);
     const [timePeriod, setTimePeriod] = useState<TimePeriod>('Last month');
+    const [chartColor, setChartColor] = useState<string>(getInitialChartColor);
     const chartMenuRef = useRef<HTMLDivElement>(null);
+
+    const toggleTimePeriodMenu = () => {
+        setShowTimePeriodMenu((prev) => !prev);
+        setShowColorMenu(false);
+    };
+
+    const toggleColorMenu = () => {
+        setShowColorMenu((prev) => !prev);
+        setShowTimePeriodMenu(false);
+    };
 
     useEffect(() => {
         const onClickOutside = (event: MouseEvent) => {
@@ -23,6 +52,7 @@ export function ReadinessTrendPanel({
             if (!chartMenuRef.current.contains(event.target as Node)) {
                 setShowChartMenu(false);
                 setShowTimePeriodMenu(false);
+                setShowColorMenu(false);
             }
         };
 
@@ -92,6 +122,7 @@ export function ReadinessTrendPanel({
                         onClick={() => {
                             setShowChartMenu((prev) => !prev);
                             setShowTimePeriodMenu(false);
+                            setShowColorMenu(false);
                         }}
                     >
                         <MoreVertical size={16} />
@@ -114,8 +145,11 @@ export function ReadinessTrendPanel({
                         >
                             <button
                                 type="button"
-                                onMouseEnter={() => setShowTimePeriodMenu(true)}
-                                onClick={() => setShowTimePeriodMenu((prev) => !prev)}
+                                onMouseEnter={() => {
+                                    setShowTimePeriodMenu(true);
+                                    setShowColorMenu(false);
+                                }}
+                                onClick={toggleTimePeriodMenu}
                                 style={{
                                     width: '100%',
                                     border: 'none',
@@ -133,6 +167,43 @@ export function ReadinessTrendPanel({
                             >
                                 <span>Time Period</span>
                                 <span style={{ color: '#8a94a6' }}>›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onMouseEnter={() => {
+                                    setShowColorMenu(true);
+                                    setShowTimePeriodMenu(false);
+                                }}
+                                onClick={toggleColorMenu}
+                                style={{
+                                    width: '100%',
+                                    border: 'none',
+                                    background: '#f8fafc',
+                                    borderBottom: '1px solid #e5e9f1',
+                                    padding: '10px 12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    fontSize: 14,
+                                    color: '#2d3648',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                }}
+                            >
+                                <span>Chart Color</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <span
+                                        style={{
+                                            width: 10,
+                                            height: 10,
+                                            borderRadius: 999,
+                                            background: chartColor,
+                                            border: '1px solid rgba(15,23,42,0.2)',
+                                        }}
+                                    />
+                                    <span style={{ color: '#8a94a6' }}>›</span>
+                                </span>
                             </button>
 
                             <button
@@ -183,8 +254,11 @@ export function ReadinessTrendPanel({
                                     setTimePeriod('Last month');
                                     setShowGrid(true);
                                     setSmoothCurve(true);
+                                    setChartColor(DEFAULT_CHART_COLOR);
+                                    window.localStorage.removeItem(READINESS_CHART_COLOR_KEY);
                                     setShowChartMenu(false);
                                     setShowTimePeriodMenu(false);
+                                    setShowColorMenu(false);
                                 }}
                                 style={{
                                     width: '100%',
@@ -206,9 +280,12 @@ export function ReadinessTrendPanel({
                         </div>
                     )}
 
-                    {showChartMenu && showTimePeriodMenu && (
+                    {showChartMenu && showTimePeriodMenu && !showColorMenu && (
                         <div
-                            onMouseLeave={() => setShowTimePeriodMenu(false)}
+                            onMouseLeave={() => {
+                                setShowTimePeriodMenu(false);
+                                setShowColorMenu(false);
+                            }}
                             style={{
                                 position: 'absolute',
                                 top: 30,
@@ -230,6 +307,7 @@ export function ReadinessTrendPanel({
                                         setTimePeriod(period);
                                         setShowChartMenu(false);
                                         setShowTimePeriodMenu(false);
+                                        setShowColorMenu(false);
                                     }}
                                     style={{
                                         width: '100%',
@@ -251,6 +329,68 @@ export function ReadinessTrendPanel({
                             ))}
                         </div>
                     )}
+
+                    {showChartMenu && showColorMenu && !showTimePeriodMenu && (
+                        <div
+                            onMouseLeave={() => {
+                                setShowTimePeriodMenu(false);
+                                setShowColorMenu(false);
+                            }}
+                            style={{
+                                position: 'absolute',
+                                top: 68,
+                                right: -164,
+                                width: 160,
+                                border: '1px solid #d7dde8',
+                                borderRadius: 10,
+                                background: '#ffffff',
+                                boxShadow: '0 16px 30px rgba(15, 23, 42, 0.14)',
+                                zIndex: 31,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            {CHART_COLORS.map((color) => (
+                                <button
+                                    key={color.value}
+                                    type="button"
+                                    onClick={() => {
+                                        setChartColor(color.value);
+                                        window.localStorage.setItem(READINESS_CHART_COLOR_KEY, color.value);
+                                        setShowChartMenu(false);
+                                        setShowTimePeriodMenu(false);
+                                        setShowColorMenu(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        border: 'none',
+                                        background: '#fff',
+                                        padding: '10px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        fontSize: 14,
+                                        color: '#1f2937',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                    }}
+                                >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                        <span
+                                            style={{
+                                                width: 10,
+                                                height: 10,
+                                                borderRadius: 999,
+                                                background: color.value,
+                                                border: '1px solid rgba(15,23,42,0.2)',
+                                            }}
+                                        />
+                                        <span>{color.label}</span>
+                                    </span>
+                                    <span style={{ color: '#8a94a6' }}>{chartColor === color.value ? '✓' : ''}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -258,10 +398,10 @@ export function ReadinessTrendPanel({
                 data={monthlyReadinessData}
                 showGrid={showGrid}
                 smoothCurve={smoothCurve}
+                color={chartColor}
                 yTicks={[0, 50, 100]}
                 yFormatter={(value: number) => `${value}%`}
             />
         </div>
     );
 }
-

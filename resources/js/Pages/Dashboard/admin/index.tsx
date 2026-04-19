@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { useMemo } from 'react';
 import { Activity, FileText, Shield, Users } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { ProgramOversightTable } from './ProgramOversightTable';
@@ -15,42 +16,45 @@ export default function AdminDashboard({
     programs = [],
     recentDocs = [],
 }: AdminDashboardProps) {
-    const approvedCount = Number(stats.approved || 0);
-    const pendingCount = Number(stats.pending || 0);
+    const approvedCount = Number(stats.approved ?? 0);
+    const pendingCount = Number(stats.pending ?? 0);
     const totalDocs = approvedCount + pendingCount;
     const approvalRate = totalDocs > 0 ? Math.round((approvedCount / totalDocs) * 100) : 0;
-    const readinessPercent = Math.max(0, Math.min(100, parseInt(String(stats.readiness || '0'), 10) || 0));
+    const readinessPercent = Math.max(0, Math.min(100, Number(stats.readiness ?? 0) || 0));
 
-    const systemMetrics: MetricCard[] = [
-        {
-            icon: FileText,
-            label: 'Documents Approved',
-            value: approvedCount.toLocaleString(),
-            delta: `${approvalRate}% rate`,
-            accent: '#1a7a4a',
-        },
-        {
-            icon: Shield,
-            label: 'Pending Review',
-            value: pendingCount.toLocaleString(),
-            delta: `${Math.max(0, 100 - approvalRate)}% remaining`,
-            accent: '#b45309',
-        },
-        {
-            icon: Users,
-            label: 'Registered Users',
-            value: Number(userCount || 0).toLocaleString(),
-            delta: 'Active accounts',
-            accent: '#185FA5',
-        },
-        {
-            icon: Activity,
-            label: 'Activity Logs',
-            value: Number(logCount || 0).toLocaleString(),
-            delta: 'Total events',
-            accent: '#7a3bb0',
-        },
-    ];
+    const systemMetrics = useMemo<MetricCard[]>(
+        () => [
+            {
+                icon: FileText,
+                label: 'Documents Approved',
+                value: approvedCount.toLocaleString(),
+                delta: `${approvalRate}% rate`,
+                accent: '#1a7a4a',
+            },
+            {
+                icon: Shield,
+                label: 'Pending Review',
+                value: pendingCount.toLocaleString(),
+                delta: `${Math.max(0, 100 - approvalRate)}% remaining`,
+                accent: '#b45309',
+            },
+            {
+                icon: Users,
+                label: 'Registered Users',
+                value: Number(userCount ?? 0).toLocaleString(),
+                delta: 'Active accounts',
+                accent: '#185FA5',
+            },
+            {
+                icon: Activity,
+                label: 'Activity Logs',
+                value: Number(logCount ?? 0).toLocaleString(),
+                delta: 'Total events',
+                accent: '#7a3bb0',
+            },
+        ],
+        [approvedCount, approvalRate, pendingCount, userCount, logCount]
+    );
 
     return (
         <AppLayout title="Admin Dashboard" breadcrumb="System Administration">
@@ -67,4 +71,3 @@ export default function AdminDashboard({
         </AppLayout>
     );
 }
-

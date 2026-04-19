@@ -1,25 +1,72 @@
+import { useState } from 'react';
 import type { MetricCard } from './types';
+import PixelCard from '@/components/PixelCard';
 
 export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
     return (
         <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-                {metrics.map((metric) => (
-                    <div
-                        key={metric.label}
-                        style={{
-                            background: '#fff',
-                            border: '1px solid #d7dde8',
-                            borderRadius: 12,
-                            padding: '12px 14px',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 10,
-                            boxShadow: '0 1px 0 rgba(15,31,61,0.02)',
-                        }}
-                    >
+                {metrics.map((metric) => {
+                    const [isHovered, setIsHovered] = useState(false);
+                    
+                    return (
+                        <PixelCard
+                            key={metric.label}
+                            variant="default"
+                            gap={4}
+                            speed={25}
+                        >
+                            <div
+                                style={{
+                                    background: '#fff',
+                                    border: '1px solid #d7dde8',
+                                    borderRadius: 12,
+                                    padding: '12px 14px',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 10,
+                                    boxShadow: isHovered ? '0 4px 12px rgba(15,31,61,0.08)' : '0 1px 0 rgba(15,31,61,0.02)',
+                                    transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                                    height: '100%',
+                                    position: 'relative',
+                                }}
+                                onMouseEnter={() => setIsHovered(true)}
+                                onMouseLeave={() => setIsHovered(false)}
+                            >
+                                {/* Hover Overlay with "Click to view" text */}
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        background: 'rgba(15, 23, 42, 0.35)',
+                                        backdropFilter: 'blur(2px)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: isHovered ? 1 : 0,
+                                        transition: 'opacity 0.2s ease',
+                                        zIndex: 5,
+                                        pointerEvents: 'none',
+                                        borderRadius: 12,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            color: '#fff',
+                                            letterSpacing: '0.05em',
+                                            textTransform: 'uppercase',
+                                            position: 'relative',
+                                            zIndex: 15,
+                                            textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                                        }}
+                                    >
+                                        Click to view
+                                    </div>
+                                </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                             <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>{metric.label}</div>
                             <div
@@ -60,7 +107,9 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
 
                         <div style={{ fontSize: 11, color: '#8a94a6', marginTop: -2 }}>Live system metric</div>
                     </div>
-                ))}
+                </PixelCard>
+                );
+                })}
             </div>
         </div>
     );

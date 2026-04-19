@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import { RefreshCw } from 'lucide-react';
 import type { RecentDoc } from './types';
 import { RecentUploadsModal } from './RecentUploadsModal';
+import PixelCard from '@/components/PixelCard';
+import FolderAnimation from '@/components/FolderAnimation';
 
 function getStatusTint(status: string): { accent: string; soft: string; border: string } {
     if (status === 'approved') return { accent: '#16a34a', soft: 'rgba(22, 163, 74, 0.12)', border: '#166534' };
@@ -12,6 +16,17 @@ function getStatusTint(status: string): { accent: string; soft: string; border: 
 export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc[] }) {
     const uploads = recentDocs.slice(0, 4);
     const [modalOpen, setModalOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            only: ['recentDocs'],
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            },
+        });
+    };
 
     return (
         <>
@@ -26,23 +41,52 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
             >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>Recent uploads</div>
-                    <button
-                        type="button"
-                        onClick={() => setModalOpen(true)}
-                        style={{
-                            height: 28,
-                            borderRadius: 8,
-                            border: '1px solid #d7dde8',
-                            background: '#fff',
-                            padding: '0 12px',
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: '#334155',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        Open
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            style={{
+                                height: 28,
+                                width: 28,
+                                borderRadius: 8,
+                                border: '1px solid #d7dde8',
+                                background: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                                opacity: isRefreshing ? 0.6 : 1,
+                            }}
+                            title="Refresh"
+                        >
+                            <RefreshCw 
+                                size={14} 
+                                style={{ 
+                                    color: '#334155',
+                                    animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                                }} 
+                            />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setModalOpen(true)}
+                            style={{
+                                height: 28,
+                                borderRadius: 8,
+                                border: '1px solid #d7dde8',
+                                background: '#fff',
+                                padding: '0 12px',
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: '#334155',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Open
+                        </button>
+                    </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
@@ -54,17 +98,65 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
 
                     {uploads.map((doc) => {
                         const tint = getStatusTint(doc.status);
+                        const [isHovered, setIsHovered] = useState(false);
+                        
                         return (
-                            <div
+                            <PixelCard
                                 key={doc.id}
-                                style={{
-                                    borderRadius: 12,
-                                    overflow: 'hidden',
-                                    background: '#fff',
-                                    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
-                                    position: 'relative',
-                                }}
+                                variant="default"
+                                gap={4}
+                                speed={30}
+                                className="upload-card"
                             >
+                                <div
+                                    style={{
+                                        borderRadius: 12,
+                                        overflow: 'hidden',
+                                        background: '#fff',
+                                        boxShadow: isHovered ? '0 12px 28px rgba(15, 23, 42, 0.18)' : '0 8px 20px rgba(15, 23, 42, 0.12)',
+                                        position: 'relative',
+                                        cursor: 'pointer',
+                                        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                        height: '100%',
+                                    }}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                    onClick={() => {
+                                        window.location.href = `/documents/${doc.id}`;
+                                    }}
+                                >
+                                    {/* Hover Overlay with OPEN text */}
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            background: 'rgba(15, 23, 42, 0.45)',
+                                            backdropFilter: 'blur(2px)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            opacity: isHovered ? 1 : 0,
+                                            transition: 'opacity 0.2s ease',
+                                            zIndex: 5,
+                                            pointerEvents: 'none',
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                fontSize: 20,
+                                                fontWeight: 700,
+                                                color: '#fff',
+                                                letterSpacing: '0.15em',
+                                                textTransform: 'uppercase',
+                                                position: 'relative',
+                                                zIndex: 15,
+                                                textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                                            }}
+                                        >
+                                            OPEN
+                                        </div>
+                                    </div>
                                 <div
                                     style={{
                                         height: 190,
@@ -161,6 +253,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                     </span>
                                 </div>
                             </div>
+                        </PixelCard>
                         );
                     })}
                 </div>

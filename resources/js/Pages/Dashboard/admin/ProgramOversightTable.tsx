@@ -1,12 +1,22 @@
 import { useMemo, useState } from 'react';
 import type { ProgramReadiness } from './types';
+import { GenerateReportModal, type ReportPayloadRow } from './GenerateReportModal';
 
 type RiskFilter = 'all' | 'low' | 'medium' | 'high';
+
+function csvEscape(value: string | number) {
+    const text = String(value ?? '');
+    if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+        return `"${text.replaceAll('"', '""')}"`;
+    }
+    return text;
+}
 
 export function ProgramOversightTable({ programs = [] }: { programs?: ProgramReadiness[] }) {
     const [search, setSearch] = useState('');
     const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
     const [sortByReadiness, setSortByReadiness] = useState<'asc' | 'desc'>('desc');
+    const [showGenerateModal, setShowGenerateModal] = useState(false);
 
     const complianceRows = useMemo(() => {
         return programs.map((program) => {
@@ -41,6 +51,97 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
             })
             .sort((a, b) => (sortByReadiness === 'desc' ? b.readiness - a.readiness : a.readiness - b.readiness));
     }, [complianceRows, search, riskFilter, sortByReadiness]);
+
+    const getExportPayload = (): ReportPayloadRow[] =>
+        filteredRows.map((row) => ({
+            programId: row.id,
+            program: row.program,
+            readiness: row.readiness,
+            areasReady: row.areasReady,
+            pendingAreas: row.pendingAreas,
+            atRiskAreas: row.atRiskAreas,
+            status: row.status,
+            risk: row.risk.toUpperCase(),
+        }));
+
+    const exportCsv = (rows: ReportPayloadRow[]) => {
+        const headers = ['Program', 'Readiness (%)', 'Areas Ready', 'Pending Areas', 'At Risk', 'Status', 'Risk'];
+        const csvRows = rows.map((row) => [
+            row.program,
+            row.readiness,
+            row.areasReady,
+            row.pendingAreas,
+            row.atRiskAreas,
+            row.status,
+            row.risk,
+        ]);
+        const csv = [headers, ...csvRows].map((line) => line.map(csvEscape).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-');
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `program-oversight-report-${timestamp}.csv`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    };
+
+    const exportJson = (rows: ReportPayloadRow[]) => {
+        const payload = {
+            generated_at: new Date().toISOString(),
+            filters: {
+                search: search.trim(),
+                risk: riskFilter,
+                sort_by_readiness: sortByReadiness,
+            },
+            rows,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-');
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `program-oversight-report-${timestamp}.json`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleGenerate = ({
+        format,
+        scope,
+        programId,
+    }: {
+        format: 'csv' | 'json' | 'pdf';
+        tool: 'browser_blob' | 'dompdf_api';
+        scope: 'all' | 'program';
+        programId: number | null;
+    }) => {
+        const baseRows = getExportPayload();
+        const rows = scope === 'program' && programId !== null
+            ? baseRows.filter((row) => row.programId === programId)
+            : baseRows;
+
+        if (format === 'csv') exportCsv(rows);
+        if (format === 'json') exportJson(rows);
+        if (format === 'pdf') {
+            const pdfUrl = scope === 'program' && programId !== null
+                ? `/reports/readiness/export/${programId}`
+                : '/reports/readiness/export';
+            window.open(pdfUrl, '_blank');
+        }
+        setShowGenerateModal(false);
+    };
+
+    const programOptions = useMemo(
+        () => filteredRows.map((row) => ({ id: row.id, label: row.program })),
+        [filteredRows]
+    );
 
     return (
         <div
@@ -134,6 +235,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
 
                 <button
                     type="button"
+                    onClick={() => setShowGenerateModal(true)}
                     style={{
                         height: 32,
                         border: 'none',
@@ -232,7 +334,14 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                 <span>Showing {filteredRows.length} of {complianceRows.length} programs</span>
                 <span>Quality Assurance Program Oversight</span>
             </div>
+
+            <GenerateReportModal
+                open={showGenerateModal}
+                onClose={() => setShowGenerateModal(false)}
+                rowCount={filteredRows.length}
+                programOptions={programOptions}
+                onGenerate={handleGenerate}
+            />
         </div>
     );
 }
-
