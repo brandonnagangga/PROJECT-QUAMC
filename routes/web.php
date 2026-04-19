@@ -16,7 +16,6 @@ use App\Http\Controllers\Admin\CycleController;
 use App\Http\Controllers\User\DocumentEvaluationController;
 use App\Http\Controllers\User\ExportController;
 use App\Http\Controllers\Admin\ThemeController;
-use App\Http\Controllers\User\NetworkGraphController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -118,8 +117,5 @@ Route::middleware('auth')->group(function () {
         Route::post('/admin/theme', [ThemeController::class, 'update'])->name('admin.theme.update');
         Route::get('/standards', [StandardController::class, 'index'])->name('standards.index');
         Route::post('/standards', [StandardController::class, 'store'])->name('standards.store');
-
-        // ── Network Graph Visualization ──
-        Route::get('/network-graph', [NetworkGraphController::class, 'index'])->name('network-graph.index');
     });
 });

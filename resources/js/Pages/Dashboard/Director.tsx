@@ -2,7 +2,6 @@ import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
 import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
-import AreaRelationshipGraph from '@/components/dashboard/AreaRelationshipGraph';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 
 interface DashboardProps {
@@ -99,18 +98,6 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                 <CalendarCard />
             </div>
 
-            {/* RELATIONSHIP GRAPH + METRICS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
-                <AreaRelationshipGraph data={graphData} />
-                <MetricList
-                    title="Readiness by Program"
-                    data={programs.slice(0, 6).map((program) => ({
-                        label: program.code,
-                        value: program.pct,
-                        tone: '#111827',
-                    }))}
-                />
-            </div>
 
             {/* TWO COLUMN */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>

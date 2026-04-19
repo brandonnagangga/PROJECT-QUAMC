@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\Document;
 use App\Models\Program;
-use App\Models\SubArea;
 use App\Models\ActivityLog;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -94,9 +94,6 @@ class DashboardController extends Controller
             ];
         });
 
-        // ── Relationship graph data ──
-        $graphData = $this->buildRelationshipGraph();
-
         $page = match ($role?->slug) {
             'admin'               => 'Dashboard/Admin',
             'director'            => 'Dashboard/Director',
@@ -108,6 +105,7 @@ class DashboardController extends Controller
 
         return Inertia::render($page, [
             'stats'       => $stats,
+            'readinessTrend' => $this->buildReadinessTrend(365),
             'programs'    => $programs,
             'recentDocs'  => $recentDocs,
             'activities'  => $activities,
@@ -115,7 +113,6 @@ class DashboardController extends Controller
             'currentRole' => $role?->slug ?? 'director',
             'userCount'   => User::count(),
             'logCount'    => ActivityLog::count(),
-            'graphData'   => $graphData,
         ]);
     }
 
@@ -136,6 +133,54 @@ class DashboardController extends Controller
             'pending'     => (string) $pending,
             'pendingSub'  => 'Awaiting action',
         ];
+    }
+
+    /**
+     * Build daily readiness trend (approved/total) for the past N days.
+     */
+    private function buildReadinessTrend(int $days = 365): array
+    {
+        $start = now()->subDays($days - 1)->startOfDay();
+        $end = now()->endOfDay();
+
+        $dailyCreated = Document::query()
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('day')
+            ->pluck('count', 'day');
+
+        $dailyApprovedCreated = Document::query()
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
+            ->where('status', 'approved')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('day')
+            ->pluck('count', 'day');
+
+        $runningTotal = Document::where('created_at', '<', $start)->count();
+        $runningApproved = Document::where('status', 'approved')
+            ->where('created_at', '<', $start)
+            ->count();
+
+        $trend = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = $start->copy()->addDays($i);
+            $dayKey = $day->toDateString();
+
+            $runningTotal += (int) ($dailyCreated[$dayKey] ?? 0);
+            $runningApproved += (int) ($dailyApprovedCreated[$dayKey] ?? 0);
+
+            $pct = $runningTotal > 0
+                ? (int) round(($runningApproved / $runningTotal) * 100)
+                : 0;
+
+            $trend[] = [
+                'date' => $dayKey,
+                'label' => Carbon::parse($dayKey)->format('M j'),
+                'value' => $pct,
+            ];
+        }
+
+        return $trend;
     }
 
     private function getEventIcon(string $event): string
@@ -176,68 +221,5 @@ class DashboardController extends Controller
             6 => '#9b1c1c', 7 => '#185FA5', 8 => '#9b1c1c',  9 => '#1a7a4a', 10 => '#c9a84c',
         ];
         return $colors[$order] ?? '#1a7a4a';
-    }
-
-    private function buildRelationshipGraph(): array
-    {
-        $nodes = [];
-        $links = [];
-
-        // Get all areas with their sub-areas
-        $areas = Area::with('subAreas')->orderBy('order_number')->get();
-        $programs = Program::where('is_active', true)->get();
-
-        // Add area nodes
-        foreach ($areas as $area) {
-            $nodes[] = [
-                'id' => 'area-' . $area->id,
-                'label' => preg_replace('/^Area \d+ [–-] /', '', $area->name),
-                'type' => 'area',
-            ];
-
-            // Add sub-area nodes and links
-            foreach ($area->subAreas as $subArea) {
-                $nodes[] = [
-                    'id' => 'subarea-' . $subArea->id,
-                    'label' => $subArea->name,
-                    'type' => 'subarea',
-                ];
-
-                // Link sub-area to area
-                $links[] = [
-                    'source' => 'area-' . $area->id,
-                    'target' => 'subarea-' . $subArea->id,
-                ];
-
-                // Link sub-areas to programs that have documents in them
-                $programIds = Document::where('sub_area_id', $subArea->id)
-                    ->distinct()
-                    ->pluck('program_id');
-
-                foreach ($programIds as $programId) {
-                    $links[] = [
-                        'source' => 'subarea-' . $subArea->id,
-                        'target' => 'program-' . $programId,
-                    ];
-                }
-            }
-        }
-
-        // Add program nodes
-        foreach ($programs as $program) {
-            $nodes[] = [
-                'id' => 'program-' . $program->id,
-                'label' => $program->code,
-                'type' => 'program',
-            ];
-        }
-
-        // Remove duplicate nodes
-        $nodes = collect($nodes)->unique('id')->values()->toArray();
-
-        return [
-            'nodes' => $nodes,
-            'links' => $links,
-        ];
     }
 }

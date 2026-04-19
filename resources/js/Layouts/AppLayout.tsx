@@ -2,10 +2,10 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { ReactNode, useState, useEffect } from 'react';
 import {
     LayoutDashboard, FileText, Layers, GraduationCap, Upload,
-    User, List, Settings, Bell, LogOut, BarChart3, Calendar, FolderCog, Palette, Network
+    User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, Palette, PanelLeft, Megaphone, Sun
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
-import { showSuccess, showError, showInfo, confirmAction } from '@/utils/toast';
+import { showSuccess, showError, confirmAction } from '@/utils/toast';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface AppLayoutProps {
@@ -20,7 +20,6 @@ const allNavItems = [
     { label: 'Overview', items: [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/', screen: 'dashboard', roles: ALL },
         { name: 'Documents', icon: FileText, href: '/documents', screen: 'documents', roles: ALL },
-        { name: 'Network Graph', icon: Network, href: '/network-graph', screen: 'network-graph', roles: ALL },
     ]},
     { label: 'Accreditation', items: [
         { name: 'Areas', icon: Layers, href: '/areas', screen: 'areas', roles: ['director', 'dean', 'program-coordinator', 'area-coordinator'] },
@@ -40,13 +39,14 @@ const allNavItems = [
 ];
 
 export default function AppLayout({ children, title = 'Dashboard', breadcrumb }: AppLayoutProps) {
-    const { auth, notifications_count, flash } = usePage<PageProps>().props;
+    const { auth, flash } = usePage<PageProps>().props;
     const { theme } = useTheme();
     const user = auth.user;
     const currentPath = window.location.pathname;
     const userRoleSlug = user?.roles?.[0]?.slug ?? '';
-    const [liveNotifCount, setLiveNotifCount] = useState(0);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [now, setNow] = useState(new Date());
+    const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
     
     // Determine icon color based on theme
     const getIconColor = (isActive: boolean) => {
@@ -73,19 +73,9 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     }, [sidebarCollapsed]);
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).Echo) {
-            const channel = (window as any).Echo.channel('documents');
-            channel.listen('.status.changed', (e: any) => {
-                if (e.actor !== user?.name) {
-                    showInfo(e.message);
-                    setLiveNotifCount(prev => prev + 1);
-                }
-            });
-            return () => {
-                (window as any).Echo.leaveChannel('documents');
-            };
-        }
-    }, [user?.name]);
+        const id = window.setInterval(() => setNow(new Date()), 60000);
+        return () => window.clearInterval(id);
+    }, []);
 
     const navItems = allNavItems.map(section => ({
         ...section,
@@ -187,67 +177,45 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
             {/* MAIN */}
             <div className="app-main">
-                {/* TOPBAR */}
-                <div style={{
-                    height: 72, background: '#fff', borderBottom: '1px solid #dde1ed',
-                    display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
-                }}>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 800, color: '#0f1f3d', lineHeight: 1.1 }}>
-                            {title}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8892aa' }}>
-                            <span>QUAMC</span>
-                            <span style={{ color: '#b8bfd4' }}>›</span>
-                            <span>{breadcrumb || title}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="app-topbar-right">
-                        {/* Search */}
-                        <div className="app-search">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="8"/>
-                                <path d="m21 21-4.35-4.35"/>
-                            </svg>
-                            <input type="text" placeholder="Search" />
-                            <kbd className="app-search-kbd">/</kbd>
-                        </div>
-                        
-                        {/* Action Icons */}
-                        <div className="app-topbar-actions">
-                            <button className="app-icon-btn" title="Theme">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="4"/>
-                                    <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-                                </svg>
+                <div className="app-panel">
+                    {/* TOPBAR */}
+                    <div className="app-connected-topbar">
+                        <div className="app-connected-topbar-left">
+                            <button
+                                type="button"
+                                className="app-icon-btn"
+                                title="Layout"
+                                style={{ width: 28, height: 28 }}
+                            >
+                                <PanelLeft size={15} />
                             </button>
-                            <button className="app-icon-btn" title="History">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                                    <path d="M3 3v5h5"/>
-                                    <path d="M12 7v5l4 2"/>
-                                </svg>
-                            </button>
-                            <button className="app-icon-btn app-notif-btn-new" title="Notifications">
-                                <Bell size={18} />
-                                {((notifications_count ?? 0) + liveNotifCount) > 0 && (
-                                    <span className="app-notif-badge-new" />
-                                )}
-                            </button>
-                            <button className="app-icon-btn" title="Layout">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                    <path d="M3 9h18M9 21V9"/>
-                                </svg>
-                            </button>
+                            <Megaphone size={15} color="#6b7280" />
+                            <div className="app-connected-title">
+                                {title}
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* CONTENT */}
-                <div className="app-content">
-                    {children}
+                        <div className="app-connected-topbar-right">
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, marginRight: 4 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: '#0f1f3d' }}>
+                                    {new Intl.DateTimeFormat(undefined, {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true,
+                                    }).format(now)}
+                                </span>
+                                <span style={{ fontSize: 10, color: '#8a94a6' }}>{appVersion}</span>
+                            </div>
+                            <button className="app-icon-btn" title="Theme" style={{ width: 30, height: 30 }}>
+                                <Sun size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* CONTENT */}
+                    <div className="app-content app-connected-content">
+                        {children}
+                    </div>
                 </div>
             </div>
         </div>

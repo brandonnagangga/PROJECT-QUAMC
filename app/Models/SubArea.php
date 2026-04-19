@@ -54,6 +54,11 @@ class SubArea extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(SubAreaNote::class);
+    }
+
     /**
      * Get all 3 document slots for a specific program.
      * Returns: ['input' => Document|null, 'process' => Document|null, 'outcome' => Document|null]

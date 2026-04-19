@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
-import AreaRelationshipGraph from '@/components/dashboard/AreaRelationshipGraph';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 
 interface AreaStat { name: string; pct: number; cls: string; }
@@ -96,9 +95,8 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                 <CalendarCard />
             </div>
 
-            {/* RELATIONSHIP GRAPH + METRICS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
-                <AreaRelationshipGraph data={graphData} />
+            {/* METRICS */}
+            <div style={{ marginBottom: 24 }}>
                 <MetricList
                     title="Submission Mix"
                     data={[
