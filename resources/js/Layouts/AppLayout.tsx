@@ -6,8 +6,7 @@ import {
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { showSuccess, showError, showInfo, confirmAction } from '@/utils/toast';
-import { ThemeApplier, useTheme } from '@/contexts/ThemeContext';
-import SeasonalDecorations from '@/components/SeasonalDecorations';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -41,7 +40,7 @@ const allNavItems = [
 ];
 
 export default function AppLayout({ children, title = 'Dashboard', breadcrumb }: AppLayoutProps) {
-    const { auth, notifications_count, flash, active_cycle } = usePage<PageProps>().props;
+    const { auth, notifications_count, flash } = usePage<PageProps>().props;
     const { theme } = useTheme();
     const user = auth.user;
     const currentPath = window.location.pathname;
@@ -143,12 +142,12 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                             fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
                                             color: active ? '#e8c96d' : 'rgba(255,255,255,0.65)',
                                         }}>{item.name}</span>
-                                        {'badge' in item && item.badge !== null && (
+                                        {'badge' in item && item.badge !== null && item.badge !== undefined && (
                                             <span style={{
                                                 background: '#c9a84c', color: '#0f1f3d',
                                                 fontSize: 10, fontWeight: 700, padding: '1px 6px',
                                                 borderRadius: 10, minWidth: 18, textAlign: 'center'
-                                            }}>{item.badge}</span>
+                                            }}>{String(item.badge)}</span>
                                         )}
                                     </Link>
                                 );
