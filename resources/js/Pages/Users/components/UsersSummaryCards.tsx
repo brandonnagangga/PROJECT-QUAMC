@@ -19,12 +19,12 @@ export function UsersSummaryCards({
     ];
 
     return (
-        <div style={{ background: '#fff', border: '1px solid #e5eaf3', borderRadius: 20, padding: '18px 22px', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
+        <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, padding: '18px 22px', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
                 {summaryCards.map((card, index) => (
-                    <div key={card.label} style={{ paddingLeft: index === 0 ? 0 : 18, borderLeft: index === 0 ? 'none' : '1px solid #eef2f7' }}>
-                        <div style={{ marginBottom: 10, fontSize: 12.5, color: '#6b7280' }}>{card.label}</div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>{card.value}</div>
+                    <div key={card.label} style={{ paddingLeft: index === 0 ? 0 : 18, borderLeft: index === 0 ? 'none' : '1px solid var(--color-border)' }}>
+                        <div style={{ marginBottom: 10, fontSize: 12.5, color: 'var(--color-text-secondary)' }}>{card.label}</div>
+                        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.1 }}>{card.value}</div>
                         <div style={{ marginTop: 8, fontSize: 12, color: card.tone }}>{card.change}</div>
                     </div>
                 ))}

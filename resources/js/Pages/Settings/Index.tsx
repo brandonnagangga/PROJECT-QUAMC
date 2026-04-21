@@ -71,15 +71,15 @@ export default function SettingsIndex({ settings: initial }: Props) {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#0f1f3d' }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--color-text)' }}>
                         System Settings
                     </div>
-                    <div style={{ fontSize: 12, color: '#8892aa' }}>Configure system parameters and preferences</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Configure system parameters and preferences</div>
                 </div>
                 <button onClick={handleSave} disabled={saving} style={{
                     display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px',
                     borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                    background: '#0f1f3d', color: '#c9a84c',
+                    background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                     fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
                     opacity: saving ? 0.6 : 1, transition: 'all 0.2s',
                 }}>
@@ -89,9 +89,9 @@ export default function SettingsIndex({ settings: initial }: Props) {
 
             <div style={{ display: 'grid', gap: 20 }}>
                 {sections.map(section => (
-                    <div key={section.title} style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                    <div key={section.title} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
                         <div style={{
-                            padding: '14px 20px', borderBottom: '1px solid #f0f2f8',
+                            padding: '14px 20px', borderBottom: '1px solid var(--color-border)',
                             display: 'flex', alignItems: 'center', gap: 10,
                         }}>
                             <div style={{
@@ -100,15 +100,15 @@ export default function SettingsIndex({ settings: initial }: Props) {
                             }}>
                                 <section.icon size={15} color={section.color} />
                             </div>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f1f3d' }}>{section.title}</span>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>{section.title}</span>
                         </div>
                         <div style={{ padding: '16px 20px' }}>
                             {section.fields.map(field => (
                                 <div key={field.key} style={{
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    padding: '10px 0', borderBottom: '1px solid #f0f2f8',
+                                    padding: '10px 0', borderBottom: '1px solid var(--color-border)',
                                 }}>
-                                    <label style={{ fontSize: 12.5, color: '#4a5470', fontWeight: 500 }}>{field.label}</label>
+                                    <label style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{field.label}</label>
                                     {field.type === 'toggle' ? (
                                         <div onClick={() => setSettings(prev => ({ ...prev, [field.key]: isOn(field.key) ? '0' : '1' }))}
                                             style={{
@@ -129,11 +129,11 @@ export default function SettingsIndex({ settings: initial }: Props) {
                                             type={field.type} value={settings[field.key] || ''}
                                             onChange={(e) => setSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
                                             style={{
-                                                padding: '6px 12px', borderRadius: 6, border: '1px solid #dde1ed',
+                                                padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)',
                                                 fontSize: 12, fontFamily: "'DM Sans', sans-serif",
                                                 width: field.type === 'number' ? 100 : 260,
                                                 textAlign: field.type === 'number' ? 'right' as const : 'left' as const,
-                                                outline: 'none', color: '#0f1f3d',
+                                                outline: 'none', color: 'var(--color-text)', background: 'var(--color-panel-bg)',
                                             }}
                                         />
                                     )}

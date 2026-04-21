@@ -41,7 +41,7 @@ function ModalShell({ title, subtitle, onClose, children }: {
                     style={{
                         position: 'absolute', top: 16, right: 16,
                         width: 28, height: 28, borderRadius: 8,
-                        border: '1px solid #dde1ed', background: '#f8f9fc',
+                        border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)',
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                 >
@@ -137,8 +137,8 @@ function CreateAreaModal({ onClose, nextOrderNumber }: { onClose: () => void; ne
                             onClick={addSubArea}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 4,
-                                padding: '4px 10px', borderRadius: 6, border: '1px solid #dde1ed',
-                                background: '#f8f9fc', cursor: 'pointer', fontSize: 11, color: '#4a5470', fontWeight: 600,
+                                padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+                                background: 'var(--color-button-secondary-bg)', cursor: 'pointer', fontSize: 11, color: 'var(--color-button-secondary-text)', fontWeight: 600,
                             }}
                         >
                             <Plus size={11} /> Add Sub-area
@@ -194,7 +194,7 @@ function CreateAreaModal({ onClose, nextOrderNumber }: { onClose: () => void; ne
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4, paddingTop: 4, borderTop: '1px solid #f0f2f8' }}>
-                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>
+                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12.5, cursor: 'pointer', color: 'var(--color-button-secondary-text)', fontWeight: 500 }}>
                         Cancel
                     </button>
                     <button
@@ -203,7 +203,7 @@ function CreateAreaModal({ onClose, nextOrderNumber }: { onClose: () => void; ne
                         style={{
                             padding: '10px 24px', borderRadius: 8, border: 'none',
                             fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                            background: '#0f1f3d', color: '#c9a84c',
+                            background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                             opacity: (submitting || !name.trim()) ? 0.55 : 1,
                             transition: 'opacity 0.15s',
                         }}
@@ -268,7 +268,7 @@ function EditAreaModal({ area, onClose }: { area: AreaRow; onClose: () => void }
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4, paddingTop: 4, borderTop: '1px solid #f0f2f8' }}>
-                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>
+                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12.5, cursor: 'pointer', color: 'var(--color-button-secondary-text)', fontWeight: 500 }}>
                         Cancel
                     </button>
                     <button
@@ -277,7 +277,7 @@ function EditAreaModal({ area, onClose }: { area: AreaRow; onClose: () => void }
                         style={{
                             padding: '10px 24px', borderRadius: 8, border: 'none',
                             fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                            background: '#0f1f3d', color: '#c9a84c',
+                            background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                             opacity: (submitting || !name.trim()) ? 0.55 : 1,
                         }}
                     >
@@ -340,11 +340,11 @@ function EditSubModal({ sa, onClose }: { sa: SubAreaRow; onClose: () => void }) 
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4, paddingTop: 4, borderTop: '1px solid #f0f2f8' }}>
-                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>Cancel</button>
+                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12.5, cursor: 'pointer', color: 'var(--color-button-secondary-text)', fontWeight: 500 }}>Cancel</button>
                     <button
                         onClick={handleSubmit}
                         disabled={submitting || !name.trim()}
-                        style={{ padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#0f1f3d', color: '#c9a84c', opacity: (submitting || !name.trim()) ? 0.55 : 1 }}
+                        style={{ padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', opacity: (submitting || !name.trim()) ? 0.55 : 1 }}
                     >
                         {submitting ? 'Saving…' : 'Save Changes'}
                     </button>
@@ -392,11 +392,11 @@ function AddSubModal({ areaId, onClose }: { areaId: number; onClose: () => void 
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4, paddingTop: 4, borderTop: '1px solid #f0f2f8' }}>
-                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>Cancel</button>
+                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12.5, cursor: 'pointer', color: 'var(--color-button-secondary-text)', fontWeight: 500 }}>Cancel</button>
                     <button
                         onClick={handleSubmit}
                         disabled={submitting || !name.trim()}
-                        style={{ padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#0f1f3d', color: '#c9a84c', opacity: (submitting || !name.trim()) ? 0.55 : 1 }}
+                        style={{ padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', opacity: (submitting || !name.trim()) ? 0.55 : 1 }}
                     >
                         {submitting ? 'Adding…' : 'Add Sub-area'}
                     </button>

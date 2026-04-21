@@ -58,17 +58,17 @@ export default function LogsIndex({ logs }: Props) {
             <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
-                    border: '1.5px solid #dde1ed', borderRadius: 8, background: '#fff', flex: 1, maxWidth: 340,
+                    border: '1.5px solid var(--color-border)', borderRadius: 8, background: 'var(--color-panel-bg)', flex: 1, maxWidth: 340,
                 }}>
                     <Search size={14} color="#8892aa" />
                     <input value={search} onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by user or event..."
-                        style={{ border: 'none', outline: 'none', fontSize: 12.5, color: '#0f1f3d', width: '100%', fontFamily: "'DM Sans', sans-serif" }}
+                        style={{ border: 'none', outline: 'none', fontSize: 12.5, color: 'var(--color-text)', background: 'transparent', width: '100%', fontFamily: "'DM Sans', sans-serif" }}
                     />
                 </div>
                 <select value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)} style={{
-                    padding: '8px 12px', borderRadius: 8, border: '1.5px solid #dde1ed', fontSize: 12,
-                    fontFamily: "'DM Sans', sans-serif", color: '#4a5470', cursor: 'pointer', background: '#fff',
+                    padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--color-border)', fontSize: 12,
+                    fontFamily: "'DM Sans', sans-serif", color: 'var(--color-text-secondary)', cursor: 'pointer', background: 'var(--color-panel-bg)',
                 }}>
                     <option value="">All Events</option>
                     {events.map(e => <option key={e} value={e}>{formatEventName(e)}</option>)}
@@ -79,19 +79,19 @@ export default function LogsIndex({ logs }: Props) {
             </div>
 
             {/* Logs Table */}
-            <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                     <thead>
-                        <tr style={{ background: '#f8f9fc', borderBottom: '1px solid #dde1ed' }}>
+                        <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
                             {['Event', 'User', 'Target', 'IP Address', 'When'].map(h => (
-                                <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 10, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{h}</th>
+                                <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 10, fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {filtered.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ padding: 40, textAlign: 'center', color: '#b8bfd4' }}>
+                                <td colSpan={5} style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                                     <Activity size={32} style={{ marginBottom: 10, opacity: 0.3 }} />
                                     <div>No activity logs yet</div>
                                 </td>
@@ -101,8 +101,8 @@ export default function LogsIndex({ logs }: Props) {
                             const ev = eventColors[log.event] || defaultEvent;
                             const Icon = ev.icon;
                             return (
-                                <tr key={log.id} style={{ borderBottom: '1px solid #f0f2f8', transition: 'background 0.12s' }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfe'}
+                                <tr key={log.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.12s' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-background)'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <td style={{ padding: '10px 14px' }}>
@@ -114,15 +114,15 @@ export default function LogsIndex({ logs }: Props) {
                                             <Icon size={12} style={{ flexShrink: 0, display: 'block' }} /> {formatEventName(log.event)}
                                         </span>
                                     </td>
-                                    <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>{log.user_name}</td>
-                                    <td style={{ padding: '10px 14px', color: '#4a5470' }}>
-                                        {log.model_type && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#f0f2f8', color: '#8892aa', marginRight: 4 }}>{log.model_type}</span>}
+                                    <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--color-text)' }}>{log.user_name}</td>
+                                    <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>
+                                        {log.model_type && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--color-background)', color: 'var(--color-text-secondary)', marginRight: 4 }}>{log.model_type}</span>}
                                         {log.model_id ? `#${log.model_id.substring(0, 8)}` : '—'}
                                     </td>
-                                    <td style={{ padding: '10px 14px', color: '#8892aa', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>{log.ip_address || '—'}</td>
+                                    <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>{log.ip_address || '—'}</td>
                                     <td style={{ padding: '10px 14px' }}>
-                                        <div style={{ color: '#4a5470', fontSize: 11.5 }}>{log.time_ago}</div>
-                                        <div style={{ color: '#b8bfd4', fontSize: 10, marginTop: 1 }}>{log.created_at}</div>
+                                        <div style={{ color: 'var(--color-text-secondary)', fontSize: 11.5 }}>{log.time_ago}</div>
+                                        <div style={{ color: 'var(--color-text-secondary)', fontSize: 10, marginTop: 1 }}>{log.created_at}</div>
                                     </td>
                                 </tr>
                             );

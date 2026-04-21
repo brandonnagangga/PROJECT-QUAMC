@@ -87,7 +87,7 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
     };
 
     const handleExport = (format: UserExportFormat) => {
-        window.location.href = `/users/export?format=${format}`;
+        router.visit(`/users/export?format=${format}`);
         setShowExport(false);
     };
 

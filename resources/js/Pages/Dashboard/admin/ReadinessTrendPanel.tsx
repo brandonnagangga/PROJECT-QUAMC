@@ -82,8 +82,8 @@ export function ReadinessTrendPanel({
     return (
         <div
             style={{
-                background: '#fff',
-                border: '1px solid #d7dde8',
+                background: 'var(--color-panel-bg)',
+                border: '1px solid var(--color-panel-border)',
                 borderRadius: 12,
                 padding: 14,
                 boxShadow: '0 1px 0 rgba(15,31,61,0.02)',
@@ -91,14 +91,14 @@ export function ReadinessTrendPanel({
         >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#0f1f3d', lineHeight: '24px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', lineHeight: '24px' }}>
                         Readiness trend
                     </div>
                     <span
                         style={{
-                            border: '1px solid #d7dde8',
+                            border: '1px solid var(--color-border)',
                             borderRadius: 6,
-                            background: '#f8fafc',
+                            background: 'var(--color-background)',
                             padding: '0 8px',
                             height: 24,
                             display: 'inline-flex',
@@ -106,7 +106,7 @@ export function ReadinessTrendPanel({
                             fontSize: 12,
                             fontWeight: 500,
                             lineHeight: 1,
-                            color: '#8c95a6',
+                            color: 'var(--color-text-secondary)',
                         }}
                     >
                         {timePeriod}
@@ -135,9 +135,9 @@ export function ReadinessTrendPanel({
                                 top: 30,
                                 right: 0,
                                 width: 208,
-                                border: '1px solid #d7dde8',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: 10,
-                                background: '#ffffff',
+                                background: 'var(--color-surface)',
                                 boxShadow: '0 16px 30px rgba(15, 23, 42, 0.14)',
                                 zIndex: 30,
                                 overflow: 'hidden',
@@ -153,20 +153,20 @@ export function ReadinessTrendPanel({
                                 style={{
                                     width: '100%',
                                     border: 'none',
-                                    background: '#f8fafc',
-                                    borderBottom: '1px solid #e5e9f1',
+                                    background: 'var(--color-background)',
+                                    borderBottom: '1px solid var(--color-border)',
                                     padding: '10px 12px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     fontSize: 14,
-                                    color: '#2d3648',
+                                    color: 'var(--color-text)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                 }}
                             >
                                 <span>Time Period</span>
-                                <span style={{ color: '#8a94a6' }}>›</span>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>›</span>
                             </button>
 
                             <button
@@ -179,14 +179,14 @@ export function ReadinessTrendPanel({
                                 style={{
                                     width: '100%',
                                     border: 'none',
-                                    background: '#f8fafc',
-                                    borderBottom: '1px solid #e5e9f1',
+                                    background: 'var(--color-background)',
+                                    borderBottom: '1px solid var(--color-border)',
                                     padding: '10px 12px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     fontSize: 14,
-                                    color: '#2d3648',
+                                    color: 'var(--color-text)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                 }}
@@ -199,26 +199,26 @@ export function ReadinessTrendPanel({
                                             height: 10,
                                             borderRadius: 999,
                                             background: chartColor,
-                                            border: '1px solid rgba(15,23,42,0.2)',
+                                            border: '1px solid color-mix(in srgb, var(--color-text) 20%, transparent)',
                                         }}
                                     />
-                                    <span style={{ color: '#8a94a6' }}>›</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>›</span>
                                 </span>
                             </button>
 
                             <button
                                 type="button"
                                 onClick={() => setShowGrid((prev) => !prev)}
-                                style={{
-                                    width: '100%',
-                                    border: 'none',
-                                    background: '#fff',
-                                    padding: '10px 12px',
+                            style={{
+                                width: '100%',
+                                border: 'none',
+                                background: 'var(--color-surface)',
+                                padding: '10px 12px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 10,
                                     fontSize: 14,
-                                    color: '#1f2937',
+                                    color: 'var(--color-text)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                 }}
@@ -230,16 +230,16 @@ export function ReadinessTrendPanel({
                             <button
                                 type="button"
                                 onClick={() => setSmoothCurve((prev) => !prev)}
-                                style={{
-                                    width: '100%',
-                                    border: 'none',
-                                    background: '#fff',
+                            style={{
+                                width: '100%',
+                                border: 'none',
+                                background: 'var(--color-surface)',
                                     padding: '10px 12px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 10,
                                     fontSize: 14,
-                                    color: '#1f2937',
+                                    color: 'var(--color-text)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                 }}
@@ -263,14 +263,14 @@ export function ReadinessTrendPanel({
                                 style={{
                                     width: '100%',
                                     border: 'none',
-                                    borderTop: '1px solid #e5e9f1',
-                                    background: '#fff',
+                                    borderTop: '1px solid var(--color-border)',
+                                    background: 'var(--color-surface)',
                                     padding: '10px 12px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 10,
                                     fontSize: 14,
-                                    color: '#1f2937',
+                                    color: 'var(--color-text)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                 }}
@@ -291,9 +291,9 @@ export function ReadinessTrendPanel({
                                 top: 30,
                                 right: -164,
                                 width: 160,
-                                border: '1px solid #d7dde8',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: 10,
-                                background: '#ffffff',
+                                background: 'var(--color-surface)',
                                 boxShadow: '0 16px 30px rgba(15, 23, 42, 0.14)',
                                 zIndex: 31,
                                 overflow: 'hidden',
@@ -312,19 +312,19 @@ export function ReadinessTrendPanel({
                                     style={{
                                         width: '100%',
                                         border: 'none',
-                                        background: '#fff',
+                                        background: 'var(--color-surface)',
                                         padding: '10px 12px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         fontSize: 14,
-                                        color: '#1f2937',
+                                        color: 'var(--color-text)',
                                         cursor: 'pointer',
                                         textAlign: 'left',
                                     }}
                                 >
                                     <span>{period}</span>
-                                    <span style={{ color: '#8a94a6' }}>{timePeriod === period ? '✓' : ''}</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>{timePeriod === period ? '✓' : ''}</span>
                                 </button>
                             ))}
                         </div>
@@ -341,9 +341,9 @@ export function ReadinessTrendPanel({
                                 top: 68,
                                 right: -164,
                                 width: 160,
-                                border: '1px solid #d7dde8',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: 10,
-                                background: '#ffffff',
+                                background: 'var(--color-surface)',
                                 boxShadow: '0 16px 30px rgba(15, 23, 42, 0.14)',
                                 zIndex: 31,
                                 overflow: 'hidden',
@@ -363,13 +363,13 @@ export function ReadinessTrendPanel({
                                     style={{
                                         width: '100%',
                                         border: 'none',
-                                        background: '#fff',
+                                        background: 'var(--color-surface)',
                                         padding: '10px 12px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         fontSize: 14,
-                                        color: '#1f2937',
+                                        color: 'var(--color-text)',
                                         cursor: 'pointer',
                                         textAlign: 'left',
                                     }}

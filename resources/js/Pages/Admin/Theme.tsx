@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { CurrentThemeBanner } from './Theme/CurrentThemeBanner';
 import { ThemeModeSection } from './Theme/ThemeModeSection';
@@ -95,7 +95,7 @@ export default function Theme({ themeConfig, seasonalThemes }: Props) {
                     }}>
                         <button
                             type="button"
-                            onClick={() => window.location.reload()}
+                            onClick={() => router.reload()}
                             style={{
                                 padding: '0.75rem 1.5rem',
                                 border: '2px solid #D1D5DB',

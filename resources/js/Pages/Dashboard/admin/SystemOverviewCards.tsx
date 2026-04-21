@@ -18,8 +18,8 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
                         >
                             <div
                                 style={{
-                                    background: '#fff',
-                                    border: '1px solid #d7dde8',
+                                    background: 'var(--color-panel-bg)',
+                                    border: '1px solid var(--color-panel-border)',
                                     borderRadius: 12,
                                     padding: '12px 14px',
                                     transition: 'all 0.2s',
@@ -56,7 +56,7 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
                                         style={{
                                             fontSize: 13,
                                             fontWeight: 600,
-                                            color: '#fff',
+                                            color: '#ffffff',
                                             letterSpacing: '0.05em',
                                             textTransform: 'uppercase',
                                             position: 'relative',
@@ -68,18 +68,18 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
                                     </div>
                                 </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>{metric.label}</div>
+                            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{metric.label}</div>
                             <div
                                 style={{
                                     width: 18,
                                     height: 18,
                                     borderRadius: 5,
-                                    border: '1px solid #d7dde8',
+                                    border: '1px solid var(--color-border)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#6b7280',
-                                    background: '#fff',
+                                    color: 'var(--color-text-secondary)',
+                                    background: 'var(--color-surface)',
                                 }}
                             >
                                 <metric.icon size={12} />
@@ -88,7 +88,7 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
 
                         <div
                             style={{
-                                border: '1px solid #dde1ed',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: 10,
                                 padding: '10px 12px',
                                 display: 'flex',
@@ -97,7 +97,7 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
                                 gap: 10,
                             }}
                         >
-                            <div style={{ fontSize: 30, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                            <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
                                 {metric.value}
                             </div>
                             <div style={{ fontSize: 14, fontWeight: 600, color: metric.accent, whiteSpace: 'nowrap' }}>
@@ -105,7 +105,7 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
                             </div>
                         </div>
 
-                        <div style={{ fontSize: 11, color: '#8a94a6', marginTop: -2 }}>Live system metric</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: -2 }}>Live system metric</div>
                     </div>
                 </PixelCard>
                 );
@@ -114,4 +114,3 @@ export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
         </div>
     );
 }
-

@@ -123,7 +123,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                     {viewMode === 'list' && statusTabs.map(tab => (
                         <button key={tab.key} onClick={() => handleStatusFilter(tab.key)} style={{
                             padding: '8px 16px', fontSize: 12, fontWeight: activeStatus === tab.key ? 600 : 400,
-                            color: activeStatus === tab.key ? '#0f1f3d' : '#8892aa', cursor: 'pointer',
+                            color: activeStatus === tab.key ? 'var(--color-text)' : 'var(--color-text-secondary)', cursor: 'pointer',
                             border: 'none', background: 'none', borderBottom: activeStatus === tab.key ? '2px solid #c9a84c' : '2px solid transparent',
                             fontFamily: "'DM Sans', sans-serif",
                         }}>{tab.label}</button>
@@ -132,21 +132,21 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                             {breadcrumbs.map((bc, i) => (
                                 <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    {i > 0 && <ChevronRight size={12} color="#b8bfd4" />}
+                                    {i > 0 && <ChevronRight size={12} color="var(--color-text-secondary)" />}
                                     {bc.onClick
-                                        ? <span onClick={bc.onClick} style={{ color: '#185FA5', cursor: 'pointer', fontWeight: 500 }}>{bc.label}</span>
-                                        : <span style={{ color: '#0f1f3d', fontWeight: 600 }}>{bc.label}</span>}
+                                        ? <span onClick={bc.onClick} style={{ color: 'var(--color-text)', cursor: 'pointer', fontWeight: 500 }}>{bc.label}</span>
+                                        : <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{bc.label}</span>}
                                 </span>
                             ))}
                         </div>
                     )}
                 </div>
-                <div style={{ display: 'flex', gap: 2, background: '#f0f2f8', borderRadius: 8, padding: 3 }}>
+                <div style={{ display: 'flex', gap: 2, background: 'var(--color-background)', borderRadius: 8, padding: 3 }}>
                     {(['list', 'folder'] as const).map(m => (
                         <button key={m} onClick={() => setViewMode(m)} title={m === 'list' ? 'List View' : 'Folder View'}
                             style={{ width: 30, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: viewMode === m ? '#fff' : 'transparent', boxShadow: viewMode === m ? '0 1px 3px rgba(0,0,0,0.06)' : 'none' }}>
-                            {m === 'list' ? <List size={14} color={viewMode === m ? '#0f1f3d' : '#8892aa'} /> : <LayoutGrid size={14} color={viewMode === m ? '#0f1f3d' : '#8892aa'} />}
+                                background: viewMode === m ? 'var(--color-panel-bg)' : 'transparent', boxShadow: viewMode === m ? '0 1px 3px rgba(0,0,0,0.06)' : 'none' }}>
+                            {m === 'list' ? <List size={14} color={viewMode === m ? 'var(--color-text)' : 'var(--color-text-secondary)'} /> : <LayoutGrid size={14} color={viewMode === m ? 'var(--color-text)' : 'var(--color-text-secondary)'} />}
                         </button>
                     ))}
                 </div>
@@ -155,13 +155,13 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
             {/* ── Search bar (list only) ── */}
             {viewMode === 'list' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', background: '#fff', border: '1px solid #dde1ed', borderRadius: 10 }}>
-                        <Search size={15} color="#b8bfd4" />
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)', borderRadius: 10 }}>
+                        <Search size={15} color="var(--color-text-secondary)" />
                         <input type="text" placeholder="Search documents..." value={search}
                             onChange={(e) => handleSearch(e.target.value)}
-                            style={{ border: 'none', outline: 'none', fontSize: 13, flex: 1, fontFamily: "'DM Sans',sans-serif", color: '#0f1f3d', background: 'transparent' }} />
+                            style={{ border: 'none', outline: 'none', fontSize: 13, flex: 1, fontFamily: "'DM Sans',sans-serif", color: 'var(--color-text)', background: 'transparent' }} />
                     </div>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#fff', border: '1px solid #dde1ed', borderRadius: 10, fontSize: 12, color: '#4a5470', cursor: 'pointer' }}>
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: 'var(--color-button-secondary-bg)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, color: 'var(--color-button-secondary-text)', cursor: 'pointer' }}>
                         <Filter size={13} /> Filter
                     </button>
                 </div>
@@ -169,12 +169,12 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
             {/* ═══ LIST VIEW ═══ */}
             {viewMode === 'list' && (
-                <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                         <thead>
-                            <tr style={{ background: '#f8f9fc', borderBottom: '1px solid #dde1ed' }}>
+                            <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
                                 {['DOCUMENT', 'PROGRAM', 'VERSION', 'STATUS', 'DATE', ''].map(h => (
-                                    <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 9.5, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{h}</th>
+                                    <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 9.5, fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -182,26 +182,26 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                             {documents.map(doc => {
                                 const st = statusConfig[doc.status] || statusConfig.draft;
                                 return (
-                                    <tr key={doc.id} style={{ borderBottom: '1px solid #f0f2f8', cursor: 'pointer' }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfe'}
+                                    <tr key={doc.id} style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-hover)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                        onClick={() => window.location.href = `/documents/${doc.id}`}>
+                                        onClick={() => router.visit(`/documents/${doc.id}`)}>
                                         <td style={{ padding: '11px 16px' }}>
-                                            <div style={{ fontWeight: 600, color: '#0f1f3d', display: 'flex', alignItems: 'center', gap: 7 }}>
-                                                <FileText size={14} color="#8892aa" /> {doc.title}
+                                            <div style={{ fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                                <FileText size={14} color="var(--color-text-secondary)" /> {doc.title}
                                             </div>
-                                            <div style={{ fontSize: 11, color: '#b8bfd4', marginTop: 2, paddingLeft: 21 }}>{doc.path}</div>
+                                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2, paddingLeft: 21 }}>{doc.path}</div>
                                         </td>
                                         <td style={{ padding: '11px 16px' }}>
                                             <span style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, background: '#0f1f3d', color: '#c9a84c', fontWeight: 600 }}>{doc.prog}</span>
                                         </td>
-                                        <td style={{ padding: '11px 16px', fontFamily: "'DM Mono',monospace", color: '#4a5470' }}>{doc.ver}</td>
+                                        <td style={{ padding: '11px 16px', fontFamily: "'DM Mono',monospace", color: 'var(--color-text-secondary)' }}>{doc.ver}</td>
                                         <td style={{ padding: '11px 16px' }}>
                                             <span style={{ fontSize: 10.5, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                                 <st.icon size={10} /> {st.label}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '11px 16px', color: '#8892aa' }}>{doc.date}</td>
+                                        <td style={{ padding: '11px 16px', color: 'var(--color-text-secondary)' }}>{doc.date}</td>
                                         <td style={{ padding: '11px 16px' }}>
                                             <Link href={`/documents/${doc.id}`} onClick={(e: any) => e.stopPropagation()} style={{ color: '#c9a84c' }}><Eye size={14} /></Link>
                                         </td>
@@ -209,7 +209,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                 );
                             })}
                             {documents.length === 0 && (
-                                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#b8bfd4', fontSize: 13 }}>No documents found.</td></tr>
+                                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>No documents found.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -221,10 +221,10 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                 <>
                     {folderLevel !== 'programs' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                            <button onClick={goBack} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                <ArrowLeft size={14} color="#4a5470" />
+                            <button onClick={goBack} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-panel-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                <ArrowLeft size={14} color="var(--color-text-secondary)" />
                             </button>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
                                 {currentSubArea?.name ?? currentArea?.name ?? currentProgram?.name}
                             </div>
                         </div>
@@ -235,13 +235,13 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
                             {programs.map((prog, i) => (
                                 <div key={prog.id} onClick={() => setCurrentProgram(prog)}
-                                    style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
+                                    style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
                                     onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = folderColors[i % folderColors.length]; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#dde1ed'; }}>
+                                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
                                     <FolderIcon color={folderColors[i % folderColors.length]} size={64} label={prog.code} />
                                     <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>{prog.name}</div>
-                                        <div style={{ fontSize: 10, color: '#8892aa', marginTop: 2 }}>{prog.areas.length} areas</div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{prog.name}</div>
+                                        <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{prog.areas.length} areas</div>
                                     </div>
                                 </div>
                             ))}
@@ -253,13 +253,13 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
                             {currentProgram.areas.map((area, i) => (
                                 <div key={area.id} onClick={() => setCurrentArea(area)}
-                                    style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '20px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s' }}
+                                    style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '20px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s' }}
                                     onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = areaColors[i % areaColors.length]; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#dde1ed'; }}>
+                                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
                                     <FolderIcon color={areaColors[i % areaColors.length]} size={52} />
                                     <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d' }}>{area.name}</div>
-                                        <div style={{ fontSize: 9, color: '#b8bfd4', marginTop: 3 }}>{area.sub_areas.length} sub-areas</div>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{area.name}</div>
+                                        <div style={{ fontSize: 9, color: 'var(--color-text-secondary)', marginTop: 3 }}>{area.sub_areas.length} sub-areas</div>
                                     </div>
                                 </div>
                             ))}
@@ -273,12 +273,12 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                 const ss = SUBMISSION_STATUS[sa.submission_status] ?? SUBMISSION_STATUS.draft;
                                 return (
                                     <div key={sa.id} onClick={() => setCurrentSubArea(sa)}
-                                        style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '20px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s' }}
+                                        style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '20px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = '#185FA5'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#dde1ed'; }}>
+                                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
                                         <FolderIcon color="#185FA5" size={52} />
                                         <div style={{ textAlign: 'center' }}>
-                                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d' }}>{sa.name}</div>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{sa.name}</div>
                                             <span style={{ display: 'inline-block', fontSize: 9, padding: '2px 6px', borderRadius: 4, marginTop: 4, background: ss.bg, color: ss.color, fontWeight: 600 }}>{ss.label}</span>
                                         </div>
                                     </div>

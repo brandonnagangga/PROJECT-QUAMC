@@ -79,7 +79,7 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
                         onMouseLeave={(e) => e.currentTarget.style.background = notif.is_read ? 'transparent' : '#fafbfe'}
                         onClick={() => {
                             if (!notif.is_read) router.post(`/notifications/${notif.id}/read`, {}, { preserveScroll: true });
-                            if (notif.document_id) window.location.href = `/documents/${notif.document_id}`;
+                            if (notif.document_id) router.visit(`/documents/${notif.document_id}`);
                         }}
                         >
                             {/* Icon */}

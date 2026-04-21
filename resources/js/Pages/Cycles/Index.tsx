@@ -76,17 +76,17 @@ export default function CyclesIndex({ cycles }: Props) {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
                         Accreditation Cycles
                     </div>
-                    <div style={{ fontSize: 12, color: '#8892aa', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                         Manage academic year cycles for document tracking
                     </div>
                 </div>
                 <button onClick={openCreate} style={{
                     display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px',
                     borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: '#0f1f3d', color: '#c9a84c', fontSize: 12, fontWeight: 600,
+                    background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', fontSize: 12, fontWeight: 600,
                     fontFamily: "'DM Sans', sans-serif",
                 }}>
                     <Plus size={14} /> New Cycle
@@ -96,7 +96,7 @@ export default function CyclesIndex({ cycles }: Props) {
             {/* Create/Edit Form Modal */}
             {showForm && (
                 <div style={{
-                    background: '#fff', border: '1px solid #dde1ed', borderRadius: 14,
+                    background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14,
                     padding: 24, marginBottom: 24, position: 'relative',
                 }}>
                     <button onClick={resetForm} style={{
@@ -105,7 +105,7 @@ export default function CyclesIndex({ cycles }: Props) {
                     }}>
                         <X size={18} color="#8892aa" />
                     </button>
-                    <div style={{ fontWeight: 600, fontSize: 15, color: '#0f1f3d', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)', marginBottom: 16 }}>
                         {editId ? 'Edit Cycle' : 'Create New Cycle'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -149,18 +149,18 @@ export default function CyclesIndex({ cycles }: Props) {
                                         transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                                     }} />
                                 </div>
-                                <span style={{ fontSize: 12, color: '#4a5470' }}>Set as active cycle</span>
+                                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Set as active cycle</span>
                             </div>
                         )}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
                         <button onClick={resetForm} style={{
-                            padding: '8px 16px', borderRadius: 8, border: '1px solid #dde1ed',
-                            background: '#fff', cursor: 'pointer', fontSize: 12, color: '#4a5470',
+                            padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)',
+                            background: 'var(--color-button-secondary-bg)', cursor: 'pointer', fontSize: 12, color: 'var(--color-button-secondary-text)',
                         }}>Cancel</button>
                         <button onClick={handleSubmit} style={{
                             padding: '8px 20px', borderRadius: 8, border: 'none',
-                            background: '#0f1f3d', color: '#c9a84c', cursor: 'pointer',
+                            background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', cursor: 'pointer',
                             fontSize: 12, fontWeight: 600,
                         }}>{editId ? 'Update' : 'Create'}</button>
                     </div>
@@ -170,12 +170,12 @@ export default function CyclesIndex({ cycles }: Props) {
             {/* Cycles Grid */}
             {cycles.length === 0 ? (
                 <div style={{
-                    background: '#fff', border: '1px solid #dde1ed', borderRadius: 14,
+                    background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14,
                     padding: 60, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
                     <Calendar size={40} color="#b8bfd4" style={{ opacity: 0.4, marginBottom: 12 }} />
-                    <div style={{ fontSize: 16, fontWeight: 600, color: '#4a5470' }}>No Cycles</div>
-                    <div style={{ fontSize: 12, color: '#8892aa', marginTop: 4 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text)' }}>No Cycles</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>
                         Create your first accreditation cycle to get started
                     </div>
                 </div>
@@ -183,13 +183,13 @@ export default function CyclesIndex({ cycles }: Props) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
                     {cycles.map(cycle => (
                         <div key={cycle.id} style={{
-                            background: '#fff', border: cycle.is_active ? '2px solid #c9a84c' : '1px solid #dde1ed',
+                            background: 'var(--color-panel-bg)', border: cycle.is_active ? '2px solid #c9a84c' : '1px solid var(--color-panel-border)',
                             borderRadius: 14, overflow: 'hidden', transition: 'all 0.2s',
                             boxShadow: cycle.is_active ? '0 4px 20px rgba(201,168,76,0.12)' : 'none',
                         }}>
                             {/* Header */}
                             <div style={{
-                                padding: '18px 20px', borderBottom: '1px solid #f0f2f8',
+                                padding: '18px 20px', borderBottom: '1px solid var(--color-border)',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -203,9 +203,9 @@ export default function CyclesIndex({ cycles }: Props) {
                                     <div>
                                         <div style={{
                                             fontFamily: "'Playfair Display', serif", fontSize: 15,
-                                            fontWeight: 600, color: '#0f1f3d',
+                                            fontWeight: 600, color: 'var(--color-text)',
                                         }}>{cycle.name}</div>
-                                        <div style={{ fontSize: 11, color: '#8892aa' }}>
+                                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                                             {cycle.start_formatted} — {cycle.end_formatted}
                                         </div>
                                     </div>
@@ -225,12 +225,12 @@ export default function CyclesIndex({ cycles }: Props) {
                             <div style={{ padding: '14px 20px', display: 'flex', gap: 20 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <FileText size={13} color="#8892aa" />
-                                    <span style={{ fontSize: 12, color: '#4a5470' }}>
+                                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                                         <strong>{cycle.document_count}</strong> documents
                                     </span>
                                 </div>
                                 {cycle.description && (
-                                    <div style={{ fontSize: 11, color: '#b8bfd4', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {cycle.description}
                                     </div>
                                 )}
@@ -238,14 +238,14 @@ export default function CyclesIndex({ cycles }: Props) {
 
                             {/* Actions */}
                             <div style={{
-                                padding: '12px 20px', borderTop: '1px solid #f0f2f8',
+                                padding: '12px 20px', borderTop: '1px solid var(--color-border)',
                                 display: 'flex', justifyContent: 'flex-end', gap: 8,
                             }}>
                                 {!cycle.is_active && (
                                     <button onClick={() => handleActivate(cycle)} style={{
                                         display: 'flex', alignItems: 'center', gap: 4,
-                                        padding: '6px 12px', borderRadius: 6, border: '1px solid #dde1ed',
-                                        background: '#fff', cursor: 'pointer', fontSize: 11, color: '#1a7a4a',
+                                        padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)',
+                                        background: 'var(--color-button-secondary-bg)', cursor: 'pointer', fontSize: 11, color: '#1a7a4a',
                                         fontWeight: 500,
                                     }}>
                                         <CheckCircle size={12} /> Set Active
@@ -253,8 +253,8 @@ export default function CyclesIndex({ cycles }: Props) {
                                 )}
                                 <button onClick={() => openEdit(cycle)} style={{
                                     display: 'flex', alignItems: 'center', gap: 4,
-                                    padding: '6px 12px', borderRadius: 6, border: '1px solid #dde1ed',
-                                    background: '#fff', cursor: 'pointer', fontSize: 11, color: '#4a5470',
+                                    padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)',
+                                    background: 'var(--color-button-secondary-bg)', cursor: 'pointer', fontSize: 11, color: 'var(--color-button-secondary-text)',
                                 }}>
                                     <Edit3 size={12} /> Edit
                                 </button>
@@ -277,12 +277,12 @@ export default function CyclesIndex({ cycles }: Props) {
 }
 
 const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: 11, fontWeight: 600, color: '#4a5470',
+    display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)',
     marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em',
 };
 
 const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 12px', borderRadius: 8,
-    border: '1px solid #dde1ed', fontSize: 12, outline: 'none',
-    fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d',
+    border: '1px solid var(--color-border)', fontSize: 12, outline: 'none',
+    fontFamily: "'DM Sans', sans-serif", color: 'var(--color-text)', background: 'var(--color-panel-bg)',
 };

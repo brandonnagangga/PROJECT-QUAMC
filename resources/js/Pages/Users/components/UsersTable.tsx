@@ -46,12 +46,12 @@ export function UsersTable({
     onAssignArea: (userId: string) => void;
 }) {
     return (
-        <div style={{ background: '#fff', border: '1px solid #e5eaf3', borderRadius: 20, overflow: 'hidden', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
-            <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid #eef2f7' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#64748b' }}>
+        <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
+            <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--color-text-secondary)' }}>
                     <Users size={16} color="#4f46e5" />
                     <span>Total Users:</span>
-                    <strong style={{ color: '#0f172a' }}>{users.length} users</strong>
+                    <strong style={{ color: 'var(--color-text)' }}>{users.length} users</strong>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={searchBoxStyle}>
@@ -70,7 +70,7 @@ export function UsersTable({
 
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                    <tr style={{ borderBottom: '1px solid #eef2f7', background: '#fcfdff' }}>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
                         <th style={thStyle}><button onClick={toggleSelectAll} style={checkboxButtonStyle} title="Select all">{selectedIds.length === users.length && users.length > 0 ? <CheckSquare size={15} color="#4f46e5" /> : <Square size={15} color="#cbd5e1" />}</button></th>
                         <th style={thStyle}>Name</th>
                         <th style={thStyle}>Email</th>
@@ -93,22 +93,22 @@ export function UsersTable({
                         const isCurrentUser = user.id === currentUserId;
 
                         return (
-                            <tr key={user.id} style={{ borderBottom: '1px solid #eef2f7', background: isSelected ? '#f8fbff' : '#fff', transition: 'background 0.15s ease' }}>
+                            <tr key={user.id} style={{ borderBottom: '1px solid var(--color-border)', background: isSelected ? 'var(--color-hover)' : 'var(--color-panel-bg)', transition: 'background 0.15s ease' }}>
                                 <td style={tdStyle}><button onClick={() => toggleUserSelection(user.id)} style={checkboxButtonStyle}>{isSelected ? <CheckSquare size={15} color="#4f46e5" /> : <Square size={15} color="#d5dbe7" />}</button></td>
                                 <td style={tdStyle}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#f8fafc', border: '1px solid #e5eaf3', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+                                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--color-background)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{user.name}</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)' }}>{user.name}</div>
                                             {isCurrentUser && (
-                                                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 999, padding: '2px 8px', background: '#fff' }}>
+                                                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 999, padding: '2px 8px', background: 'var(--color-panel-bg)' }}>
                                                     You
                                                 </span>
                                             )}
                                         </div>
                                     </div>
                                 </td>
-                                <td style={tdStyle}><div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b' }}><Mail size={13} /> {user.email}</div></td>
+                                <td style={tdStyle}><div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-secondary)' }}><Mail size={13} /> {user.email}</div></td>
                                 <td style={tdStyle}>
                                     {user.roles.map((role) => (
                                         <span key={role.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0', borderRadius: 0, background: 'transparent', color: roleStyle.color, fontSize: 11.5, fontWeight: 500 }}>
@@ -118,19 +118,19 @@ export function UsersTable({
                                 </td>
                                 <td style={tdStyle}>
                                     <div style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ fontSize: 12.5, color: '#334155', fontWeight: 500 }}>{program ? `${program.name} (${program.code})` : 'No program'}</div>
-                                        <div style={{ fontSize: 11.5, color: '#94a3b8' }}>{userAssignments.length > 0 ? `${userAssignments.length} assigned area${userAssignments.length > 1 ? 's' : ''}` : 'No assigned areas'}</div>
+                                        <div style={{ fontSize: 12.5, color: 'var(--color-text)', fontWeight: 500 }}>{program ? `${program.name} (${program.code})` : 'No program'}</div>
+                                        <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}>{userAssignments.length > 0 ? `${userAssignments.length} assigned area${userAssignments.length > 1 ? 's' : ''}` : 'No assigned areas'}</div>
                                     </div>
                                 </td>
                                 <td style={tdStyle}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, border: `1px solid ${status.border}`, background: status.bg, color: status.color }}>{user.is_active ? 'Active' : 'Inactive'}</span></td>
-                                <td style={tdStyle}><div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#64748b' }}><Calendar size={13} /> {user.created_at}</div></td>
+                                <td style={tdStyle}><div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text-secondary)' }}><Calendar size={13} /> {user.created_at}</div></td>
                                 <td style={{ ...tdStyle, textAlign: 'right', position: 'relative' }}>
                                     <div ref={openMenuId === user.id ? menuRef : null}>
-                                        <button onClick={() => setOpenMenuId(prev => prev === user.id ? null : user.id)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #e5eaf3', background: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <MoreHorizontal size={15} color="#64748b" />
+                                        <button onClick={() => setOpenMenuId(prev => prev === user.id ? null : user.id)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-panel-bg)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <MoreHorizontal size={15} color="var(--color-text-secondary)" />
                                         </button>
                                         {openMenuId === user.id && (
-                                            <div style={{ position: 'absolute', right: 16, top: 'calc(100% - 4px)', width: 210, background: '#fff', border: '1px solid #e5eaf3', borderRadius: 16, boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)', padding: 8, zIndex: 20 }}>
+                                            <div style={{ position: 'absolute', right: 16, top: 'calc(100% - 4px)', width: 210, background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 16, boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)', padding: 8, zIndex: 20 }}>
                                                 <button style={menuItemStyle}><Eye size={14} /> View Profile</button>
                                                 <button style={menuItemStyle}><Pencil size={14} /> Edit Details</button>
                                                 <button style={menuItemStyle} onClick={() => { setOpenMenuId(null); onToggleStatus(user); }}>

@@ -32,15 +32,15 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
         <>
             <div
                 style={{
-                    background: '#fff',
-                    border: '1px solid #d7dde8',
+                    background: 'var(--color-panel-bg)',
+                    border: '1px solid var(--color-panel-border)',
                     borderRadius: 12,
                     padding: 14,
                     boxShadow: '0 1px 0 rgba(15,31,61,0.02)',
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>Recent uploads</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>Recent uploads</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button
                             type="button"
@@ -50,8 +50,8 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                 height: 28,
                                 width: 28,
                                 borderRadius: 8,
-                                border: '1px solid #d7dde8',
-                                background: '#fff',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-button-secondary-bg)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -64,7 +64,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                             <RefreshCw 
                                 size={14} 
                                 style={{ 
-                                    color: '#334155',
+                                    color: 'var(--color-button-secondary-text)',
                                     animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
                                 }} 
                             />
@@ -75,12 +75,12 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                             style={{
                                 height: 28,
                                 borderRadius: 8,
-                                border: '1px solid #d7dde8',
-                                background: '#fff',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-button-secondary-bg)',
                                 padding: '0 12px',
                                 fontSize: 12.5,
                                 fontWeight: 600,
-                                color: '#334155',
+                                color: 'var(--color-button-secondary-text)',
                                 cursor: 'pointer',
                             }}
                         >
@@ -112,7 +112,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                     style={{
                                         borderRadius: 12,
                                         overflow: 'hidden',
-                                        background: '#fff',
+                                        background: 'var(--color-panel-bg)',
                                         boxShadow: isHovered ? '0 12px 28px rgba(15, 23, 42, 0.18)' : '0 8px 20px rgba(15, 23, 42, 0.12)',
                                         position: 'relative',
                                         cursor: 'pointer',
@@ -123,7 +123,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                     onMouseEnter={() => setIsHovered(true)}
                                     onMouseLeave={() => setIsHovered(false)}
                                     onClick={() => {
-                                        window.location.href = `/documents/${doc.id}`;
+                                        router.visit(`/documents/${doc.id}`);
                                     }}
                                 >
                                     {/* Hover Overlay with OPEN text */}
@@ -146,7 +146,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                             style={{
                                                 fontSize: 20,
                                                 fontWeight: 700,
-                                                color: '#fff',
+                                                color: '#ffffff',
                                                 letterSpacing: '0.15em',
                                                 textTransform: 'uppercase',
                                                 position: 'relative',
@@ -161,22 +161,22 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                     style={{
                                         height: 190,
                                         background: `
-                                            linear-gradient(100deg, ${tint.soft} 0%, rgba(255,255,255,0) 38%),
+                                            linear-gradient(100deg, ${tint.soft} 0%, color-mix(in srgb, var(--color-surface) 0%, transparent) 38%),
                                             repeating-linear-gradient(
                                                 to bottom,
                                                 rgba(100,116,139,0.08) 0px,
                                                 rgba(100,116,139,0.08) 1px,
-                                                rgba(255,255,255,0.88) 1px,
-                                                rgba(255,255,255,0.88) 22px
+                                                color-mix(in srgb, var(--color-surface) 88%, transparent) 1px,
+                                                color-mix(in srgb, var(--color-surface) 88%, transparent) 22px
                                             ),
-                                            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)
+                                            linear-gradient(180deg, var(--color-surface) 0%, color-mix(in srgb, var(--color-panel-bg) 82%, var(--color-surface)) 100%)
                                         `,
                                         borderBottom: `1px solid ${tint.border}`,
                                         padding: 12,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         justifyContent: 'space-between',
-                                        color: '#0f172a',
+                                        color: 'var(--color-text)',
                                         position: 'relative',
                                     }}
                                 >
@@ -187,7 +187,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                             top: 10,
                                             border: `1px solid ${tint.border}`,
                                             color: tint.border,
-                                            background: '#fff',
+                                            background: 'var(--color-surface)',
                                             borderRadius: 6,
                                             padding: '2px 6px',
                                             fontSize: 10,
@@ -198,12 +198,12 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                         PDF
                                     </div>
 
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                                         {doc.prog || 'Program'}
                                     </div>
 
                                     <div style={{ marginTop: -2 }}>
-                                        <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.35, color: '#0f172a' }}>{doc.title}</div>
+                                        <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.35, color: 'var(--color-text)' }}>{doc.title}</div>
                                         <div style={{ marginTop: 8, display: 'grid', gap: 5 }}>
                                             <div style={{ height: 5, width: '82%', borderRadius: 999, background: 'rgba(100,116,139,0.28)' }} />
                                             <div style={{ height: 5, width: '64%', borderRadius: 999, background: 'rgba(100,116,139,0.22)' }} />
@@ -211,7 +211,7 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                         </div>
                                     </div>
 
-                                    <div style={{ fontSize: 11.5, color: '#475569' }}>
+                                    <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}>
                                         {doc.path.split(' › ').slice(-1)[0]}
                                     </div>
                                 </div>
@@ -229,22 +229,22 @@ export function RecentUploadsPanel({ recentDocs = [] }: { recentDocs?: RecentDoc
                                         justifyContent: 'space-between',
                                     gap: 8,
                                     fontSize: 11.5,
-                                    color: '#0f172a',
+                                    color: 'var(--color-text)',
                                     border: '1px solid rgba(148, 163, 184, 0.35)',
-                                    background: 'linear-gradient(120deg, rgba(255,255,255,0.82), rgba(241,245,249,0.72))',
+                                    background: 'linear-gradient(120deg, color-mix(in srgb, var(--color-surface) 88%, transparent), color-mix(in srgb, var(--color-panel-bg) 78%, transparent))',
                                     backdropFilter: 'blur(8px) saturate(130%)',
                                     WebkitBackdropFilter: 'blur(8px) saturate(130%)',
                                     boxShadow: '0 6px 18px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255,255,255,0.55)',
                                 }}
                             >
-                                    <span style={{ fontWeight: 600, color: '#334155' }}>{doc.uploader || 'System'}</span>
+                                    <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>{doc.uploader || 'System'}</span>
                                     <span
                                         style={{
                                             border: '1px solid rgba(148, 163, 184, 0.45)',
                                             borderRadius: 6,
-                                            background: 'rgba(255,255,255,0.65)',
+                                            background: 'color-mix(in srgb, var(--color-surface) 72%, transparent)',
                                             padding: '2px 6px',
-                                            color: '#475569',
+                                            color: 'var(--color-text-secondary)',
                                             fontSize: 11,
                                             fontWeight: 600,
                                         }}

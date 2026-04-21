@@ -60,9 +60,10 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
     };
 
     const inp: React.CSSProperties = {
-        width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8,
+        width: '100%', border: '1.5px solid var(--color-border)', borderRadius: 8,
         padding: '9px 12px', fontSize: 12.5, outline: 'none',
-        boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d',
+        boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif", color: 'var(--color-text)',
+        background: 'var(--color-panel-bg)',
     };
 
     return (
@@ -75,7 +76,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                     <button onClick={() => setShowAddProgram(true)} style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: '9px 18px', borderRadius: 8, border: 'none',
-                        background: '#c9a84c', color: '#0f1f3d',
+                        background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                         fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                     }}>
                         <PlusCircle size={14} /> Add Program
@@ -86,7 +87,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
             <div style={{ display: 'grid', gap: 20 }}>
                 {programs.map(program => (
                     <div key={program.id} style={{
-                        background: '#fff', border: '1px solid #dde1ed', borderRadius: 14,
+                        background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14,
                         overflow: 'hidden', transition: 'box-shadow 0.2s',
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 20px rgba(15,31,61,0.06)'}
@@ -94,7 +95,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                     >
                         {/* Program header */}
                         <div style={{
-                            padding: '20px 24px', borderBottom: '1px solid #f0f2f8',
+                            padding: '20px 24px', borderBottom: '1px solid var(--color-border)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -106,14 +107,14 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                 </div>
                                 <div>
                                     <Link href={`/programs/${program.id}`} style={{ textDecoration: 'none' }}>
-                                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: '#0f1f3d', cursor: 'pointer' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.color = '#185FA5'}
-                                            onMouseLeave={(e) => e.currentTarget.style.color = '#0f1f3d'}
+                                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-link)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text)'}
                                         >
                                             {program.name}
                                         </div>
                                     </Link>
-                                    <div style={{ fontSize: 12, color: '#8892aa' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                                         {program.code} · {program.totalAreas} areas · {program.totalSlots} evidence items
                                     </div>
                                 </div>
@@ -122,8 +123,8 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                 {isAdmin && (
                                     <button onClick={() => { setAddUserProgramId(program.id); setSelectedUserId(''); }} style={{
                                         display: 'flex', alignItems: 'center', gap: 5,
-                                        padding: '6px 12px', borderRadius: 7, border: '1.5px solid #dde1ed',
-                                        background: '#f8f9fc', color: '#4a5470',
+                                        padding: '6px 12px', borderRadius: 7, border: '1.5px solid var(--color-border)',
+                                        background: 'var(--color-button-secondary-bg)', color: 'var(--color-button-secondary-text)',
                                         fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                                     }}>
                                         <UserPlus size={12} /> Add User
@@ -134,7 +135,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                         fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700,
                                         color: program.pct >= 80 ? '#1a7a4a' : program.pct > 0 ? '#c9a84c' : '#b8bfd4',
                                     }}>{program.pct}%</div>
-                                    <div style={{ fontSize: 10, color: '#8892aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Readiness</div>
+                                    <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Readiness</div>
                                 </div>
                             </div>
                         </div>
@@ -160,16 +161,16 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             </div>
 
                             {/* Area progress bars */}
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                 Area Completion
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 16 }}>
                                 {program.areas.map((area, ai) => (
                                     <div key={area.id} style={{
-                                        padding: '8px 10px', background: '#f8f9fc', borderRadius: 8,
-                                        border: '1px solid #f0f2f8',
+                                        padding: '8px 10px', background: 'var(--color-background)', borderRadius: 8,
+                                        border: '1px solid var(--color-border)',
                                     }}>
-                                        <div style={{ fontSize: 10, color: '#8892aa', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {area.name}
                                         </div>
                                         <div style={{ height: 4, background: '#e8eaf2', borderRadius: 4, overflow: 'hidden' }}>
@@ -190,11 +191,11 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             {/* Users in this program */}
                             {(isAdmin || program.users.length > 0) && (
                                 <div style={{ marginBottom: 16 }}>
-                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 5 }}>
                                         <Users size={11} /> Users & Roles
                                     </div>
                                     {program.users.length === 0 ? (
-                                        <div style={{ fontSize: 12, color: '#b8bfd4', fontStyle: 'italic' }}>No users assigned to this program yet.</div>
+                                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>No users assigned to this program yet.</div>
                                     ) : (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                             {program.users.map(u => {
@@ -203,7 +204,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                                     <div key={u.id} style={{
                                                         display: 'flex', alignItems: 'center', gap: 6,
                                                         padding: '5px 10px', borderRadius: 20,
-                                                        background: '#f8f9fc', border: '1px solid #dde1ed',
+                                                        background: 'var(--color-background)', border: '1px solid var(--color-border)',
                                                     }}>
                                                         <div style={{
                                                             width: 22, height: 22, borderRadius: '50%',
@@ -214,7 +215,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                                             {u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                                         </div>
                                                         <div>
-                                                            <div style={{ fontSize: 11, fontWeight: 600, color: '#0f1f3d' }}>{u.name}</div>
+                                                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)' }}>{u.name}</div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                                                                 <span style={{
                                                                     fontSize: 9, padding: '1px 5px', borderRadius: 10,
@@ -238,11 +239,11 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                 <Link href={`/documents`} style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 6,
                                     padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                                    background: '#0f1f3d', color: '#c9a84c', textDecoration: 'none',
+                                    background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', textDecoration: 'none',
                                     fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                                 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = '#1a2d52'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = '#0f1f3d'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.96)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
                                 >
                                     <FolderOpen size={14} />
                                     View File Manager →
@@ -257,9 +258,9 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
             {showAddProgram && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
                     onClick={() => setShowAddProgram(false)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 28, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 28, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: '#0f1f3d', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <PlusCircle size={18} /> Add New Program
                             </div>
                             <button onClick={() => setShowAddProgram(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
@@ -267,20 +268,20 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             </button>
                         </div>
                         <div style={{ marginBottom: 14 }}>
-                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Program Name</label>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 5 }}>Program Name</label>
                             <input style={inp} value={newProgram.name} onChange={e => setNewProgram(p => ({ ...p, name: e.target.value }))}
                                 placeholder="e.g. Bachelor of Science in Information Technology" />
                         </div>
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Program Code</label>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 5 }}>Program Code</label>
                             <input style={inp} value={newProgram.code} onChange={e => setNewProgram(p => ({ ...p, code: e.target.value.toUpperCase() }))}
                                 placeholder="e.g. BSIT" />
                         </div>
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowAddProgram(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #dde1ed', background: 'transparent', fontSize: 12, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
+                            <button onClick={() => setShowAddProgram(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12, cursor: 'pointer', color: 'var(--color-button-secondary-text)' }}>Cancel</button>
                             <button onClick={handleAddProgram} disabled={!newProgram.name || !newProgram.code} style={{
                                 padding: '9px 18px', borderRadius: 8, border: 'none',
-                                background: '#c9a84c', color: '#0f1f3d', fontSize: 12, fontWeight: 600,
+                                background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', fontSize: 12, fontWeight: 600,
                                 cursor: (!newProgram.name || !newProgram.code) ? 'not-allowed' : 'pointer',
                                 opacity: (!newProgram.name || !newProgram.code) ? 0.6 : 1,
                             }}>Create Program</button>
@@ -293,9 +294,9 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
             {addUserProgramId !== null && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
                     onClick={() => setAddUserProgramId(null)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: '#0f1f3d', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <UserPlus size={18} /> Assign User to Program
                             </div>
                             <button onClick={() => setAddUserProgramId(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
@@ -303,14 +304,14 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             </button>
                         </div>
                         <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', marginBottom: 5 }}>
-                                Program: <span style={{ color: '#0f1f3d' }}>{programs.find(p => p.id === addUserProgramId)?.name}</span>
+                            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 5 }}>
+                                Program: <span style={{ color: 'var(--color-text)' }}>{programs.find(p => p.id === addUserProgramId)?.name}</span>
                             </div>
                         </div>
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Select User</label>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 5 }}>Select User</label>
                             {unassignedUsers.length === 0 ? (
-                                <div style={{ fontSize: 12, color: '#b8bfd4', fontStyle: 'italic', padding: '10px 0' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '10px 0' }}>
                                     All users are already assigned to a program.
                                 </div>
                             ) : (
@@ -323,10 +324,10 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             )}
                         </div>
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setAddUserProgramId(null)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #dde1ed', background: 'transparent', fontSize: 12, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
+                            <button onClick={() => setAddUserProgramId(null)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-button-secondary-bg)', fontSize: 12, cursor: 'pointer', color: 'var(--color-button-secondary-text)' }}>Cancel</button>
                             <button onClick={handleAddUser} disabled={!selectedUserId} style={{
                                 padding: '9px 18px', borderRadius: 8, border: 'none',
-                                background: '#1a7a4a', color: '#fff', fontSize: 12, fontWeight: 600,
+                                background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', fontSize: 12, fontWeight: 600,
                                 cursor: !selectedUserId ? 'not-allowed' : 'pointer',
                                 opacity: !selectedUserId ? 0.6 : 1,
                             }}>Assign</button>

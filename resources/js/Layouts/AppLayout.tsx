@@ -2,11 +2,13 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { ReactNode, useState, useEffect } from 'react';
 import {
     LayoutDashboard, FileText, Layers, GraduationCap, Upload,
-    User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, Palette, PanelLeft, Megaphone, Sun
+    User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, PanelLeft, Megaphone, Sun
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { showSuccess, showError, confirmAction } from '@/utils/toast';
-import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeApplier, useTheme } from '@/contexts/ThemeContext';
+import SeasonalDecorations from '@/components/SeasonalDecorations';
+import ThemeSidebar from '@/components/ThemeSidebar';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -18,7 +20,7 @@ const ALL = ['admin', 'director', 'dean', 'program-coordinator', 'area-coordinat
 
 const allNavItems = [
     { label: 'Overview', items: [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/', screen: 'dashboard', roles: ALL },
+        { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', screen: 'dashboard', roles: ALL },
         { name: 'Documents', icon: FileText, href: '/documents', screen: 'documents', roles: ALL },
     ]},
     { label: 'Accreditation', items: [
@@ -34,26 +36,24 @@ const allNavItems = [
         { name: 'Acc. Cycles', icon: Calendar, href: '/cycles', screen: 'cycles', roles: ['admin'] },
         { name: 'Activity Logs', icon: List, href: '/logs', screen: 'logs', roles: ['admin', 'director'] },
         { name: 'Settings', icon: Settings, href: '/settings', screen: 'settings', roles: ['admin'] },
-        { name: 'Theme', icon: Palette, href: '/admin/theme', screen: 'theme', roles: ['admin'] },
     ]},
 ];
 
 export default function AppLayout({ children, title = 'Dashboard', breadcrumb }: AppLayoutProps) {
-    const { auth, flash } = usePage<PageProps>().props;
+    const page = usePage<PageProps>();
+    const { auth, flash } = page.props;
     const { theme } = useTheme();
     const user = auth.user;
-    const currentPath = window.location.pathname;
+    const currentPath = page.url.split('?')[0];
     const userRoleSlug = user?.roles?.[0]?.slug ?? '';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [themeSidebarOpen, setThemeSidebarOpen] = useState(false);
     const [now, setNow] = useState(new Date());
     const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
     
     // Determine icon color based on theme
     const getIconColor = (isActive: boolean) => {
-        if (theme.mode === 'minimalist') {
-            return isActive ? '#000000' : '#666666';
-        }
-        return isActive ? '#fff' : 'rgba(255,255,255,0.5)';
+        return isActive ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-muted)';
     };
 
     useEffect(() => {
@@ -92,7 +92,11 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     };
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: '#f8f9fc', color: '#1e2640' }}>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: 'var(--color-shell-bg)', color: 'var(--color-text)' }}>
+            <ThemeApplier />
+            <SeasonalDecorations />
+            <ThemeSidebar open={themeSidebarOpen} onClose={() => setThemeSidebarOpen(false)} />
+
             {/* SIDEBAR */}
             <aside className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
                 <div className="app-sidebar-deco-1" />
@@ -130,11 +134,11 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                         </div>
                                         <span style={{
                                             fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
-                                            color: active ? '#e8c96d' : 'rgba(255,255,255,0.65)',
+                                            color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-muted)',
                                         }}>{item.name}</span>
                                         {'badge' in item && item.badge !== null && item.badge !== undefined && (
                                             <span style={{
-                                                background: '#c9a84c', color: '#0f1f3d',
+                                                background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                                                 fontSize: 10, fontWeight: 700, padding: '1px 6px',
                                                 borderRadius: 10, minWidth: 18, textAlign: 'center'
                                             }}>{String(item.badge)}</span>
@@ -170,7 +174,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                         title="Sign out"
                         className="app-logout-btn"
                     >
-                        <LogOut size={14} color={theme.mode === 'minimalist' ? '#666666' : 'rgba(255,255,255,0.5)'} />
+                        <LogOut size={14} color="var(--color-sidebar-muted)" />
                     </button>
                 </div>
             </aside>
@@ -186,6 +190,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                 className="app-icon-btn"
                                 title="Layout"
                                 style={{ width: 28, height: 28 }}
+                                onClick={() => setSidebarCollapsed((current) => !current)}
                             >
                                 <PanelLeft size={15} />
                             </button>
@@ -197,16 +202,22 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
                         <div className="app-connected-topbar-right">
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, marginRight: 4 }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: '#0f1f3d' }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)' }}>
                                     {new Intl.DateTimeFormat(undefined, {
                                         hour: '2-digit',
                                         minute: '2-digit',
                                         hour12: true,
                                     }).format(now)}
                                 </span>
-                                <span style={{ fontSize: 10, color: '#8a94a6' }}>{appVersion}</span>
+                                <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{appVersion}</span>
                             </div>
-                            <button className="app-icon-btn" title="Theme" style={{ width: 30, height: 30 }}>
+                            <button
+                                type="button"
+                                className={`app-icon-btn ${themeSidebarOpen ? 'active' : ''}`}
+                                title="Theme"
+                                style={{ width: 30, height: 30 }}
+                                onClick={() => setThemeSidebarOpen(true)}
+                            >
                                 <Sun size={16} />
                             </button>
                         </div>

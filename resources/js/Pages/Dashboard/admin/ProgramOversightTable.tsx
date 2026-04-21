@@ -147,8 +147,8 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
         <div
             style={{
                 marginBottom: 24,
-                background: '#fff',
-                border: '1px solid #d7dde8',
+                background: 'var(--color-panel-bg)',
+                border: '1px solid var(--color-panel-border)',
                 borderRadius: 12,
                 overflow: 'hidden',
             }}
@@ -156,7 +156,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
             <div
                 style={{
                     padding: '14px 16px',
-                    borderBottom: '1px solid #e5e9f1',
+                    borderBottom: '1px solid var(--color-border)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -168,16 +168,16 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                         style={{
                             height: 32,
                             minWidth: 280,
-                            border: '1px solid #d7dde8',
+                            border: '1px solid var(--color-border)',
                             borderRadius: 8,
                             display: 'flex',
                             alignItems: 'center',
                             padding: '0 10px',
                             gap: 8,
-                            background: '#fafcff',
+                            background: 'var(--color-background)',
                         }}
                     >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a94a6" strokeWidth="2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
                             <circle cx="11" cy="11" r="8" />
                             <path d="m21 21-4.35-4.35" />
                         </svg>
@@ -191,7 +191,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                                 background: 'transparent',
                                 width: '100%',
                                 fontSize: 14,
-                                color: '#2d3648',
+                                color: 'var(--color-text)',
                             }}
                         />
                     </div>
@@ -204,12 +204,12 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                         }
                         style={{
                             height: 32,
-                            border: '1px solid #d7dde8',
+                            border: '1px solid var(--color-border)',
                             borderRadius: 8,
-                            background: '#fff',
+                            background: 'var(--color-button-secondary-bg)',
                             padding: '0 12px',
                             fontSize: 13,
-                            color: '#2d3648',
+                            color: 'var(--color-button-secondary-text)',
                             cursor: 'pointer',
                         }}
                     >
@@ -220,12 +220,12 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                         onClick={() => setSortByReadiness((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
                         style={{
                             height: 32,
-                            border: '1px solid #d7dde8',
+                            border: '1px solid var(--color-border)',
                             borderRadius: 8,
-                            background: '#fff',
+                            background: 'var(--color-button-secondary-bg)',
                             padding: '0 12px',
                             fontSize: 13,
-                            color: '#2d3648',
+                            color: 'var(--color-button-secondary-text)',
                             cursor: 'pointer',
                         }}
                     >
@@ -240,8 +240,8 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                         height: 32,
                         border: 'none',
                         borderRadius: 8,
-                        background: '#111827',
-                        color: '#fff',
+                        background: 'var(--color-button-primary-bg)',
+                        color: 'var(--color-button-primary-text)',
                         padding: '0 14px',
                         fontSize: 14,
                         fontWeight: 500,
@@ -255,7 +255,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
             <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
                     <thead>
-                        <tr style={{ borderBottom: '1px solid #e5e9f1', background: '#fafcff' }}>
+                        <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
                             {['Program', 'Readiness', 'Areas Ready', 'Pending Areas', 'At Risk', 'Status', 'Risk'].map((header) => (
                                 <th
                                     key={header}
@@ -263,7 +263,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                                         textAlign: 'left',
                                         fontSize: 12,
                                         fontWeight: 500,
-                                        color: '#7b8598',
+                                        color: 'var(--color-text-secondary)',
                                         padding: '10px 16px',
                                         whiteSpace: 'nowrap',
                                     }}
@@ -276,21 +276,30 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                     <tbody>
                         {filteredRows.length === 0 && (
                             <tr>
-                                <td colSpan={7} style={{ padding: '22px 16px', fontSize: 13, color: '#8a94a6' }}>
+                                <td
+                                    colSpan={7}
+                                    style={{ padding: '22px 16px', fontSize: 13, color: 'var(--color-text-secondary)' }}
+                                >
                                     No matching programs found.
                                 </td>
                             </tr>
                         )}
                         {filteredRows.map((row) => (
-                            <tr key={row.id} style={{ borderBottom: '1px solid #eef2f7' }}>
-                                <td style={{ padding: '12px 16px', fontSize: 14, color: '#111827', fontWeight: 500 }}>{row.program}</td>
+                            <tr key={row.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--color-text)', fontWeight: 500 }}>{row.program}</td>
                                 <td style={{ padding: '12px 16px', color: '#0f766e', fontWeight: 600 }}>{row.readiness}%</td>
-                                <td style={{ padding: '12px 16px', color: '#4b5563' }}>{row.areasReady}</td>
-                                <td style={{ padding: '12px 16px', color: '#4b5563' }}>{row.pendingAreas}</td>
-                                <td style={{ padding: '12px 16px', color: row.atRiskAreas > 0 ? '#b45309' : '#6b7280', fontWeight: 500 }}>
+                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.areasReady}</td>
+                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.pendingAreas}</td>
+                                <td
+                                    style={{
+                                        padding: '12px 16px',
+                                        color: row.atRiskAreas > 0 ? '#b45309' : 'var(--color-text-secondary)',
+                                        fontWeight: 500,
+                                    }}
+                                >
                                     {row.atRiskAreas}
                                 </td>
-                                <td style={{ padding: '12px 16px', color: '#4b5563' }}>{row.status}</td>
+                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.status}</td>
                                 <td style={{ padding: '12px 16px' }}>
                                     <span
                                         style={{
@@ -328,7 +337,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     fontSize: 12,
-                    color: '#7b8598',
+                    color: 'var(--color-text-secondary)',
                 }}
             >
                 <span>Showing {filteredRows.length} of {complianceRows.length} programs</span>

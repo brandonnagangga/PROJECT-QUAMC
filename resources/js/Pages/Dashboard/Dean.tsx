@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePage } from '@inertiajs/react';
 import {
@@ -131,7 +131,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                                         <tr key={doc.id} style={{ borderBottom: '1px solid #f0f2f8', cursor: 'pointer', transition: 'background 0.12s' }}
                                             onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfe'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                            onClick={() => window.location.href = `/documents/${doc.id}`}
+                                            onClick={() => router.visit(`/documents/${doc.id}`)}
                                         >
                                             <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

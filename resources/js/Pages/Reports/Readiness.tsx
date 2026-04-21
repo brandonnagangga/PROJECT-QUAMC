@@ -30,17 +30,17 @@ export default function Readiness({ programs, summary }: Props) {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
                         Accreditation Readiness Report
                     </div>
-                    <div style={{ fontSize: 12, color: '#8892aa', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                         Overall status of document completion across all programs
                     </div>
                 </div>
                 <a href="/reports/readiness/export" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    background: '#0f1f3d', color: '#c9a84c', textDecoration: 'none',
+                    background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', textDecoration: 'none',
                     fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
                 }}>
                     <Download size={14} /> Export PDF
@@ -98,7 +98,7 @@ export default function Readiness({ programs, summary }: Props) {
                     { icon: FileText, label: 'Not Started', count: summary.draft, color: '#8892aa', bg: '#f0f2f8' },
                 ].map(s => (
                     <div key={s.label} style={{
-                        background: '#fff', border: '1px solid #dde1ed', borderRadius: 12,
+                        background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12,
                         padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14,
                     }}>
                         <div style={{
@@ -109,7 +109,7 @@ export default function Readiness({ programs, summary }: Props) {
                         </div>
                         <div>
                             <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: "'Playfair Display', serif" }}>{s.count}</div>
-                            <div style={{ fontSize: 11, color: '#8892aa' }}>{s.label}</div>
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{s.label}</div>
                         </div>
                     </div>
                 ))}
@@ -119,11 +119,11 @@ export default function Readiness({ programs, summary }: Props) {
             <div style={{ display: 'grid', gap: 20 }}>
                 {programs.map(program => (
                     <div key={program.id} style={{
-                        background: '#fff', border: '1px solid #dde1ed', borderRadius: 14, overflow: 'hidden',
+                        background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, overflow: 'hidden',
                     }}>
                         {/* Program header */}
                         <div style={{
-                            padding: '18px 24px', borderBottom: '1px solid #f0f2f8',
+                            padding: '18px 24px', borderBottom: '1px solid var(--color-border)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -134,10 +134,10 @@ export default function Readiness({ programs, summary }: Props) {
                                     <BarChart3 size={18} color="#c9a84c" />
                                 </div>
                                 <div>
-                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>
+                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>
                                         {program.name}
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#8892aa' }}>
+                                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                                         {program.code} · {program.total} items · {program.areas.length} areas
                                     </div>
                                 </div>
@@ -149,8 +149,8 @@ export default function Readiness({ programs, summary }: Props) {
                                     style={{
                                         display: 'inline-flex', alignItems: 'center', gap: 5,
                                         padding: '7px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                                        background: '#f0f2f8', color: '#4a5470',
-                                        border: '1px solid #dde1ed', textDecoration: 'none',
+                                        background: 'var(--color-button-secondary-bg)', color: 'var(--color-button-secondary-text)',
+                                        border: '1px solid var(--color-border)', textDecoration: 'none',
                                         whiteSpace: 'nowrap',
                                     }}
                                 >
@@ -164,7 +164,7 @@ export default function Readiness({ programs, summary }: Props) {
                         </div>
 
                         {/* Mini stats */}
-                        <div style={{ padding: '14px 24px', display: 'flex', gap: 20, borderBottom: '1px solid #f0f2f8' }}>
+                        <div style={{ padding: '14px 24px', display: 'flex', gap: 20, borderBottom: '1px solid var(--color-border)' }}>
                             {[
                                 { label: 'Approved', val: program.approved, color: '#1a7a4a' },
                                 { label: 'Pending', val: program.pending, color: '#6b3fa0' },
@@ -174,7 +174,7 @@ export default function Readiness({ programs, summary }: Props) {
                                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
                                     <span style={{ fontSize: 12, fontWeight: 600, color: s.color }}>{s.val}</span>
-                                    <span style={{ fontSize: 11, color: '#8892aa' }}>{s.label}</span>
+                                    <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{s.label}</span>
                                 </div>
                             ))}
                         </div>
@@ -184,10 +184,10 @@ export default function Readiness({ programs, summary }: Props) {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
                                 {program.areas.map((area, ai) => (
                                     <div key={ai} style={{
-                                        padding: '10px 12px', background: '#f8f9fc', borderRadius: 8,
-                                        border: '1px solid #f0f2f8',
+                                        padding: '10px 12px', background: 'var(--color-background)', borderRadius: 8,
+                                        border: '1px solid var(--color-border)',
                                     }}>
-                                        <div style={{ fontSize: 10, color: '#8892aa', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             Area {area.order_number}
                                         </div>
                                         <div style={{ height: 5, background: '#e8eaf2', borderRadius: 4, overflow: 'hidden' }}>
