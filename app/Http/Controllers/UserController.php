@@ -82,18 +82,20 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'role_id' => 'required|exists:roles,id',
+            'name'       => 'required|string|max:255',
+            'email'      => 'required|email|unique:users,email',
+            'password'   => 'required|string|min:6',
+            'role_id'    => 'required|exists:roles,id',
+            'program_id' => 'nullable|exists:programs,id',
         ]);
 
         $user = User::create([
-            'id' => (string) Str::uuid(),
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'is_active' => true,
+            'id'         => (string) Str::uuid(),
+            'name'       => $validated['name'],
+            'email'      => $validated['email'],
+            'password'   => Hash::make($validated['password']),
+            'program_id' => $validated['program_id'] ?? null,
+            'is_active'  => true,
         ]);
 
         $user->roles()->attach($validated['role_id']);
@@ -101,29 +103,36 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'User created.');
     }
 
-    public function assignArea(Request $request)
+    public function assignArea(Request $request, User $user)
     {
+        $authUser = $request->user();
+        $authRole = $authUser->roles->first()?->slug ?? '';
+
+        // Allow admin or dean (dean scoped to their program)
+        if (!in_array($authRole, ['admin', 'dean'])) {
+            abort(403, 'Only admins or Deans may assign areas.');
+        }
+
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'area_ids' => 'required|array|min:1',
-            'area_ids.*' => 'required|exists:areas,id',
-            'role_type' => 'required|string',
+            'area_ids'      => 'required|array|min:1',
+            'area_ids.*'    => 'required|exists:areas,id',
+            'role_type'     => 'required|string',
             'academic_year' => 'required|string',
         ]);
 
         $created = 0;
         foreach ($validated['area_ids'] as $areaId) {
-            $exists = AreaAssignment::where('user_id', $validated['user_id'])
+            $exists = AreaAssignment::where('user_id', $user->id)
                 ->where('area_id', $areaId)
                 ->where('academic_year', $validated['academic_year'])
                 ->exists();
 
             if (!$exists) {
                 AreaAssignment::create([
-                    'user_id' => $validated['user_id'],
-                    'area_id' => $areaId,
-                    'assigned_by' => $request->user()->id,
-                    'role_type' => $validated['role_type'],
+                    'user_id'       => $user->id,
+                    'area_id'       => $areaId,
+                    'assigned_by'   => $authUser->id,
+                    'role_type'     => $validated['role_type'],
                     'academic_year' => $validated['academic_year'],
                 ]);
                 $created++;
@@ -176,4 +185,31 @@ class UserController extends Controller
             ->delete();
         return redirect()->back()->with('success', 'Assignment removed.');
     }
+
+    /**
+     * Admin-only: assign (or clear) a user's program_id.
+     */
+    public function assignProgram(Request $request, User $user)
+    {
+        $authUser = $request->user();
+        $authRole = $authUser->roles->first()?->slug ?? '';
+
+        // Only System Admin can assign programs
+        if ($authRole !== 'admin') {
+            abort(403, 'Only the System Administrator may assign programs to users.');
+        }
+
+        $validated = $request->validate([
+            'program_id' => 'nullable|exists:programs,id',
+        ]);
+
+        $user->update(['program_id' => $validated['program_id']]);
+
+        $programName = $validated['program_id']
+            ? Program::find($validated['program_id'])?->name
+            : 'None';
+
+        return redirect()->back()->with('success', "Program for {$user->name} set to: {$programName}.");
+    }
 }
+

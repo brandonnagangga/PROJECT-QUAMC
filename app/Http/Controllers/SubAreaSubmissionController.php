@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\SubArea;
 use App\Models\SubAreaNote;
 use Illuminate\Http\Request;
@@ -9,9 +10,37 @@ use Illuminate\Http\Request;
 class SubAreaSubmissionController extends Controller
 {
     /**
+     * Coordinator submits ALL eligible sub-areas in an area to the Dean at once.
+     */
+    public function submitArea(Area $area, Request $request)
+    {
+        $user = $request->user();
+        if (!$user->hasRole(['area-coordinator', 'program-coordinator'])) {
+            return back()->with('error', 'Only coordinators can submit sub-areas.');
+        }
+
+        $submittable = ['draft', 'returned', 'returned_by_dean'];
+        $count = 0;
+
+        foreach ($area->subAreas()->where('is_archived', false)->get() as $subArea) {
+            if (in_array($subArea->submission_status, $submittable)) {
+                $subArea->update(['submission_status' => 'submitted_to_dean']);
+                $count++;
+            }
+        }
+
+        if ($count === 0) {
+            return back()->with('error', 'No sub-areas are ready to submit (all are already submitted or approved).');
+        }
+
+        return back()->with('success', "{$count} sub-area(s) in \"{$area->name}\" submitted to Dean.");
+    }
+
+    /**
      * Coordinator submits a sub-area to the Dean.
      */
     public function submit(SubArea $subArea, Request $request)
+
     {
         $user = $request->user();
         if (!$user->hasRole(['area-coordinator', 'program-coordinator'])) {

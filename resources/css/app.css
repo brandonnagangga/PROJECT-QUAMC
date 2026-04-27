@@ -60,3 +60,8 @@ h1.page-header {
     line-height: 1.15;
 }
 
+/* Spin animation — used by export "Generating…" button */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}

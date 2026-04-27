@@ -18,12 +18,16 @@ interface WorkflowAction {
 }
 interface AreaItem { id: string; name: string; sub_area: { id: string; name: string; area: { id: string; name: string; program: { id: number; name: string; code: string } | null } | null } | null }
 interface DocumentDetail {
-    id: string; title: string; status: string; current_version: number;
+    id: string; title: string; status: string; approval_status: string; current_version: number;
+    rejection_reason: string | null;
     submitted_at: string | null; created_at: string; updated_at: string;
     area_item: AreaItem | null;
     uploader: { id: string; name: string } | null;
     versions: Version[];
     workflow_actions: WorkflowAction[];
+    doc_type?: string;
+    sub_area?: string; area?: string; program?: string;
+    version?: string;
 }
 interface Props { document: DocumentDetail; }
 
@@ -42,8 +46,9 @@ function formatBytes(bytes: number): string {
 
 export default function DocumentShow({ document: doc }: Props) {
     const [showWorkflow, setShowWorkflow] = useState(false);
-    const [actionType, setActionType] = useState<'approve' | 'return' | 'forward' | 'submit' | null>(null);
+    const [actionType, setActionType] = useState<'approve' | 'return' | 'forward' | 'submit' | 'resubmit' | null>(null);
     const [comment, setComment] = useState('');
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const st = statusConfig[doc.status] || statusConfig.draft;
     const StIcon = st.icon;
@@ -55,12 +60,18 @@ export default function DocumentShow({ document: doc }: Props) {
         if (!actionType) return;
         if (actionType === 'submit') {
             router.post(`/documents/${doc.id}/submit`, { comment }, { preserveScroll: true });
+        } else if (actionType === 'resubmit') {
+            router.post(`/documents/${doc.id}/resubmit`, {}, { preserveScroll: true });
         } else {
             router.post(`/documents/${doc.id}/workflow`, { action: actionType, comment }, { preserveScroll: true });
         }
         setActionType(null);
         setComment('');
     };
+
+    const previewUrl = `/documents/${doc.id}/preview`;
+    const latestMime = doc.versions[0]?.mime_type ?? '';
+    const isPreviewable = latestMime === 'application/pdf' || latestMime.startsWith('image/');
 
     return (
         <AppLayout title={doc.title} breadcrumb={`Documents › ${doc.title}`}>
@@ -97,6 +108,26 @@ export default function DocumentShow({ document: doc }: Props) {
                 </div>
             </div>
 
+            {/* Rejection / needs-resubmit banner */}
+            {(doc.approval_status === 'rejected' || doc.approval_status === 'needs_resubmit') && (
+                <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px',
+                    background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, marginBottom: 18,
+                }}>
+                    <RotateCcw size={15} color="#9b1c1c" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#9b1c1c', marginBottom: 2 }}>
+                            {doc.approval_status === 'needs_resubmit' ? 'Revision Required — resubmit after making changes' : 'Document Rejected'}
+                        </div>
+                        {doc.rejection_reason && (
+                            <div style={{ fontSize: 12, color: '#9b1c1c', opacity: 0.85 }}>
+                                &ldquo;{doc.rejection_reason}&rdquo;
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
                 {/* Left: Version History */}
                 <div>
@@ -106,7 +137,34 @@ export default function DocumentShow({ document: doc }: Props) {
                         <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0f2f8', fontSize: 13, fontWeight: 600, color: '#0f1f3d', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Upload size={14} color="#c9a84c" /> Version History
                             <span style={{ fontSize: 10, color: '#b8bfd4', fontWeight: 400 }}>({doc.versions.length} version{doc.versions.length !== 1 ? 's' : ''})</span>
+                            {/* Preview toggle */}
+                            {isPreviewable && (
+                                <button onClick={() => setPreviewOpen(v => !v)} style={{
+                                    marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    padding: '4px 10px', borderRadius: 6, border: '1px solid #dde1ed',
+                                    background: previewOpen ? '#0f1f3d' : '#f8f9fc',
+                                    color: previewOpen ? '#c9a84c' : '#4a5470',
+                                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                }}>
+                                    <Eye size={12} /> {previewOpen ? 'Hide Preview' : 'Preview'}
+                                </button>
+                            )}
                         </div>
+
+                        {/* Inline preview panel */}
+                        {previewOpen && isPreviewable && (
+                            <div style={{ borderBottom: '1px solid #f0f2f8', background: '#f8f9fc', padding: 12 }}>
+                                {latestMime === 'application/pdf' ? (
+                                    <iframe
+                                        src={previewUrl}
+                                        style={{ width: '100%', height: 520, border: 'none', borderRadius: 8, background: '#fff' }}
+                                        title="Document Preview"
+                                    />
+                                ) : (
+                                    <img src={previewUrl} alt="Document preview" style={{ maxWidth: '100%', borderRadius: 8, display: 'block', margin: '0 auto' }} />
+                                )}
+                            </div>
+                        )}
 
                         {doc.versions.map((v, i) => (
                             <div key={v.version_number} style={{
@@ -198,8 +256,21 @@ export default function DocumentShow({ document: doc }: Props) {
                             Actions
                         </div>
                         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {/* Submit (for draft/returned docs) */}
-                            {(doc.status === 'draft' || doc.status === 'returned') && (
+                            {/* Resubmit — for needs_resubmit status */}
+                            {doc.approval_status === 'needs_resubmit' && (
+                                <button onClick={() => setActionType('resubmit')} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                                    background: '#9a3412', color: '#fff', fontSize: 12, fontWeight: 600,
+                                    fontFamily: "'DM Sans', sans-serif", width: '100%',
+                                }}>
+                                    <RotateCcw size={13} /> Resubmit for Review
+                                </button>
+                            )}
+
+                            {/* Submit (for draft/returned docs, not already needing resubmit) */}
+                            {(doc.status === 'draft' || doc.status === 'returned') && doc.approval_status !== 'needs_resubmit' && (
+
                                 <button onClick={() => setActionType('submit')} style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                     padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -284,17 +355,27 @@ export default function DocumentShow({ document: doc }: Props) {
                         boxShadow: '0 20px 60px rgba(15,31,61,0.15)',
                     }}>
                         <h3 style={{ margin: '0 0 4px', fontFamily: "'Playfair Display', serif", fontSize: 17, color: '#0f1f3d' }}>
-                            {actionType === 'submit' ? 'Submit for Review' : actionType === 'approve' ? 'Approve Document' : actionType === 'forward' ? 'Forward Document' : 'Return Document'}
+                            {actionType === 'submit'    ? 'Submit for Review'
+                            : actionType === 'resubmit' ? 'Resubmit for Review'
+                            : actionType === 'approve'  ? 'Approve Document'
+                            : actionType === 'forward'  ? 'Forward Document'
+                            : 'Return Document'}
                         </h3>
                         <p style={{ fontSize: 12, color: '#8892aa', margin: '0 0 16px' }}>{doc.title}</p>
-                        <textarea value={comment} onChange={(e) => setComment(e.target.value)}
-                            placeholder="Add a comment (optional)..." rows={3}
-                            style={{
-                                width: '100%', padding: 12, borderRadius: 8, border: '1px solid #dde1ed',
-                                fontSize: 12, fontFamily: "'DM Sans', sans-serif", resize: 'vertical',
-                                outline: 'none', boxSizing: 'border-box',
-                            }}
-                        />
+                        {actionType === 'resubmit' ? (
+                            <p style={{ fontSize: 12, color: '#4a5470', margin: '0 0 16px', padding: '10px 12px', background: '#fff7ed', borderRadius: 8 }}>
+                                This will notify the Dean that you have revised and resubmitted this document for review.
+                            </p>
+                        ) : (
+                            <textarea value={comment} onChange={(e) => setComment(e.target.value)}
+                                placeholder="Add a comment (optional)..." rows={3}
+                                style={{
+                                    width: '100%', padding: 12, borderRadius: 8, border: '1px solid #dde1ed',
+                                    fontSize: 12, fontFamily: "'DM Sans', sans-serif", resize: 'vertical',
+                                    outline: 'none', boxSizing: 'border-box',
+                                }}
+                            />
+                        )}
                         <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
                             <button onClick={() => setActionType(null)} style={{
                                 padding: '8px 18px', borderRadius: 8, border: '1px solid #dde1ed',
@@ -303,10 +384,17 @@ export default function DocumentShow({ document: doc }: Props) {
                             <button onClick={handleAction} style={{
                                 padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
                                 fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-                                background: actionType === 'return' ? '#9b1c1c' : actionType === 'approve' ? '#1a7a4a' : '#0f1f3d',
-                                color: actionType === 'return' || actionType === 'approve' ? '#fff' : '#c9a84c',
+                                background: actionType === 'return'   ? '#9b1c1c'
+                                          : actionType === 'approve'  ? '#1a7a4a'
+                                          : actionType === 'resubmit' ? '#9a3412'
+                                          : '#0f1f3d',
+                                color: ['return', 'approve', 'resubmit'].includes(actionType) ? '#fff' : '#c9a84c',
                             }}>
-                                {actionType === 'submit' ? 'Submit' : actionType === 'approve' ? 'Approve' : actionType === 'forward' ? 'Forward' : 'Return'}
+                                {actionType === 'submit'    ? 'Submit'
+                                : actionType === 'resubmit' ? 'Confirm Resubmit'
+                                : actionType === 'approve'  ? 'Approve'
+                                : actionType === 'forward'  ? 'Forward'
+                                : 'Return'}
                             </button>
                         </div>
                     </div>

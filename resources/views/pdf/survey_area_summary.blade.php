@@ -166,21 +166,17 @@
             <td class="col-head" style="width:15%;">DESCRIPTIVE<br>RATING</td>
         </tr>
         @foreach($sub_areas as $index => $sa)
+        @php $saRating = $sub_area_ratings[$index] ?? null; @endphp
         <tr>
             <td class="sub-area-cell">{{ chr(65 + $index) }}.&nbsp;&nbsp;{{ $sa }}</td>
-            <td class="blank-cell"></td>
-            <td class="blank-cell"></td>
+            <td class="blank-cell">{{ $saRating !== null ? number_format($saRating, 2) : '' }}</td>
+            <td class="blank-cell">{{ $saRating !== null ? ($saRating >= 4.5 ? 'Outstanding' : ($saRating >= 3.5 ? 'Very Satisfactory' : ($saRating >= 2.5 ? 'Satisfactory' : ($saRating >= 1.5 ? 'Fair' : 'Poor')))) : '' }}</td>
         </tr>
         @endforeach
         <tr>
-            <td class="total-label">TOTAL:</td>
-            <td class="blank-cell"></td>
-            <td class="blank-cell"></td>
-        </tr>
-        <tr>
             <td class="total-label">AREA MEAN/RATING:</td>
-            <td class="blank-cell"></td>
-            <td class="blank-cell"></td>
+            <td class="blank-cell" style="font-weight:bold;">{{ $area_final_rating > 0 ? number_format($area_final_rating, 2) : '' }}</td>
+            <td class="blank-cell" style="font-weight:bold;">{{ $area_final_rating > 0 ? ($area_final_rating >= 4.5 ? 'Outstanding' : ($area_final_rating >= 3.5 ? 'Very Satisfactory' : ($area_final_rating >= 2.5 ? 'Satisfactory' : ($area_final_rating >= 1.5 ? 'Fair' : 'Poor')))) : '' }}</td>
         </tr>
     </table>
 

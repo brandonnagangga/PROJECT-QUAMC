@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
-    GraduationCap, Target, FileText, Clock, CheckCircle, RotateCcw,
-    TrendingUp, ArrowRight
+    GraduationCap, Target, FileText, Clock, CheckCircle,
+    TrendingUp, ArrowRight, AlertCircle
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 
@@ -12,9 +12,11 @@ interface ProgramInfo { id: number; name: string; code: string; pct: number; are
 interface DocInfo { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string; uploader: string; }
 interface ActivityInfo { icon: string; bg: string; color: string; text: string; time: string; }
 interface Stats { programs: string; readiness: string; readinessSub: string; approved: string; approvedSub: string; pending: string; pendingSub: string; }
+interface PendingSubmission { id: number; name: string; area_name: string; submitted_at: string; }
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; currentRole: string;
+    pendingDeanSubmissions: PendingSubmission[];
 }
 
 const statusColors: Record<string, { bg: string; color: string; label: string }> = {
@@ -24,7 +26,7 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole }: Props) {
+export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole, pendingDeanSubmissions = [] }: Props) {
     const { auth } = usePage<PageProps>().props;
 
     return (
@@ -111,8 +113,50 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                     </div>
                 </div>
 
-                {/* Right sidebar — activity + area completion */}
+                {/* Right sidebar — area completion + pending actions */}
                 <div>
+                    {/* Pending Dean Actions */}
+                    {pendingDeanSubmissions.length > 0 && (
+                        <>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 12 }}>
+                                Areas Awaiting Your Action
+                                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#9b1c1c', padding: '2px 8px', borderRadius: 10 }}>
+                                    {pendingDeanSubmissions.length}
+                                </span>
+                            </div>
+                            <div style={{ background: '#fff', border: '1.5px solid #fca5a5', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+                                {pendingDeanSubmissions.map((sa, i) => (
+                                    <div key={sa.id}
+                                        onClick={() => router.get('/areas')}
+                                        style={{
+                                            padding: '10px 14px',
+                                            borderBottom: i < pendingDeanSubmissions.length - 1 ? '1px solid #fef2f2' : 'none',
+                                            cursor: 'pointer', transition: 'background 0.12s', display: 'flex', gap: 10, alignItems: 'center',
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <AlertCircle size={14} color="#9b1c1c" style={{ flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {sa.name}
+                                            </div>
+                                            <div style={{ fontSize: 10.5, color: '#8892aa', marginTop: 1 }}>
+                                                {sa.area_name} · Submitted {sa.submitted_at}
+                                            </div>
+                                        </div>
+                                        <ArrowRight size={12} color="#b8bfd4" />
+                                    </div>
+                                ))}
+                                <div style={{ padding: '8px 14px', background: '#fef9f9', borderTop: '1px solid #fef2f2' }}>
+                                    <a href="/areas" style={{ fontSize: 11, color: '#9b1c1c', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        Review all in Areas <ArrowRight size={11} />
+                                    </a>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
                         Area Completion
                     </div>
@@ -132,12 +176,12 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                         <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
                             <div>
                                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#1a7a4a' }}>{stats.approved}</div>
-                                <div style={{ fontSize: 10, color: '#8892aa' }}>Forwarded</div>
+                                <div style={{ fontSize: 10, color: '#8892aa' }}>Approved</div>
                             </div>
                             <div style={{ width: 1, background: '#f0f2f8' }} />
                             <div>
-                                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#9b1c1c' }}>0</div>
-                                <div style={{ fontSize: 10, color: '#8892aa' }}>Returned</div>
+                                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#9b1c1c' }}>{pendingDeanSubmissions.length}</div>
+                                <div style={{ fontSize: 10, color: '#8892aa' }}>Pending Review</div>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { GraduationCap, Target, CheckCircle, Clock, AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface DashboardProps {
     stats: {
@@ -10,6 +11,7 @@ interface DashboardProps {
     programs: { id: number; name: string; code: string; pct: number; areas: { name: string; pct: number; cls: string }[] }[];
     recentDocs: { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string }[];
     activities: { icon: string; bg: string; color: string; text: string; time: string }[];
+    pendingDirectorReviews: { id: number; name: string; area_name: string; status: string }[];
 }
 
 const statCards = [
@@ -28,7 +30,7 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
     archived: { bg: '#eff6ff', color: '#1a4f8a' },
 };
 
-export default function Director({ stats, programs, recentDocs, activities }: DashboardProps) {
+export default function Director({ stats, programs, recentDocs, activities, pendingDirectorReviews = [] }: DashboardProps) {
     return (
         <AppLayout title="Accreditation Dashboard" breadcrumb="Dashboard">
             <Head title="Dashboard" />
@@ -158,13 +160,56 @@ export default function Director({ stats, programs, recentDocs, activities }: Da
                     </div>
                 </div>
 
-                {/* ACTIVITY FEED */}
+                {/* ACTIVITY FEED + PENDING DIRECTOR REVIEWS */}
                 <div>
+                    {/* Pending Director Reviews */}
+                    {pendingDirectorReviews.length > 0 && (
+                        <>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 12 }}>
+                                Pending Area Reviews
+                                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, background: '#fff8e5', color: '#e07a00', padding: '2px 8px', borderRadius: 10 }}>
+                                    {pendingDirectorReviews.length}
+                                </span>
+                            </div>
+                            <div style={{ background: '#fff', border: '1.5px solid #fed7aa', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+                                {pendingDirectorReviews.slice(0, 5).map((sa, i) => (
+                                    <div key={sa.id}
+                                        onClick={() => router.get('/areas')}
+                                        style={{
+                                            padding: '10px 14px',
+                                            borderBottom: i < Math.min(pendingDirectorReviews.length, 5) - 1 ? '1px solid #fff8e5' : 'none',
+                                            cursor: 'pointer', transition: 'background 0.12s',
+                                            display: 'flex', gap: 10, alignItems: 'center',
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fff8e5'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <AlertTriangle size={14} color="#e07a00" style={{ flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {sa.name}
+                                            </div>
+                                            <div style={{ fontSize: 10.5, color: '#8892aa', marginTop: 1 }}>
+                                                {sa.area_name}
+                                            </div>
+                                        </div>
+                                        <ArrowRight size={12} color="#b8bfd4" />
+                                    </div>
+                                ))}
+                                <div style={{ padding: '8px 14px', background: '#fffbf0', borderTop: '1px solid #fff8e5' }}>
+                                    <a href="/areas" style={{ fontSize: 11, color: '#e07a00', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        Review all in Areas <ArrowRight size={11} />
+                                    </a>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                         <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Activity</div>
                     </div>
                     <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
-                        <div style={{ padding: '6px 0', maxHeight: 500, overflowY: 'auto' }}>
+                        <div style={{ padding: '6px 0', maxHeight: 400, overflowY: 'auto' }}>
                             {activities.map((a, i) => (
                                 <div key={i} style={{
                                     display: 'flex', gap: 12, padding: '10px 16px',

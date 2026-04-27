@@ -53,11 +53,11 @@ export default function SettingsIndex({ settings: initial }: Props) {
         {
             icon: Bell, title: 'Notifications', color: '#6b3fa0',
             fields: [
-                { key: 'emailNotifications', label: 'Enable Email Notifications', type: 'toggle' },
-                { key: 'documentSubmitted', label: 'Document Submitted', type: 'toggle' },
-                { key: 'documentApproved', label: 'Document Approved', type: 'toggle' },
-                { key: 'documentReturned', label: 'Document Returned', type: 'toggle' },
-                { key: 'deadlineReminder', label: 'Deadline Reminders', type: 'toggle' },
+                { key: 'emailNotifications',  label: 'Enable Email Notifications',   type: 'toggle' },
+                { key: 'notifyAreaSubmitted', label: '🎓 Area Submitted to Dean',     type: 'toggle' },
+                { key: 'notifyAreaReturned',  label: '↩ Area Returned for Revision', type: 'toggle' },
+                { key: 'notifyAreaApproved',  label: '✅ Area Approved by Dean',      type: 'toggle' },
+                { key: 'notifyNoteReplied',   label: '💬 Revision Note Replied',      type: 'toggle' },
             ],
         },
     ];

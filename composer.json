@@ -16,6 +16,8 @@
         "laravel/tinker": "^2.10.1",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
+        "smalot/pdfparser": "*",
+        "spatie/pdf-to-text": "^1.54",
         "tecnickcom/tcpdf": "*",
         "tightenco/ziggy": "^2.6"
     },

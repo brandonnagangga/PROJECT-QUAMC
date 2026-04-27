@@ -1,20 +1,26 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { Bell, FileText, CheckCircle, AlertCircle, RotateCcw, Check, Eye } from 'lucide-react';
+import { Bell, FileText, CheckCircle, AlertCircle, RotateCcw, Check, Eye, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface NotificationInfo {
     id: string; type: string; message: string; is_read: boolean;
-    document_id: string | null; document_title: string | null;
+    area_id: number | null; area_name: string | null;
+    document_title?: string | null;
+    link: string | null;
     created_at: string; time_ago: string;
 }
 interface Props { notifications: NotificationInfo[]; unreadCount: number; }
 
 const typeIcons: Record<string, { icon: any; bg: string; color: string }> = {
-    'document.submitted': { icon: FileText, bg: '#f3eeff', color: '#6b3fa0' },
-    'document.approved': { icon: CheckCircle, bg: '#e8f5ee', color: '#1a7a4a' },
-    'document.returned': { icon: RotateCcw, bg: '#fef2f2', color: '#9b1c1c' },
-    'document.forwarded': { icon: AlertCircle, bg: '#fff8e5', color: '#e07a00' },
+    'document.submitted':     { icon: FileText,    bg: '#f3eeff', color: '#6b3fa0' },
+    'document.approved':      { icon: CheckCircle, bg: '#e8f5ee', color: '#1a7a4a' },
+    'document.returned':      { icon: RotateCcw,   bg: '#fef2f2', color: '#9b1c1c' },
+    'document.forwarded':     { icon: AlertCircle, bg: '#fff8e5', color: '#e07a00' },
+    'area.submitted_to_dean': { icon: AlertCircle, bg: '#f3eeff', color: '#6b3fa0' },
+    'area.returned_by_dean':  { icon: RotateCcw,   bg: '#fef2f2', color: '#9b1c1c' },
+    'area.approved_by_dean':  { icon: CheckCircle, bg: '#e8f5ee', color: '#1a7a4a' },
+    'note.replied':           { icon: Eye,         bg: '#fff8e5', color: '#e07a00' },
 };
 const defaultIcon = { icon: Bell, bg: '#f0f2f8', color: '#8892aa' };
 
@@ -79,7 +85,7 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
                         onMouseLeave={(e) => e.currentTarget.style.background = notif.is_read ? 'transparent' : '#fafbfe'}
                         onClick={() => {
                             if (!notif.is_read) router.post(`/notifications/${notif.id}/read`, {}, { preserveScroll: true });
-                            if (notif.document_id) window.location.href = `/documents/${notif.document_id}`;
+                            if (notif.link) window.location.href = notif.link;
                         }}
                         >
                             {/* Icon */}
@@ -103,10 +109,17 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
                                 )}
                             </div>
 
-                            {/* Time + unread dot */}
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            {/* Time + actions */}
+                            <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                                 <div style={{ fontSize: 10.5, color: '#8892aa' }}>{notif.time_ago}</div>
                                 <div style={{ fontSize: 9.5, color: '#b8bfd4' }}>{notif.created_at}</div>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); router.delete(`/notifications/${notif.id}`, { preserveScroll: true }); }}
+                                    title="Dismiss"
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#b8bfd4', display: 'flex', alignItems: 'center' }}
+                                >
+                                    <X size={12} />
+                                </button>
                             </div>
                             {!notif.is_read && (
                                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#c9a84c', flexShrink: 0 }} />
