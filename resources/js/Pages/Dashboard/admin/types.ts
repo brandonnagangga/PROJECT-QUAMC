@@ -27,6 +27,7 @@ export interface MetricCard {
     value: string;
     delta: string;
     accent: string;
+    href: string;
 }
 
 export interface UploadCard {

@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     FileText, Search, Filter, Eye, ChevronRight, ArrowLeft,
     Folder, File, Download, CheckCircle, Clock, RotateCcw,
-    List, LayoutGrid, ChevronDown, ChevronUp, History,
+    List, LayoutGrid, History, X
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -20,7 +20,7 @@ interface FolderSubArea {
 }
 interface FolderArea { id: number; name: string; sub_areas: FolderSubArea[]; }
 interface FolderProgram { id: number; name: string; code: string; areas: FolderArea[]; }
-interface Props { documents: DocInfo[]; programs: FolderProgram[]; filters: { status?: string; search?: string }; role: string; }
+interface Props { documents: DocInfo[]; programs: FolderProgram[]; filters: { status?: string; search?: string; view?: 'list' | 'folder' }; role: string; }
 
 /* ── Constants ── */
 const statusTabs = [
@@ -58,10 +58,9 @@ const SUBMISSION_STATUS: Record<string, { bg: string; color: string; label: stri
 
 /* ── Main Component ── */
 export default function DocumentsIndex({ documents, programs, filters = {}, role }: Props) {
-    const [viewMode, setViewMode]         = useState<'list' | 'folder'>('folder');
+    const [viewMode, setViewMode]         = useState<'list' | 'folder'>(filters?.view === 'list' ? 'list' : 'folder');
     const [search, setSearch]             = useState(filters?.search || '');
     const [activeStatus, setActiveStatus] = useState(filters?.status || 'all');
-
 
     // Folder navigation state
     const [currentProgram, setCurrentProgram] = useState<FolderProgram | null>(null);
@@ -70,6 +69,49 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
     const folderLevel = currentSubArea ? 'slots' : currentArea ? 'subareas' : currentProgram ? 'areas' : 'programs';
     const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
+
+    // Client-side filtering for Folder View
+    const filteredPrograms = useMemo(() => {
+        let result = programs;
+        
+        // Filter by status
+        if (activeStatus !== 'all') {
+            result = result.map(p => ({
+                ...p,
+                areas: p.areas.map(a => ({
+                    ...a,
+                    sub_areas: a.sub_areas.map(sa => ({
+                        ...sa,
+                        slots: {
+                            input: sa.slots.input?.status === activeStatus ? sa.slots.input : null,
+                            process: sa.slots.process?.status === activeStatus ? sa.slots.process : null,
+                            outcome: sa.slots.outcome?.status === activeStatus ? sa.slots.outcome : null,
+                        }
+                    })).filter(sa => sa.slots.input || sa.slots.process || sa.slots.outcome)
+                })).filter(a => a.sub_areas.length > 0)
+            })).filter(p => p.areas.length > 0);
+        }
+
+        // Filter by search
+        if (search) {
+            const s = search.toLowerCase();
+            result = result.filter(p => 
+                p.name.toLowerCase().includes(s) || 
+                p.code.toLowerCase().includes(s) ||
+                p.areas.some(a => 
+                    a.name.toLowerCase().includes(s) ||
+                    a.sub_areas.some(sa => 
+                        sa.name.toLowerCase().includes(s) ||
+                        (sa.slots.input?.title.toLowerCase().includes(s)) ||
+                        (sa.slots.process?.title.toLowerCase().includes(s)) ||
+                        (sa.slots.outcome?.title.toLowerCase().includes(s))
+                    )
+                )
+            );
+        }
+
+        return result;
+    }, [programs, search, activeStatus]);
 
     function formatBytes(bytes: number) {
         if (!bytes) return '—';
@@ -85,12 +127,12 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
     const handleStatusFilter = (s: string) => {
         setActiveStatus(s);
-        router.get('/documents', { status: s === 'all' ? undefined : s, search: search || undefined }, { preserveState: true, replace: true });
+        router.get('/documents', { status: s === 'all' ? undefined : s, search: search || undefined, view: viewMode }, { preserveState: true, replace: true });
     };
 
     const handleSearch = (val: string) => {
         setSearch(val);
-        router.get('/documents', { status: activeStatus === 'all' ? undefined : activeStatus, search: val || undefined }, { preserveState: true, replace: true });
+        router.get('/documents', { status: activeStatus === 'all' ? undefined : activeStatus, search: val || undefined, view: viewMode }, { preserveState: true, replace: true });
     };
 
     /* ── Breadcrumbs for folder view ── */
@@ -117,10 +159,28 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
         <AppLayout title="Documents" breadcrumb="Document Management">
             <Head title="Documents" />
 
-            {/* ── Header bar: tabs / breadcrumb + view toggle ── */}
+            {/* ── Unified Search & Filter bar ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <Search size={16} color="var(--color-text-secondary)" />
+                    <input type="text" placeholder="Search documents, areas, or programs..." value={search}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        style={{ border: 'none', outline: 'none', fontSize: 14, flex: 1, fontFamily: "'Inter',sans-serif", color: 'var(--color-text)', background: 'transparent' }} />
+                    {search && (
+                        <button onClick={() => handleSearch('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+                <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--color-button-secondary-bg)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, fontWeight: 500, color: 'var(--color-button-secondary-text)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <Filter size={14} /> Filter
+                </button>
+            </div>
+
+            {/* ── Header bar: tabs + view toggle ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ display: 'flex', gap: 0 }}>
-                    {viewMode === 'list' && statusTabs.map(tab => (
+                    {statusTabs.map(tab => (
                         <button key={tab.key} onClick={() => handleStatusFilter(tab.key)} style={{
                             padding: '8px 16px', fontSize: 12, fontWeight: activeStatus === tab.key ? 600 : 400,
                             color: activeStatus === tab.key ? 'var(--color-text)' : 'var(--color-text-secondary)', cursor: 'pointer',
@@ -128,18 +188,6 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                             fontFamily: "'DM Sans', sans-serif",
                         }}>{tab.label}</button>
                     ))}
-                    {viewMode === 'folder' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                            {breadcrumbs.map((bc, i) => (
-                                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    {i > 0 && <ChevronRight size={12} color="var(--color-text-secondary)" />}
-                                    {bc.onClick
-                                        ? <span onClick={bc.onClick} style={{ color: 'var(--color-text)', cursor: 'pointer', fontWeight: 500 }}>{bc.label}</span>
-                                        : <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{bc.label}</span>}
-                                </span>
-                            ))}
-                        </div>
-                    )}
                 </div>
                 <div style={{ display: 'flex', gap: 2, background: 'var(--color-background)', borderRadius: 8, padding: 3 }}>
                     {(['list', 'folder'] as const).map(m => (
@@ -152,18 +200,17 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                 </div>
             </div>
 
-            {/* ── Search bar (list only) ── */}
-            {viewMode === 'list' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)', borderRadius: 10 }}>
-                        <Search size={15} color="var(--color-text-secondary)" />
-                        <input type="text" placeholder="Search documents..." value={search}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            style={{ border: 'none', outline: 'none', fontSize: 13, flex: 1, fontFamily: "'DM Sans',sans-serif", color: 'var(--color-text)', background: 'transparent' }} />
-                    </div>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: 'var(--color-button-secondary-bg)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, color: 'var(--color-button-secondary-text)', cursor: 'pointer' }}>
-                        <Filter size={13} /> Filter
-                    </button>
+            {/* ── Breadcrumbs (folder view only) ── */}
+            {viewMode === 'folder' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 16, padding: '0 4px' }}>
+                    {breadcrumbs.map((bc, i) => (
+                        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {i > 0 && <ChevronRight size={12} color="var(--color-text-secondary)" />}
+                            {bc.onClick
+                                ? <span onClick={bc.onClick} style={{ color: 'var(--color-text)', cursor: 'pointer', fontWeight: 500 }}>{bc.label}</span>
+                                : <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{bc.label}</span>}
+                        </span>
+                    ))}
                 </div>
             )}
 
@@ -233,7 +280,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                     {/* Programs */}
                     {folderLevel === 'programs' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-                            {programs.map((prog, i) => (
+                            {filteredPrograms.map((prog, i) => (
                                 <div key={prog.id} onClick={() => setCurrentProgram(prog)}
                                     style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
                                     onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = folderColors[i % folderColors.length]; }}
@@ -245,6 +292,12 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                     </div>
                                 </div>
                             ))}
+                            {filteredPrograms.length === 0 && (
+                                <div style={{ gridColumn: '1 / -1', padding: 60, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                    <Search size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+                                    <div>No programs found matching your filters.</div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -304,7 +357,8 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                                 <span style={{ fontSize: 12, fontWeight: 700, color: sl.color }}>{sl.label}</span>
                                             </div>
                                     {doc ? (
-                                                <>                                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d', marginBottom: 2 }}>{doc.title}</div>
+                                                <>
+                                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d', marginBottom: 2 }}>{doc.title}</div>
                                                     <div style={{ fontSize: 10, color: '#8892aa', marginBottom: 8 }}>{doc.version} · {doc.uploader}</div>
                                                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                                                         {st && (

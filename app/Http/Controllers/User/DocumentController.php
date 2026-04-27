@@ -81,7 +81,7 @@ class DocumentController extends Controller
                             $slot = fn ($type) => $docs->has($type) ? [
                                 'id'              => $docs[$type]->id,
                                 'title'           => $docs[$type]->title,
-                                'status'          => $docs[$type]->status,
+                                'status'          => $docs[$type]->status === 'pending_review' ? 'pending' : ($docs[$type]->status ?? 'draft'),
                                 'approval_status' => $docs[$type]->approval_status ?? 'pending',
                                 'rejection_reason'=> $docs[$type]->rejection_reason,
                                 'version'         => 'v' . $docs[$type]->current_version,
@@ -124,7 +124,7 @@ class DocumentController extends Controller
             });
 
         // ── Flat document list for the "list" view tab ──
-        $filters  = $request->only(['search', 'status']);
+        $filters  = $request->only(['search', 'status', 'view']);
         $docsQuery = Document::with(['subArea.area', 'program', 'uploader'])
             ->orderByDesc('updated_at');
 

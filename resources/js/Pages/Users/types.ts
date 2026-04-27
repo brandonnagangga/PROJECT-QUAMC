@@ -43,4 +43,9 @@ export interface UsersPageProps {
     assignments: AssignmentInfo[];
     authRole: string;
     deanProgramId?: number | null;
+    filters?: {
+        search?: string;
+        role?: string;
+        status?: string;
+    };
 }

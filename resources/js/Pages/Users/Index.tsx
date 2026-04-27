@@ -12,10 +12,11 @@ import { UsersSummaryCards } from './components/UsersSummaryCards';
 import { UsersTable } from './components/UsersTable';
 import type { NewUserFormData, UserExportFormat, UsersPageProps, UserInfo } from './types';
 
-export default function UsersIndex({ users, roles, programs, assignments, authRole, deanProgramId }: UsersPageProps) {
+export default function UsersIndex({ users, roles, programs, assignments, authRole, deanProgramId, filters = {} }: UsersPageProps) {
     const { auth } = usePage<PageProps>().props;
-    const [search, setSearch] = useState('');
-    const [filterRole, setFilterRole] = useState('');
+    const [search, setSearch] = useState(filters.search ?? '');
+    const [filterRole, setFilterRole] = useState(filters.role ?? '');
+    const [filterStatus, setFilterStatus] = useState(filters.status ?? '');
     const [showCreate, setShowCreate] = useState(false);
     const [showExport, setShowExport] = useState(false);
     const [showAssign, setShowAssign] = useState(false);
@@ -45,8 +46,11 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
     const filteredUsers = useMemo(() => users.filter((user) => {
         const matchesSearch = !search || user.name.toLowerCase().includes(search.toLowerCase()) || user.email.toLowerCase().includes(search.toLowerCase());
         const matchesRole = !filterRole || user.roles.some(role => role.slug === filterRole);
-        return matchesSearch && matchesRole;
-    }), [users, search, filterRole]);
+        const matchesStatus = !filterStatus
+            || (filterStatus === 'active' && user.is_active)
+            || (filterStatus === 'inactive' && !user.is_active);
+        return matchesSearch && matchesRole && matchesStatus;
+    }), [users, search, filterRole, filterStatus]);
 
     const totalUsers = users.length;
     const activeUsers = users.filter(user => user.is_active).length;
@@ -161,8 +165,10 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                     authRole={authRole}
                     search={search}
                     filterRole={filterRole}
+                    filterStatus={filterStatus}
                     setSearch={setSearch}
                     setFilterRole={setFilterRole}
+                    setFilterStatus={setFilterStatus}
                     toggleSelectAll={toggleSelectAll}
                     toggleUserSelection={toggleUserSelection}
                     setOpenMenuId={setOpenMenuId}

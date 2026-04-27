@@ -4,6 +4,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import '../css/app.css';
 import './echo';
 
+import { DashboardEditProvider } from './contexts/DashboardEditContext';
+
 const appName = import.meta.env.VITE_APP_NAME || 'QUAMC';
 
 createInertiaApp({
@@ -15,7 +17,11 @@ createInertiaApp({
         ),
     setup({ el, App, props }) {
         const root = createRoot(el);
-        root.render(<App {...props} />);
+        root.render(
+            <DashboardEditProvider>
+                <App {...props} />
+            </DashboardEditProvider>
+        );
     },
     progress: {
         color: '#c9a84c',

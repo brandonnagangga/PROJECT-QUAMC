@@ -19,6 +19,7 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'dashboard_preferences',
         'program_id',
     ];
 
@@ -32,6 +33,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'dashboard_preferences' => 'array',
         ];
     }
 

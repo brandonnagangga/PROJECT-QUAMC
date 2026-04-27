@@ -18,8 +18,10 @@ export function UsersTable({
     authRole,
     search,
     filterRole,
+    filterStatus,
     setSearch,
     setFilterRole,
+    setFilterStatus,
     toggleSelectAll,
     toggleUserSelection,
     setOpenMenuId,
@@ -37,8 +39,10 @@ export function UsersTable({
     authRole: string;
     search: string;
     filterRole: string;
+    filterStatus: string;
     setSearch: (value: string) => void;
     setFilterRole: (value: string) => void;
+    setFilterStatus: (value: string) => void;
     toggleSelectAll: () => void;
     toggleUserSelection: (userId: string) => void;
     setOpenMenuId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -63,6 +67,14 @@ export function UsersTable({
                         <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={filterSelectStyle}>
                             <option value="">Filter</option>
                             {roles.map(role => <option key={role.id} value={role.slug}>{role.name}</option>)}
+                        </select>
+                    </div>
+                    <div style={{ ...searchBoxStyle, width: 132 }}>
+                        <Filter size={14} color="#64748b" />
+                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
+                            <option value="">Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
                         </select>
                     </div>
                 </div>

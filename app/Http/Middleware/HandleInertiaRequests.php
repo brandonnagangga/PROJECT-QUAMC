@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\AccreditationCycle;
+use App\Services\SettingsService;
 use App\Services\ThemeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -33,6 +34,18 @@ class HandleInertiaRequests extends Middleware
             'notifications_count' => fn () => $request->user()
                 ? $request->user()->unreadNotificationsCount()
                 : 0,
+            'system_settings' => fn () => $request->user()
+                ? app(SettingsService::class)->getAllSettings()
+                : [],
+            'dashboard_preferences' => fn () => $request->user()
+                ? ($request->user()->dashboard_preferences ?? [
+                    'hidden_widgets' => [],
+                    'is_edit_mode' => false,
+                ])
+                : [
+                    'hidden_widgets' => [],
+                    'is_edit_mode' => false,
+                ],
             'active_cycle' => $activeCycle ? [
                 'id' => $activeCycle->id,
                 'name' => $activeCycle->name,

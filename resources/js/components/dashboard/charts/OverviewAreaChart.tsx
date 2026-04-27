@@ -57,7 +57,9 @@ export function OverviewAreaChart({
                         stroke={color}
                         strokeWidth={2.2}
                         fill={`url(#${gradientId})`}
-                        isAnimationActive={false}
+                        isAnimationActive={true}
+                        animationDuration={1500}
+                        animationBegin={200}
                     />
                 </AreaChart>
             </ResponsiveContainer>

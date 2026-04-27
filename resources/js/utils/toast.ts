@@ -62,3 +62,40 @@ export function confirmAction(options: {
         },
     }).then(result => result.isConfirmed);
 }
+
+export async function confirmSaveDiscard(options?: {
+    title?: string;
+    text?: string;
+    saveText?: string;
+    discardText?: string;
+    cancelText?: string;
+}): Promise<'save' | 'discard' | 'cancel'> {
+    const {
+        title = 'Unsaved dashboard changes',
+        text = 'Do you want to save your dashboard edits before leaving?',
+        saveText = 'Save',
+        discardText = 'Discard',
+        cancelText = 'Cancel',
+    } = options ?? {};
+
+    const result = await Swal.fire({
+        title,
+        text,
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: saveText,
+        denyButtonText: discardText,
+        cancelButtonText: cancelText,
+        confirmButtonColor: '#1a7a4a',
+        denyButtonColor: '#9b1c1c',
+        cancelButtonColor: '#8892aa',
+        customClass: {
+            popup: 'swal-popup',
+        },
+    });
+
+    if (result.isConfirmed) return 'save';
+    if (result.isDenied) return 'discard';
+    return 'cancel';
+}

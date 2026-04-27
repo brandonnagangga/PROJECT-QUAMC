@@ -1,7 +1,27 @@
 import { useForm } from '@inertiajs/react';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { LogIn } from 'lucide-react';
-import { FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+
+type LoginPhase = 'idle' | 'slideOutGreeting' | 'greeting' | 'slideOutPreloader' | 'preloader';
+
+const greetingMessages = [
+    'Good to see you again.',
+    'Welcome back, your workspace is ready.',
+    'Nice to have you back. Let us continue where you left off.',
+    'Great to see you again. Preparing your dashboard now.',
+];
+
+function formatAccountName(email: string): string {
+    const local = email.split('@')[0] || 'User';
+    return local
+        .replace(/[._-]+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ');
+}
 
 export default function Login() {
     const { data, setData, post, processing, errors } = useForm({
@@ -10,93 +30,138 @@ export default function Login() {
         remember: false,
     });
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        post('/login');
+    const [mounted, setMounted] = useState(false);
+    const [phase, setPhase] = useState<LoginPhase>('idle');
+    const [selectedMessage, setSelectedMessage] = useState(greetingMessages[0]);
+    const [isAnimatingSubmit, setIsAnimatingSubmit] = useState(false);
+    const timersRef = useRef<number[]>([]);
+
+    const accountName = useMemo(() => formatAccountName(data.email), [data.email]);
+
+    useEffect(() => {
+        setMounted(true);
+
+        return () => {
+            timersRef.current.forEach((id) => window.clearTimeout(id));
+            timersRef.current = [];
+        };
+    }, []);
+
+    const addTimer = (cb: () => void, ms: number) => {
+        const id = window.setTimeout(cb, ms);
+        timersRef.current.push(id);
     };
 
-    const inputStyle: React.CSSProperties = {
-        width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8,
-        padding: '10px 12px', fontSize: 13, fontFamily: "'DM Sans', sans-serif",
-        color: '#1e2640', background: '#fff', outline: 'none', transition: 'border-color 0.15s',
+    const submit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (processing || isAnimatingSubmit) return;
+
+        setIsAnimatingSubmit(true);
+        setSelectedMessage(greetingMessages[Math.floor(Math.random() * greetingMessages.length)]);
+        setPhase('slideOutGreeting');
+
+        addTimer(() => {
+            setPhase('greeting');
+        }, 420);
+
+        addTimer(() => {
+            setPhase('slideOutPreloader');
+        }, 3420);
+
+        addTimer(() => {
+            setPhase('preloader');
+            post('/login', {
+                onError: () => {
+                    setPhase('idle');
+                },
+                onFinish: () => {
+                    setIsAnimatingSubmit(false);
+                },
+            });
+        }, 3860);
     };
+
+    const viewClass =
+        phase === 'slideOutGreeting' || phase === 'slideOutPreloader'
+            ? 'auth-login__view auth-login__view--slide-out'
+            : 'auth-login__view auth-login__view--slide-in';
 
     return (
         <AuthLayout title="Login">
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 600, color: '#0f1f3d', marginBottom: 4 }}>
-                Welcome back
-            </div>
-            <div style={{ fontSize: 13, color: '#8892aa', marginBottom: 24 }}>
-                Sign in to your QUAMC account
-            </div>
+            <div className="auth-login">
+                <div className={`auth-login__stage ${mounted ? 'is-mounted' : ''}`}>
+                    {(phase === 'idle' || phase === 'slideOutGreeting') && (
+                        <div className={viewClass}>
+                            <div className="auth-login__heading">
+                                <h2>Welcome back</h2>
+                                <p>Sign in to continue managing your accreditation workflows.</p>
+                            </div>
 
-            <form onSubmit={submit}>
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: '#4a5470', marginBottom: 6, display: 'block' }}>
-                        Email address
-                    </label>
-                    <input
-                        type="email"
-                        value={data.email}
-                        onChange={(e) => setData('email', e.target.value)}
-                        style={inputStyle}
-                        placeholder="you@quamc.edu"
-                        onFocus={(e) => e.target.style.borderColor = '#0f1f3d'}
-                        onBlur={(e) => e.target.style.borderColor = '#dde1ed'}
-                    />
-                    {errors.email && <div style={{ fontSize: 11, color: '#9b1c1c', marginTop: 4 }}>{errors.email}</div>}
-                </div>
+                            <form onSubmit={submit} className="auth-login__form">
+                                <div className="auth-field">
+                                    <label htmlFor="email">Email address</label>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        value={data.email}
+                                        onChange={(e) => setData('email', e.target.value)}
+                                        className="auth-input"
+                                        placeholder="you@quamc.edu"
+                                        autoComplete="off"
+                                    />
+                                    {errors.email && <p className="auth-error">{errors.email}</p>}
+                                </div>
 
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: '#4a5470', marginBottom: 6, display: 'block' }}>
-                        Password
-                    </label>
-                    <input
-                        type="password"
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        style={inputStyle}
-                        placeholder="••••••••"
-                        onFocus={(e) => e.target.style.borderColor = '#0f1f3d'}
-                        onBlur={(e) => e.target.style.borderColor = '#dde1ed'}
-                    />
-                </div>
+                                <div className="auth-field">
+                                    <label htmlFor="password">Password</label>
+                                    <input
+                                        id="password"
+                                        type="password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        className="auth-input"
+                                        placeholder="Enter your password"
+                                        autoComplete="off"
+                                    />
+                                    {errors.password && <p className="auth-error">{errors.password}</p>}
+                                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                    <input
-                        type="checkbox"
-                        checked={data.remember}
-                        onChange={(e) => setData('remember', e.target.checked)}
-                        style={{ accentColor: '#0f1f3d' }}
-                    />
-                    <label style={{ fontSize: 12, color: '#4a5470' }}>Remember me</label>
-                </div>
+                                <label className="auth-remember">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.remember}
+                                        onChange={(e) => setData('remember', e.target.checked)}
+                                    />
+                                    <span>Keep me signed in</span>
+                                </label>
 
-                <button type="submit" disabled={processing} style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    padding: '11px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    cursor: processing ? 'not-allowed' : 'pointer', border: 'none',
-                    background: '#0f1f3d', color: '#fff', fontFamily: "'DM Sans', sans-serif",
-                    opacity: processing ? 0.7 : 1, transition: 'background 0.15s',
-                }}>
-                    <LogIn size={16} />
-                    {processing ? 'Signing in…' : 'Sign in'}
-                </button>
-            </form>
+                                <button type="submit" disabled={processing || isAnimatingSubmit} className="auth-submit">
+                                    <LogIn size={16} />
+                                    {processing ? 'Signing in...' : 'Sign in'}
+                                </button>
+                            </form>
+                        </div>
+                    )}
 
-            <div style={{
-                marginTop: 20, padding: '12px 14px', background: '#f8f9fc', borderRadius: 8,
-                border: '1px solid #f0f2f8',
-            }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 6 }}>
-                    Demo Accounts
-                </div>
-                <div style={{ fontSize: 11, color: '#4a5470', lineHeight: 1.8 }}>
-                    <div><strong>Director:</strong> director@quamc.edu</div>
-                    <div><strong>Dean:</strong> gabriel@quamc.edu</div>
-                    <div><strong>Program Coord:</strong> janjames@quamc.edu</div>
-                    <div><strong>Area Coord:</strong> jsantos@quamc.edu</div>
-                    <div style={{ fontSize: 10, color: '#b8bfd4', marginTop: 4 }}>Password: password</div>
+                    {(phase === 'greeting' || phase === 'slideOutPreloader') && (
+                        <div className={viewClass}>
+                            <div className="auth-greeting">
+                                <span className="auth-greeting__kicker">Authentication successful</span>
+                                <h2>Hi {accountName || 'User'}</h2>
+                                <p>{selectedMessage}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {phase === 'preloader' && (
+                        <div className={viewClass}>
+                            <div className="auth-preloader">
+                                <div className="auth-preloader__spinner" aria-hidden="true"></div>
+                                <h3>Preparing your workspace</h3>
+                                <p>Loading your dashboard, records, and active tasks...</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </AuthLayout>

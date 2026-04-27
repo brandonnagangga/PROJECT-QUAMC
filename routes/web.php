@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\CycleController;
 use App\Http\Controllers\User\DocumentEvaluationController;
 use App\Http\Controllers\User\ExportController;
 use App\Http\Controllers\Admin\ThemeController;
+use App\Http\Controllers\User\DashboardPreferencesController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -26,9 +27,13 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
+    // Global Search
+    Route::get('/global-search', [\App\Http\Controllers\GlobalSearchController::class, 'index'])->name('global-search');
+
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
+    Route::post('/dashboard/preferences', [DashboardPreferencesController::class, 'update'])->name('dashboard.preferences.update');
 
     // ── Areas (global — Director manages structure) ──
     Route::middleware('throttle:60,1')->group(function () {
@@ -93,7 +98,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
         // ── Settings ──
-        Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::get('/settings', fn () => redirect('/dashboard'))->name('settings.index');
         Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
     // ── Reports ──

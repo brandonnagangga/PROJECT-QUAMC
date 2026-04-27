@@ -6,6 +6,7 @@ import { ProgramOversightTable } from './ProgramOversightTable';
 import { ReadinessTrendPanel } from './ReadinessTrendPanel';
 import { RecentUploadsPanel } from './RecentUploadsPanel';
 import { SystemOverviewCards } from './SystemOverviewCards';
+import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
 import type { AdminDashboardProps, MetricCard } from './types';
 
 export default function AdminDashboard({
@@ -30,6 +31,7 @@ export default function AdminDashboard({
                 value: approvedCount.toLocaleString(),
                 delta: `${approvalRate}% rate`,
                 accent: '#1a7a4a',
+                href: '/documents?status=approved&view=list',
             },
             {
                 icon: Shield,
@@ -37,6 +39,7 @@ export default function AdminDashboard({
                 value: pendingCount.toLocaleString(),
                 delta: `${Math.max(0, 100 - approvalRate)}% remaining`,
                 accent: '#b45309',
+                href: '/documents?status=pending&view=list',
             },
             {
                 icon: Users,
@@ -44,6 +47,7 @@ export default function AdminDashboard({
                 value: Number(userCount ?? 0).toLocaleString(),
                 delta: 'Active accounts',
                 accent: '#185FA5',
+                href: '/users?status=active',
             },
             {
                 icon: Activity,
@@ -51,6 +55,7 @@ export default function AdminDashboard({
                 value: Number(logCount ?? 0).toLocaleString(),
                 delta: 'Total events',
                 accent: '#7a3bb0',
+                href: '/logs',
             },
         ],
         [approvedCount, approvalRate, pendingCount, userCount, logCount]
@@ -60,14 +65,22 @@ export default function AdminDashboard({
         <AppLayout title="Admin Dashboard" breadcrumb="System Administration">
             <Head title="Admin Dashboard" />
 
-            <SystemOverviewCards metrics={systemMetrics} />
+            <DashboardWidgetWrapper id="admin.system_overview_cards">
+                <SystemOverviewCards metrics={systemMetrics} />
+            </DashboardWidgetWrapper>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                <ReadinessTrendPanel readinessTrend={readinessTrend} readinessPercent={readinessPercent} />
-                <RecentUploadsPanel recentDocs={recentDocs} />
+                <DashboardWidgetWrapper id="admin.readiness_trend">
+                    <ReadinessTrendPanel readinessTrend={readinessTrend} readinessPercent={readinessPercent} />
+                </DashboardWidgetWrapper>
+                <DashboardWidgetWrapper id="admin.recent_uploads">
+                    <RecentUploadsPanel recentDocs={recentDocs} />
+                </DashboardWidgetWrapper>
             </div>
 
-            <ProgramOversightTable programs={programs} />
+            <DashboardWidgetWrapper id="admin.program_oversight">
+                <ProgramOversightTable programs={programs} />
+            </DashboardWidgetWrapper>
         </AppLayout>
     );
 }

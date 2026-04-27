@@ -144,6 +144,10 @@ export interface PageProps {
         error?: string;
     };
     notifications_count?: number;
+    dashboard_preferences?: {
+        hidden_widgets: string[];
+        is_edit_mode: boolean;
+    };
     active_cycle?: any;
     theme?: {
         mode: 'minimalist' | 'themed' | 'seasonal';

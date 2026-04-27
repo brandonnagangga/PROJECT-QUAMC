@@ -26,6 +26,7 @@ class UserController extends Controller
         $authUser = $request->user();
         $authRole = $authUser->roles->first()?->slug ?? '';
         $isDean   = $authRole === 'dean';
+        $filters  = $request->only(['search', 'role', 'status']);
 
         // Programs: Dean sees only their assigned program, others see all
         $programQuery = Program::where('is_active', true);
@@ -84,6 +85,7 @@ class UserController extends Controller
             'assignments'    => $assignments,
             'authRole'       => $authRole,
             'deanProgramId'  => $isDean ? $authUser->program_id : null,
+            'filters'        => $filters,
         ]);
     }
 

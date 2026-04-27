@@ -3,6 +3,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
 import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
+import AnimatedValue from '@/components/dashboard/AnimatedValue';
+import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
 
 interface DashboardProps {
     stats: {
@@ -65,7 +67,9 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                         >
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: topBarColors[sc.cls] }} />
                             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>{sc.label}</div>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: '#0f1f3d', lineHeight: 1 }}>{val}</div>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: '#0f1f3d', lineHeight: 1 }}>
+                                <AnimatedValue value={val} />
+                            </div>
                             <div style={{ fontSize: 11, color: '#8892aa', marginTop: 6 }}>{sub}</div>
                             <div style={{
                                 position: 'absolute', top: 16, right: 16, width: 36, height: 36,
@@ -87,15 +91,19 @@ export default function Director({ stats, programs, recentDocs, activities, grap
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
-                <ChartPanel title="Program Readiness" subtitle="This cycle">
-                    <MinimalLineChart
-                        primary={overviewSeries}
-                        secondary={comparisonSeries}
-                        primaryColor="#111827"
-                        secondaryColor="#cbd5e1"
-                    />
-                </ChartPanel>
-                <CalendarCard />
+                <DashboardWidgetWrapper id="director.readiness_chart">
+                    <ChartPanel title="Program Readiness" subtitle="This cycle">
+                        <MinimalLineChart
+                            primary={overviewSeries}
+                            secondary={comparisonSeries}
+                            primaryColor="#111827"
+                            secondaryColor="#cbd5e1"
+                        />
+                    </ChartPanel>
+                </DashboardWidgetWrapper>
+                <DashboardWidgetWrapper id="director.calendar">
+                    <CalendarCard />
+                </DashboardWidgetWrapper>
             </div>
 
 
@@ -103,126 +111,134 @@ export default function Director({ stats, programs, recentDocs, activities, grap
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>
                 <div>
                     {/* PROGRAM READINESS */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Program Readiness</div>
-                        <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
-                        {programs.map((p) => (
-                            <div key={p.id} style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '16px 18px' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                                    <div>
-                                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>{p.name}</div>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: '#8892aa', letterSpacing: '0.08em', marginTop: 2 }}>{p.code}</div>
+                    <DashboardWidgetWrapper id="director.program_readiness">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Program Readiness</div>
+                            <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
+                            {programs.map((p) => (
+                                <div key={p.id} style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '16px 18px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>{p.name}</div>
+                                            <div style={{ fontSize: 10, fontWeight: 600, color: '#8892aa', letterSpacing: '0.08em', marginTop: 2 }}>{p.code}</div>
+                                        </div>
+                                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
+                                            <AnimatedValue value={p.pct} />%
+                                        </div>
                                     </div>
-                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>{p.pct}%</div>
-                                </div>
-                                <div style={{ height: 6, background: '#f0f2f8', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
-                                    <div style={{
-                                        height: '100%', borderRadius: 10,
-                                        background: 'linear-gradient(90deg, #1a3260, #243f7a)',
-                                        width: `${p.pct}%`, transition: 'width 1s cubic-bezier(0.4,0,0.2,1)',
-                                    }} />
-                                </div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                    {p.areas.map((a, i) => {
-                                        const pillColors: Record<string, { bg: string; color: string; border: string }> = {
-                                            done: { bg: '#e8f5ee', color: '#1a7a4a', border: '#b8e0ca' },
-                                            pending: { bg: '#f3eeff', color: '#6b3fa0', border: '#d4bef5' },
-                                            draft: { bg: '#f0f2f8', color: '#8892aa', border: '#dde1ed' },
-                                        };
-                                        const c = pillColors[a.cls] || pillColors.draft;
-                                        return (
-                                            <span key={i} style={{
-                                                fontSize: 10, fontWeight: 500, padding: '3px 8px',
-                                                borderRadius: 20, background: c.bg, color: c.color,
-                                                border: `1px solid ${c.border}`,
-                                            }}>{a.name} {a.pct}%</span>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* RECENT SUBMISSIONS */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Submissions</div>
-                        <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
-                    </div>
-                    <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr>
-                                    {['Document', 'Area / Item', 'Program', 'Status', 'Submitted'].map(h => (
-                                        <th key={h} style={{
-                                            textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: '#8892aa',
-                                            textTransform: 'uppercase' as const, letterSpacing: '0.07em',
-                                            padding: '10px 18px', background: '#f8f9fc', borderBottom: '1px solid #f0f2f8',
-                                        }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentDocs.slice(0, 5).map((d) => {
-                                    const bc = badgeColors[d.status] || badgeColors.draft;
-                                    return (
-                                        <tr key={d.id} style={{ borderBottom: '1px solid #f0f2f8', cursor: 'pointer', transition: 'background 0.12s' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <td style={{ padding: '12px 18px', fontSize: 12.5, fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</td>
-                                            <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.path}</td>
-                                            <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.prog}</td>
-                                            <td style={{ padding: '12px 18px' }}>
-                                                <span style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                                                    padding: '3px 9px', borderRadius: 20, fontSize: 10.5,
-                                                    fontWeight: 600, background: bc.bg, color: bc.color,
-                                                }}>
-                                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: bc.color }} />
-                                                    {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa', whiteSpace: 'nowrap' }}>{d.date}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* ACTIVITY FEED */}
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Activity</div>
-                    </div>
-                    <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
-                        <div style={{ padding: '6px 0', maxHeight: 500, overflowY: 'auto' }}>
-                            {activities.map((a, i) => (
-                                <div key={i} style={{
-                                    display: 'flex', gap: 12, padding: '10px 16px',
-                                    borderBottom: i < activities.length - 1 ? '1px solid #f0f2f8' : 'none',
-                                    transition: 'background 0.12s',
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <div style={{
-                                        width: 30, height: 30, borderRadius: '50%',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 12, flexShrink: 0, marginTop: 1,
-                                        background: a.bg, color: a.color,
-                                    }}>{a.icon}</div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 12, color: '#4a5470', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: a.text }} />
-                                        <div style={{ fontSize: 10.5, color: '#b8bfd4', marginTop: 3, fontFamily: "'DM Mono', monospace" }}>{a.time}</div>
+                                    <div style={{ height: 6, background: '#f0f2f8', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
+                                        <div style={{
+                                            height: '100%', borderRadius: 10,
+                                            background: 'linear-gradient(90deg, #1a3260, #243f7a)',
+                                            width: `${p.pct}%`, transition: 'width 1s cubic-bezier(0.4,0,0.2,1)',
+                                        }} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                        {p.areas.map((a, i) => {
+                                            const pillColors: Record<string, { bg: string; color: string; border: string }> = {
+                                                done: { bg: '#e8f5ee', color: '#1a7a4a', border: '#b8e0ca' },
+                                                pending: { bg: '#f3eeff', color: '#6b3fa0', border: '#d4bef5' },
+                                                draft: { bg: '#f0f2f8', color: '#8892aa', border: '#dde1ed' },
+                                            };
+                                            const c = pillColors[a.cls] || pillColors.draft;
+                                            return (
+                                                <span key={i} style={{
+                                                    fontSize: 10, fontWeight: 500, padding: '3px 8px',
+                                                    borderRadius: 20, background: c.bg, color: c.color,
+                                                    border: `1px solid ${c.border}`,
+                                                }}>{a.name} {a.pct}%</span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </DashboardWidgetWrapper>
+
+                    {/* RECENT SUBMISSIONS */}
+                    <DashboardWidgetWrapper id="director.recent_submissions">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Submissions</div>
+                            <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr>
+                                        {['Document', 'Area / Item', 'Program', 'Status', 'Submitted'].map(h => (
+                                            <th key={h} style={{
+                                                textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: '#8892aa',
+                                                textTransform: 'uppercase' as const, letterSpacing: '0.07em',
+                                                padding: '10px 18px', background: '#f8f9fc', borderBottom: '1px solid #f0f2f8',
+                                            }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentDocs.slice(0, 5).map((d) => {
+                                        const bc = badgeColors[d.status] || badgeColors.draft;
+                                        return (
+                                            <tr key={d.id} style={{ borderBottom: '1px solid #f0f2f8', cursor: 'pointer', transition: 'background 0.12s' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <td style={{ padding: '12px 18px', fontSize: 12.5, fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</td>
+                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.path}</td>
+                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.prog}</td>
+                                                <td style={{ padding: '12px 18px' }}>
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                        padding: '3px 9px', borderRadius: 20, fontSize: 10.5,
+                                                        fontWeight: 600, background: bc.bg, color: bc.color,
+                                                    }}>
+                                                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: bc.color }} />
+                                                        {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa', whiteSpace: 'nowrap' }}>{d.date}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </DashboardWidgetWrapper>
+                </div>
+
+                {/* ACTIVITY FEED */}
+                <div>
+                    <DashboardWidgetWrapper id="director.activity_feed">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Activity</div>
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                            <div style={{ padding: '6px 0', maxHeight: 500, overflowY: 'auto' }}>
+                                {activities.map((a, i) => (
+                                    <div key={i} style={{
+                                        display: 'flex', gap: 12, padding: '10px 16px',
+                                        borderBottom: i < activities.length - 1 ? '1px solid #f0f2f8' : 'none',
+                                        transition: 'background 0.12s',
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div style={{
+                                            width: 30, height: 30, borderRadius: '50%',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 12, flexShrink: 0, marginTop: 1,
+                                            background: a.bg, color: a.color,
+                                        }}>{a.icon}</div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 12, color: '#4a5470', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: a.text }} />
+                                            <div style={{ fontSize: 10.5, color: '#b8bfd4', marginTop: 3, fontFamily: "'DM Mono', monospace" }}>{a.time}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </DashboardWidgetWrapper>
                 </div>
             </div>
         </AppLayout>
