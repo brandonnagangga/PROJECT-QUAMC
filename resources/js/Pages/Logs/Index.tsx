@@ -4,9 +4,9 @@ import { Activity, User, FileText, Search, Filter } from 'lucide-react';
 import { useState } from 'react';
 
 interface LogEntry {
-    id: string; user_name: string; event: string; model_type: string;
-    model_id: string; changes: any; ip_address: string;
-    created_at: string; time_ago: string;
+    id: string; user_name: string; event: string; description: string | null;
+    model_type: string; model_id: string; changes: any;
+    ip_address: string; created_at: string; time_ago: string;
 }
 interface Props { logs: LogEntry[]; }
 
@@ -18,6 +18,12 @@ const eventColors: Record<string, { bg: string; color: string; icon: any }> = {
     'document.approved': { bg: '#e8f5ee', color: '#1a7a4a', icon: FileText },
     'document.returned': { bg: '#fef2f2', color: '#9b1c1c', icon: FileText },
     'document.forwarded': { bg: '#fff8e5', color: '#e07a00', icon: FileText },
+    'area.submitted_to_dean': { bg: '#f3eeff', color: '#6b3fa0', icon: Activity },
+    'area.returned_by_dean': { bg: '#fef2f2', color: '#9b1c1c', icon: Activity },
+    'area.approved_by_dean': { bg: '#e8f5ee', color: '#1a7a4a', icon: Activity },
+    'area.note_replied': { bg: '#fff8e5', color: '#e07a00', icon: Activity },
+    'user.created': { bg: '#eff6ff', color: '#185FA5', icon: User },
+    'user.area_assigned': { bg: '#eff6ff', color: '#185FA5', icon: User },
 };
 
 const defaultEvent = { bg: '#f0f2f8', color: '#8892aa', icon: Activity };
@@ -29,7 +35,8 @@ export default function LogsIndex({ logs }: Props) {
     const events = [...new Set(logs.map(l => l.event))];
 
     const filtered = logs.filter(l => {
-        if (search && !l.user_name.toLowerCase().includes(search.toLowerCase()) && !l.event.toLowerCase().includes(search.toLowerCase())) return false;
+        const haystack = `${l.user_name} ${l.event} ${l.description ?? ''}`.toLowerCase();
+        if (search && !haystack.includes(search.toLowerCase())) return false;
         if (filterEvent && l.event !== filterEvent) return false;
         return true;
     });
@@ -90,13 +97,18 @@ export default function LogsIndex({ logs }: Props) {
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <td style={{ padding: '10px 14px' }}>
-                                        <span style={{
-                                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                                            padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                            background: ev.bg, color: ev.color,
-                                        }}>
-                                            <Icon size={11} /> {log.event}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
+                                                background: ev.bg, color: ev.color, alignSelf: 'flex-start',
+                                            }}>
+                                                <Icon size={11} /> {log.event}
+                                            </span>
+                                            {log.description && (
+                                                <span style={{ fontSize: 11.5, color: '#4a5470', lineHeight: 1.4 }}>{log.description}</span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>{log.user_name}</td>
                                     <td style={{ padding: '10px 14px', color: '#4a5470' }}>

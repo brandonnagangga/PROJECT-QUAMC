@@ -1,20 +1,24 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePage } from '@inertiajs/react';
 import {
     FileText, Clock, CheckCircle, RotateCcw, Upload, Target,
-    ArrowRight, AlertCircle
+    ArrowRight, AlertCircle, Timer, Calendar
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 
-interface AreaStat { name: string; pct: number; cls: string; }
+
+interface AreaStat { name: string; pct: number; cls: string; color: string; deadline_at: string | null; }
 interface ProgramInfo { id: number; name: string; code: string; pct: number; areas: AreaStat[]; }
 interface DocInfo { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string; uploader: string; }
 interface ActivityInfo { icon: string; bg: string; color: string; text: string; time: string; }
+interface DeadlineInfo { id: number; name: string; deadline_at: string; days_left: number; }
 interface Stats { programs: string; readiness: string; readinessSub: string; approved: string; approvedSub: string; pending: string; pendingSub: string; }
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; areaItems: any[]; currentRole: string;
+    upcomingDeadlines: DeadlineInfo[];
+    overdueDeadlines: DeadlineInfo[];
 }
 
 const statusColors: Record<string, { bg: string; color: string; label: string }> = {
@@ -24,13 +28,70 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole }: Props) {
+export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole, upcomingDeadlines, overdueDeadlines }: Props) {
     const { auth } = usePage<PageProps>().props;
     const isProgramCoord = currentRole === 'program-coordinator';
+
+    /* ── Deadline helpers ── */
+    function deadlineBadge(daysLeft: number) {
+        if (daysLeft <= 0)  return { bg: '#fef2f2', color: '#9b1c1c', label: 'OVERDUE',        Icon: AlertCircle };
+        if (daysLeft <= 3)  return { bg: '#fef2f2', color: '#9b1c1c', label: `${daysLeft}d`,   Icon: Timer };
+        if (daysLeft <= 7)  return { bg: '#fff7ed', color: '#9a3412', label: `${daysLeft}d`,   Icon: Timer };
+        return               { bg: '#e8f5ee', color: '#1a7a4a', label: `${daysLeft}d`,          Icon: Calendar };
+    }
 
     return (
         <AppLayout title={isProgramCoord ? 'Program Coordinator Dashboard' : 'Area Coordinator Dashboard'} breadcrumb="Dashboard">
             <Head title="Dashboard" />
+
+            {/* ── Overdue deadlines banner ── */}
+            {overdueDeadlines.length > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px',
+                    background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+                    marginBottom: 18,
+                }}>
+                    <AlertCircle size={18} color="#9b1c1c" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#9b1c1c', marginBottom: 4 }}>
+                            ⚠ {overdueDeadlines.length} Area{overdueDeadlines.length > 1 ? 's' : ''} Past Deadline
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {overdueDeadlines.map(d => (
+                                <span key={d.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fff', border: '1px solid #fecaca', color: '#9b1c1c' }}>
+                                    {d.name} &mdash; {new Date(d.deadline_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                    <Link href="/areas" style={{ fontSize: 11, color: '#9b1c1c', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Go to Areas →
+                    </Link>
+                </div>
+            )}
+
+            {/* ── Upcoming deadlines alert (within 7 days) ── */}
+            {overdueDeadlines.length === 0 && upcomingDeadlines.filter(d => d.days_left <= 7).length > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px',
+                    background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10,
+                    marginBottom: 18,
+                }}>
+                    <Timer size={16} color="#9a3412" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#9a3412', marginBottom: 4 }}>
+                            Deadlines approaching this week
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {upcomingDeadlines.filter(d => d.days_left <= 7).map(d => (
+                                <span key={d.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fff', border: '1px solid #fed7aa', color: '#9a3412' }}>
+                                    {d.name} &mdash; {d.days_left}d left
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Stat Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
@@ -144,15 +205,28 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                                 padding: '8px 0',
                                 borderBottom: i < (areaItems.length - 1) ? '1px solid #f0f2f8' : 'none',
                             }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                    <span style={{ fontSize: 11, color: '#4a5470', fontWeight: 500 }}>{area.name}</span>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: area.pct > 0 ? area.color : '#b8bfd4' }}>{area.pct}%</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                                        <span style={{ fontSize: 11, color: '#4a5470', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{area.name}</span>
+                                        {area.deadline_at && (() => {
+                                            const { bg, color, label, Icon } = deadlineBadge(
+                                                Math.ceil((new Date(area.deadline_at).getTime() - Date.now()) / 86_400_000)
+                                            );
+                                            return (
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700, background: bg, color, flexShrink: 0 }}>
+                                                    <Icon size={8} /> {label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: area.pct > 0 ? area.color : '#b8bfd4', marginLeft: 6 }}>{area.pct}%</span>
                                 </div>
                                 <div style={{ height: 4, background: '#f0f2f8', borderRadius: 4, overflow: 'hidden' }}>
                                     <div style={{ height: '100%', borderRadius: 4, background: area.color, width: `${area.pct}%`, transition: 'width 0.8s' }} />
                                 </div>
                             </div>
                         )) : (
+
                             <div style={{ padding: 16, textAlign: 'center', color: '#b8bfd4', fontSize: 12 }}>
                                 No areas assigned yet
                             </div>

@@ -10,22 +10,22 @@ class NotificationController extends Controller
 {
     public function index(Request $request)
     {
-        $notifications = Notification::with(['document.subArea.area', 'document.program'])
-
+        $notifications = Notification::with(['area'])
             ->where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
             ->limit(50)
             ->get()
             ->map(function ($n) {
                 return [
-                    'id' => $n->id,
-                    'type' => $n->type,
-                    'message' => $n->message,
-                    'is_read' => $n->is_read,
-                    'document_id' => $n->document_id,
-                    'document_title' => $n->document?->title,
+                    'id'         => $n->id,
+                    'type'       => $n->type,
+                    'message'    => $n->message,
+                    'is_read'    => $n->is_read,
+                    'area_id'    => $n->area_id,
+                    'area_name'  => $n->area?->name,
+                    'link'       => $n->link,
                     'created_at' => $n->created_at->format('M j, Y H:i'),
-                    'time_ago' => $n->created_at->diffForHumans(),
+                    'time_ago'   => $n->created_at->diffForHumans(),
                 ];
             });
 
@@ -34,7 +34,7 @@ class NotificationController extends Controller
 
         return Inertia::render('Notifications/Index', [
             'notifications' => $notifications,
-            'unreadCount' => $unreadCount,
+            'unreadCount'   => $unreadCount,
         ]);
     }
 
@@ -53,5 +53,14 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true, 'read_at' => now()]);
         return back()->with('success', 'All notifications marked as read.');
+    }
+
+    public function destroy(Request $request, Notification $notification)
+    {
+        if ($notification->user_id !== $request->user()->id) {
+            abort(403);
+        }
+        $notification->delete();
+        return back()->with('success', 'Notification dismissed.');
     }
 }

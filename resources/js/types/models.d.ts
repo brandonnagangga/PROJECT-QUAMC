@@ -136,6 +136,7 @@ export interface ActivityLog {
 
 // Inertia page props
 export interface PageProps {
+    [key: string]: any; // required by Inertia's generic constraint
     auth: {
         user: User;
     };
@@ -144,4 +145,5 @@ export interface PageProps {
         error?: string;
     };
     notifications_count?: number;
+    my_program_id?: number | null;
 }

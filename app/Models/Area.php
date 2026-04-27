@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\AreaChecklist;
 
 class Area extends Model
 {
@@ -34,6 +35,11 @@ class Area extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(AreaAssignment::class);
+    }
+
+    public function checklists(): HasMany
+    {
+        return $this->hasMany(AreaChecklist::class)->orderBy('order_number');
     }
 
     public function createdBy(): BelongsTo

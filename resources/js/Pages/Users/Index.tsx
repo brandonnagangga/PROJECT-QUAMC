@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import {
     UserPlus, Shield, MapPin, Search, ToggleLeft, ToggleRight,
-    Mail, Calendar, ChevronDown, CheckSquare, Square, X
+    Mail, Calendar, CheckSquare, Square, X, GraduationCap, Pencil,
 } from 'lucide-react';
 import { useState } from 'react';
 import { confirmAction } from '@/utils/toast';
@@ -10,6 +10,7 @@ import { confirmAction } from '@/utils/toast';
 interface RoleInfo { id: number; name: string; slug: string; }
 interface UserInfo {
     id: string; name: string; email: string; is_active: boolean;
+    program_id: number | null;
     roles: RoleInfo[]; created_at: string;
 }
 interface AreaInfo { id: number; name: string; order_number: number; }
@@ -35,13 +36,17 @@ const roleBadgeColors: Record<string, { bg: string; color: string }> = {
 export default function UsersIndex({ users, roles, programs, assignments, authRole, deanProgramId }: Props) {
     const [search, setSearch] = useState('');
     const [filterRole, setFilterRole] = useState('');
+    const [filterProgram, setFilterProgram] = useState('');
     const [showCreate, setShowCreate] = useState(false);
     const [showAssign, setShowAssign] = useState(false);
 
     // Create user form
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: 'password', role_id: '' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: 'password', role_id: '', program_id: '' });
     // Assign area form
     const [assignData, setAssignData] = useState({ user_id: '', area_ids: [] as number[], role_type: 'area-coordinator', academic_year: '2024-2025' });
+    const [showAssignProgram, setShowAssignProgram] = useState(false);
+    const [assignProgramUser, setAssignProgramUser] = useState<UserInfo | null>(null);
+    const [assignProgramId, setAssignProgramId] = useState<string>('');
     // If dean, pre-lock to their program; otherwise let user choose
     const [assignProgram, setAssignProgram] = useState(deanProgramId ? String(deanProgramId) : '');
 
@@ -50,16 +55,25 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
         ? assignments.filter(a => a.user_id === assignData.user_id).map(a => a.area_id)
         : [];
 
+    // Helper: open assign-area modal pre-filled for a specific user
+    const openEditAreas = (u: UserInfo) => {
+        const prog = deanProgramId ? String(deanProgramId) : (u.program_id ? String(u.program_id) : '');
+        setAssignProgram(prog);
+        setAssignData({ user_id: u.id, area_ids: assignments.filter(a => a.user_id === u.id).map(a => a.area_id), role_type: 'area-coordinator', academic_year: '2024-2025' });
+        setShowAssign(true);
+    };
+
     const filtered = users.filter(u => {
         if (search && !u.name.toLowerCase().includes(search.toLowerCase()) && !u.email.toLowerCase().includes(search.toLowerCase())) return false;
         if (filterRole && !u.roles.some(r => r.slug === filterRole)) return false;
+        if (filterProgram && String(u.program_id ?? '') !== filterProgram) return false;
         return true;
     });
 
     const handleCreate = () => {
-        router.post('/users', newUser, {
+        router.post('/users', newUser as any, {
             preserveScroll: true,
-            onSuccess: () => { setShowCreate(false); setNewUser({ name: '', email: '', password: 'password', role_id: '' }); },
+            onSuccess: () => { setShowCreate(false); setNewUser({ name: '', email: '', password: 'password', role_id: '', program_id: '' }); },
         });
     };
 
@@ -75,10 +89,9 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
     };
 
     const handleAssignArea = () => {
-        // Only send newly selected area IDs (exclude already assigned)
         const newAreaIds = assignData.area_ids.filter(id => !alreadyAssignedAreaIds.includes(id));
         if (newAreaIds.length === 0) return;
-        router.post('/users/assign-area', { ...assignData, area_ids: newAreaIds } as any, {
+        router.post(`/users/${assignData.user_id}/assign-area`, { area_ids: newAreaIds, role_type: assignData.role_type, academic_year: assignData.academic_year } as any, {
             preserveScroll: true,
             onSuccess: () => { setShowAssign(false); setAssignData({ user_id: '', area_ids: [], role_type: 'area-coordinator', academic_year: '2024-2025' }); setAssignProgram(deanProgramId ? String(deanProgramId) : ''); },
         });
@@ -105,25 +118,33 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                         <Search size={14} color="#8892aa" />
                         <input value={search} onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search users..."
-                            style={{ border: 'none', outline: 'none', fontSize: 12.5, color: '#0f1f3d', width: '100%', fontFamily: "'DM Sans', sans-serif" }}
+                            style={{ border: 'none', outline: 'none', fontSize: 12.5, color: '#0f1f3d', width: '100%', fontFamily: "'Inter', sans-serif" }}
                         />
                     </div>
                     {/* Role filter */}
                     <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{
                         padding: '8px 12px', borderRadius: 8, border: '1.5px solid #dde1ed', fontSize: 12,
-                        fontFamily: "'DM Sans', sans-serif", color: '#4a5470', cursor: 'pointer', background: '#fff',
+                        fontFamily: "'Inter', sans-serif", color: '#4a5470', cursor: 'pointer', background: '#fff',
                     }}>
                         <option value="">All Roles</option>
                         {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
                     </select>
+                    {/* Program filter */}
+                    <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{
+                        padding: '8px 12px', borderRadius: 8, border: '1.5px solid #dde1ed', fontSize: 12,
+                        fontFamily: "'Inter', sans-serif", color: '#4a5470', cursor: 'pointer', background: '#fff',
+                    }}>
+                        <option value="">All Programs</option>
+                        {programs.map(p => <option key={p.id} value={String(p.id)}>{p.code}</option>)}
+                    </select>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                    {authRole === 'dean' && (
-                        <button onClick={() => setShowAssign(true)} style={{
+                    {(authRole === 'admin' || authRole === 'dean') && (
+                        <button onClick={() => { setAssignData({ user_id: '', area_ids: [], role_type: 'area-coordinator', academic_year: '2024-2025' }); setAssignProgram(deanProgramId ? String(deanProgramId) : ''); setShowAssign(true); }} style={{
                             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
                             borderRadius: 8, border: 'none', background: '#1a7a4a', color: '#fff',
-                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                         }}>
                             <MapPin size={13} /> Assign to Area
                         </button>
@@ -132,7 +153,7 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                         <button onClick={() => setShowCreate(true)} style={{
                             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
                             borderRadius: 8, border: 'none', background: '#c9a84c', color: '#0f1f3d',
-                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                         }}>
                             <UserPlus size={13} /> Add User
                         </button>
@@ -145,7 +166,7 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                     <thead>
                         <tr style={{ background: '#f8f9fc', borderBottom: '1px solid #dde1ed' }}>
-                            {['User', 'Email', 'Role', 'Assigned Areas', 'Status', 'Created', authRole === 'admin' ? 'Actions' : ''].filter(Boolean).map(h => (
+                            {['User', 'Email', 'Role', 'Program', 'Assigned Areas', 'Status', 'Created', 'Actions'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 10, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{h}</th>
                             ))}
                         </tr>
@@ -187,17 +208,31 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                                             </span>
                                         ))}
                                     </td>
-                                    <td style={{ padding: '12px 14px' }}>
-                                        {userAssignments.length > 0 ? (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                                {userAssignments.map(a => (
-                                                    <span key={a.id} style={{
-                                                        fontSize: 9.5, padding: '2px 6px', borderRadius: 4,
-                                                        background: '#eff6ff', color: '#1a4f8a', border: '1px solid #d0dfff',
-                                                    }}>{a.program_code} · {a.area_name}</span>
-                                                ))}
-                                            </div>
+                                    {/* Program column */}
+                                    <td style={{ padding: '12px 14px', color: '#4a5470', fontSize: 12 }}>
+                                        {user.program_id ? (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, background: '#f0f4ff', color: '#185FA5', fontSize: 11, fontWeight: 600 }}>
+                                                <GraduationCap size={10} /> {programs.find(p => p.id === user.program_id)?.code ?? `#${user.program_id}`}
+                                            </span>
                                         ) : <span style={{ color: '#b8bfd4', fontSize: 11 }}>—</span>}
+                                    </td>
+                                    {/* Assigned Areas column */}
+                                    <td style={{ padding: '12px 14px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            {userAssignments.length > 0 ? (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                                    {userAssignments.map(a => (
+                                                        <span key={a.id} style={{ fontSize: 9.5, padding: '2px 6px', borderRadius: 4, background: '#eff6ff', color: '#1a4f8a', border: '1px solid #d0dfff' }}>{a.area_name}</span>
+                                                    ))}
+                                                </div>
+                                            ) : <span style={{ color: '#b8bfd4', fontSize: 11 }}>—</span>}
+                                            {(authRole === 'admin' || authRole === 'dean') && (
+                                                <button onClick={() => openEditAreas(user)} title="Edit area assignments"
+                                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                                    <Pencil size={12} color="#8892aa" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                     <td style={{ padding: '12px 14px' }}>
                                         <span style={{
@@ -215,31 +250,34 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                                             <Calendar size={11} /> {user.created_at}
                                         </div>
                                     </td>
-                                    {authRole === 'admin' && (
-                                        <td style={{ padding: '12px 14px' }}>
-                                            <button
-                                                onClick={async () => {
-                                                    const ok = await confirmAction({
-                                                        title: user.is_active ? 'Deactivate User?' : 'Activate User?',
-                                                        text: `Are you sure you want to ${user.is_active ? 'deactivate' : 'activate'} ${user.name}?`,
-                                                        confirmText: user.is_active ? 'Yes, deactivate' : 'Yes, activate',
-                                                        isDanger: user.is_active,
-                                                    });
-                                                    if (ok) router.post(`/users/${user.id}/toggle`, {}, { preserveScroll: true });
-                                                }}
-                                                title={user.is_active ? 'Deactivate' : 'Activate'}
-                                                style={{
-                                                    border: 'none', background: 'transparent', cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', padding: 4,
-                                                }}
-                                            >
-                                                {user.is_active
-                                                    ? <ToggleRight size={20} color="#1a7a4a" />
-                                                    : <ToggleLeft size={20} color="#9b1c1c" />
-                                                }
-                                            </button>
-                                        </td>
-                                    )}
+                                    <td style={{ padding: '12px 14px' }}>
+                                        <div style={{ display: 'flex', gap: 6 }}>
+                                            {authRole === 'admin' && (<>
+                                                <button
+                                                    onClick={async () => {
+                                                        const ok = await confirmAction({
+                                                            title: user.is_active ? 'Deactivate User?' : 'Activate User?',
+                                                            text: `Are you sure you want to ${user.is_active ? 'deactivate' : 'activate'} ${user.name}?`,
+                                                            confirmText: user.is_active ? 'Yes, deactivate' : 'Yes, activate',
+                                                            isDanger: user.is_active,
+                                                        });
+                                                        if (ok) router.post(`/users/${user.id}/toggle`, {}, { preserveScroll: true });
+                                                    }}
+                                                    title={user.is_active ? 'Deactivate' : 'Activate'}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4 }}
+                                                >
+                                                    {user.is_active ? <ToggleRight size={20} color="#1a7a4a" /> : <ToggleLeft size={20} color="#9b1c1c" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => { setAssignProgramUser(user); setAssignProgramId(String(user.program_id ?? '')); setShowAssignProgram(true); }}
+                                                    title="Assign / change program"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, border: '1px solid #dde1ed', background: '#f0f2f8', cursor: 'pointer', color: '#4a5470' }}
+                                                >
+                                                    <GraduationCap size={11} /> Program
+                                                </button>
+                                            </>)}
+                                        </div>
+                                    </td>
                                 </tr>
                             );
                         })}
@@ -270,12 +308,20 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                                 />
                             </div>
                         ))}
-                        <div style={{ marginBottom: 20 }}>
+                        <div style={{ marginBottom: 14 }}>
                             <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Role</label>
                             <select value={newUser.role_id} onChange={(e) => setNewUser(p => ({ ...p, role_id: e.target.value }))}
                                 style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #dde1ed', fontSize: 12.5, fontFamily: "'DM Sans', sans-serif", color: '#4a5470', cursor: 'pointer' }}>
                                 <option value="">Select role...</option>
                                 {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Program <span style={{ fontWeight: 400, color: '#b8bfd4' }}>(optional)</span></label>
+                            <select value={newUser.program_id} onChange={(e) => setNewUser(p => ({ ...p, program_id: e.target.value }))}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #dde1ed', fontSize: 12.5, fontFamily: "'DM Sans', sans-serif", color: '#4a5470', cursor: 'pointer' }}>
+                                <option value="">— No Program —</option>
+                                {programs.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
                             </select>
                         </div>
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -375,7 +421,7 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                                                                     confirmText: 'Yes, remove',
                                                                     isDanger: true,
                                                                 });
-                                                                if (ok) router.delete(`/areas/${a.id}/assign/${assignData.user_id}`, { preserveScroll: true });
+                                                                if (ok) router.delete(`/users/${assignData.user_id}/remove-area/${a.id}`, { preserveScroll: true });
                                                             }}
                                                             title="Remove assignment"
                                                             style={{
@@ -413,6 +459,93 @@ export default function UsersIndex({ users, roles, programs, assignments, authRo
                                 opacity: (newSelectionCount === 0 || !assignData.user_id) ? 0.5 : 1,
                                 fontFamily: "'DM Sans', sans-serif",
                             }}>Assign</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Assign Program Modal (Admin) ── */}
+            {showAssignProgram && assignProgramUser && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+                    onClick={() => setShowAssignProgram(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: '#fff', borderRadius: 16, padding: 28,
+                        width: '100%', maxWidth: 480,
+                        boxShadow: '0 20px 60px rgba(15,31,61,0.18)', position: 'relative',
+                    }}>
+                        <button onClick={() => setShowAssignProgram(false)} style={{
+                            position: 'absolute', top: 14, right: 14, width: 28, height: 28,
+                            borderRadius: 7, border: '1px solid #dde1ed', background: '#f8f9fc',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <X size={13} color="#8892aa" />
+                        </button>
+
+                        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 700, color: '#0f1f3d', marginBottom: 4 }}>
+                            Assign Program
+                        </div>
+                        <div style={{ fontSize: 12, color: '#8892aa', marginBottom: 20 }}>
+                            Setting the program for <strong style={{ color: '#0f1f3d' }}>{assignProgramUser.name}</strong>.
+                            This controls which program's evidence they can upload and access.
+                        </div>
+
+                        {/* Current program indicator */}
+                        {assignProgramUser.program_id && (
+                            <div style={{
+                                background: '#f0f2f8', borderRadius: 8, padding: '10px 14px',
+                                marginBottom: 14, fontSize: 12, color: '#4a5470',
+                                display: 'flex', alignItems: 'center', gap: 8,
+                            }}>
+                                <GraduationCap size={14} color="#8892aa" />
+                                Current: <strong>{programs.find(p => p.id === assignProgramUser.program_id)?.name ?? `Program #${assignProgramUser.program_id}`}</strong>
+                            </div>
+                        )}
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 6 }}>
+                                Select Program
+                            </label>
+                            <select
+                                value={assignProgramId}
+                                onChange={e => setAssignProgramId(e.target.value)}
+                                style={{
+                                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                                    border: '1.5px solid #dde1ed', fontSize: 13,
+                                    fontFamily: "'Inter', sans-serif", color: '#0f1f3d',
+                                    outline: 'none', cursor: 'pointer', background: '#fff',
+                                }}
+                            >
+                                <option value="">— No Program (clear assignment) —</option>
+                                {programs.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                                ))}
+                            </select>
+                            <div style={{ fontSize: 11, color: '#b8bfd4', marginTop: 5 }}>
+                                Selecting "No Program" will clear the user's program assignment.
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowAssignProgram(false)} style={{
+                                padding: '10px 20px', borderRadius: 8, border: '1px solid #dde1ed',
+                                background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500,
+                            }}>Cancel</button>
+                            <button
+                                onClick={() => {
+                                    router.post(`/users/${assignProgramUser.id}/assign-program`, {
+                                        program_id: assignProgramId || null,
+                                    }, {
+                                        preserveScroll: true,
+                                        onSuccess: () => setShowAssignProgram(false),
+                                    });
+                                }}
+                                style={{
+                                    padding: '10px 24px', borderRadius: 8, border: 'none',
+                                    background: '#0f1f3d', color: '#c9a84c',
+                                    fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                                }}
+                            >
+                                Save Program
+                            </button>
                         </div>
                     </div>
                 </div>

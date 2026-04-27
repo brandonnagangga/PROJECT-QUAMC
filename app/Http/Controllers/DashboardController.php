@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Area;
+use App\Models\AccreditationCycle;
+use App\Models\AreaSubmission;
 use App\Models\Document;
 use App\Models\Program;
 use App\Models\SubArea;
@@ -12,6 +14,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
+
 {
     public function index(Request $request)
     {
@@ -87,11 +90,37 @@ class DashboardController extends Controller
                 : 0;
             $pct = $totalSlots > 0 ? round(($approvedSlots / $totalSlots) * 100) : 0;
             return [
-                'name'  => $area->name,
-                'pct'   => $pct,
-                'color' => $this->getAreaColor($area->order_number),
+                'name'        => $area->name,
+                'pct'         => $pct,
+                'color'       => $this->getAreaColor($area->order_number),
+                'deadline_at' => $area->deadline_at?->format('Y-m-d'),
             ];
         });
+
+        // ── Upcoming & overdue deadlines for coordinator dashboard ──
+        $upcomingDeadlines = Area::whereNotNull('deadline_at')
+            ->where('deadline_at', '>=', now()->subDays(1))
+            ->orderBy('deadline_at')
+            ->take(5)
+            ->get()
+            ->map(fn($a) => [
+                'id'          => $a->id,
+                'name'        => $a->name,
+                'deadline_at' => $a->deadline_at->format('Y-m-d'),
+                'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
+            ]);
+
+        $overdueDeadlines = Area::whereNotNull('deadline_at')
+            ->where('deadline_at', '<', now())
+            ->orderByDesc('deadline_at')
+            ->take(5)
+            ->get()
+            ->map(fn($a) => [
+                'id'          => $a->id,
+                'name'        => $a->name,
+                'deadline_at' => $a->deadline_at->format('Y-m-d'),
+                'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
+            ]);
 
         $page = match ($role?->slug) {
             'admin'               => 'Dashboard/Admin',
@@ -102,15 +131,47 @@ class DashboardController extends Controller
             default               => 'Dashboard/Director',
         };
 
+        // ── Pending area submissions for Dean (sub-areas submitted to dean, awaiting action) ──
+        $pendingDeanSubmissions = [];
+        if ($role?->slug === 'dean' && $user->program_id) {
+            $pendingDeanSubmissions = SubArea::where('submission_status', 'submitted_to_dean')
+                ->with('area')
+                ->get()
+                ->map(fn ($sa) => [
+                    'id'          => $sa->id,
+                    'name'        => $sa->name,
+                    'area_name'   => $sa->area?->name,
+                    'submitted_at'=> $sa->submitted_by_dean_at?->format('M j, Y') ?? '—',
+                ])->values()->toArray();
+        }
+
+        // ── Pending area reviews for Director (sub-areas forwarded to director) ──
+        $pendingDirectorReviews = [];
+        if ($role?->slug === 'director') {
+            $pendingDirectorReviews = SubArea::whereIn('submission_status', ['submitted_to_director', 'submitted'])
+                ->with('area')
+                ->get()
+                ->map(fn ($sa) => [
+                    'id'        => $sa->id,
+                    'name'      => $sa->name,
+                    'area_name' => $sa->area?->name,
+                    'status'    => $sa->submission_status,
+                ])->values()->toArray();
+        }
+
         return Inertia::render($page, [
-            'stats'       => $stats,
-            'programs'    => $programs,
-            'recentDocs'  => $recentDocs,
-            'activities'  => $activities,
-            'areaItems'   => $areaItems,
-            'currentRole' => $role?->slug ?? 'director',
-            'userCount'   => User::count(),
-            'logCount'    => ActivityLog::count(),
+            'stats'                   => $stats,
+            'programs'                => $programs,
+            'recentDocs'              => $recentDocs,
+            'activities'              => $activities,
+            'areaItems'               => $areaItems,
+            'upcomingDeadlines'       => $upcomingDeadlines,
+            'overdueDeadlines'        => $overdueDeadlines,
+            'currentRole'             => $role?->slug ?? 'director',
+            'userCount'               => User::count(),
+            'logCount'                => ActivityLog::count(),
+            'pendingDeanSubmissions'  => $pendingDeanSubmissions,
+            'pendingDirectorReviews'  => $pendingDirectorReviews,
         ]);
     }
 

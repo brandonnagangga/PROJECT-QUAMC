@@ -10,6 +10,7 @@ interface AreaInfo { id: number; name: string; order_number: number; pct: number
 interface ProgramUser { id: string; name: string; email: string; role: string; slug: string; }
 interface ProgramInfo {
     id: number; name: string; code: string; is_active: boolean;
+    logo_url: string | null;
     totalAreas: number; totalSlots: number; approvedItems: number;
     pendingItems: number; returnedItems: number; pct: number;
     areas: AreaInfo[];
@@ -38,6 +39,8 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
     // Add Program modal
     const [showAddProgram, setShowAddProgram] = useState(false);
     const [newProgram, setNewProgram] = useState({ name: '', code: '' });
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
     // Add User to Program modal
     const [addUserProgramId, setAddUserProgramId] = useState<number | null>(null);
@@ -45,9 +48,18 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
 
     const handleAddProgram = () => {
         if (!newProgram.name || !newProgram.code) return;
-        router.post('/programs', newProgram, {
+        const fd = new FormData();
+        fd.append('name', newProgram.name);
+        fd.append('code', newProgram.code);
+        if (logoFile) fd.append('logo', logoFile);
+        router.post('/programs', fd as any, {
             preserveScroll: true,
-            onSuccess: () => { setShowAddProgram(false); setNewProgram({ name: '', code: '' }); },
+            onSuccess: () => {
+                setShowAddProgram(false);
+                setNewProgram({ name: '', code: '' });
+                setLogoFile(null);
+                setLogoPreview(null);
+            },
         });
     };
 
@@ -99,10 +111,16 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                                 <div style={{
-                                    width: 44, height: 44, borderRadius: 10, background: '#0f1f3d',
+                                    width: 44, height: 44, borderRadius: 10,
+                                    background: program.logo_url ? 'transparent' : '#0f1f3d',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    overflow: 'hidden', flexShrink: 0,
+                                    border: program.logo_url ? '2px solid #dde1ed' : 'none',
                                 }}>
-                                    <GraduationCap size={20} color="#c9a84c" />
+                                    {program.logo_url
+                                        ? <img src={program.logo_url} alt={program.code} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
+                                        : <GraduationCap size={20} color="#c9a84c" />
+                                    }
                                 </div>
                                 <div>
                                     <Link href={`/programs/${program.id}`} style={{ textDecoration: 'none' }}>
@@ -275,6 +293,30 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Program Code</label>
                             <input style={inp} value={newProgram.code} onChange={e => setNewProgram(p => ({ ...p, code: e.target.value.toUpperCase() }))}
                                 placeholder="e.g. BSIT" />
+                        </div>
+                        {/* Logo upload */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Program Logo <span style={{ color: '#b8bfd4', fontWeight: 400 }}>(optional, PNG/JPG, max 2MB)</span></label>
+                            <div
+                                onClick={() => document.getElementById('logo-input')?.click()}
+                                style={{
+                                    border: '2px dashed #dde1ed', borderRadius: 8, padding: '14px 12px',
+                                    cursor: 'pointer', textAlign: 'center', background: '#f8f9fc',
+                                }}
+                            >
+                                <input id="logo-input" type="file" accept="image/*" style={{ display: 'none' }}
+                                    onChange={e => {
+                                        const f = e.target.files?.[0];
+                                        if (!f) return;
+                                        setLogoFile(f);
+                                        setLogoPreview(URL.createObjectURL(f));
+                                    }}
+                                />
+                                {logoPreview
+                                    ? <img src={logoPreview} alt="preview" style={{ height: 60, borderRadius: 8, objectFit: 'contain' }} />
+                                    : <span style={{ fontSize: 12, color: '#b8bfd4' }}>Click to upload logo image</span>
+                                }
+                            </div>
                         </div>
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                             <button onClick={() => setShowAddProgram(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #dde1ed', background: 'transparent', fontSize: 12, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>

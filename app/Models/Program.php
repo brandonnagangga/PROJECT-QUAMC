@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Collection;
 
 class Program extends Model
 {
-    protected $fillable = ['name', 'code', 'is_active'];
+    protected $fillable = ['name', 'code', 'logo_path', 'is_active'];
+
 
     protected function casts(): array
     {
@@ -33,5 +34,24 @@ class Program extends Model
     public function documents()
     {
         return $this->hasMany(Document::class);
+    }
+
+    /**
+     * Returns the program logo as a base64 data URI for DomPDF embedding.
+     * Returns null if no logo is set or file doesn't exist.
+     */
+    public function logoDataUri(): ?string
+    {
+        if (!$this->logo_path) return null;
+        // Try private disk first, then legacy path
+        $path = storage_path('app/private/' . $this->logo_path);
+        if (!file_exists($path)) {
+            $path = storage_path('app/' . $this->logo_path);
+        }
+        if (!file_exists($path)) return null;
+        $data = @file_get_contents($path);
+        if (!$data) return null;
+        $mime = mime_content_type($path) ?: 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 }
