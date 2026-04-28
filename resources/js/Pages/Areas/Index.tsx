@@ -5,10 +5,10 @@ import { Head, Link } from '@inertiajs/react';
 import { confirmAction } from '@/utils/toast';
 import Swal from 'sweetalert2';
 import {
-    ChevronDown, ChevronUp, Upload, CheckCircle, Clock, RotateCcw,
+    ChevronDown, ChevronUp, CheckCircle, Clock, RotateCcw,
     FileText, Download, Eye, ArrowRight, Pencil, ThumbsUp, ThumbsDown,
     CloudUpload, StickyNote, X, Calendar, SendHorizonal, AlertTriangle,
-    Lock, AlertCircle, Timer, History,
+    Lock, AlertCircle, Timer, History, MessageSquare, CornerDownLeft,
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -18,17 +18,30 @@ interface DocSlot {
     approval_status: string; rejection_reason: string | null;
     doc_id: string;
 }
-interface NoteReply { id: number; message: string; user_name: string; created_at: string; }
+interface AreaNoteReply { id: number; user_name: string; user_role: string; message: string; created_at: string; }
+interface AreaNote {
+    id: number; type: 'general' | 'return'; user_name: string; user_role: string;
+    content: string; created_at: string;
+    replies: AreaNoteReply[];
+}
 interface SubAreaData {
     id: number; name: string; order_number: number;
     submission_status: string; submitted_by_dean_at: string | null;
     return_notes: string | null;
-    note_replies: NoteReply[];
+    note_replies: AreaNoteReply[];
     slots: Record<number, { input: DocSlot | null; process: DocSlot | null; outcome: DocSlot | null }>;
+}
+interface AreaSubmission {
+    id: number;
+    status: 'draft' | 'submitted' | 'returned' | 'submitted_to_director' | 'approved';
+    return_notes: string | null;
+    submitted_at: string | null;
 }
 interface AreaData {
     id: number; name: string; order_number: number;
     deadline_at: string | null;
+    submission: AreaSubmission | null;
+    notes: AreaNote[];
     coordinators: { name: string; role_type: string }[];
     sub_areas: SubAreaData[];
 }
@@ -651,163 +664,296 @@ function UploadModal({
     );
 }
 
-/* ── Return Note Banner (coordinator + dean visible, dean can edit, both can reply) ── */
-function ReturnNoteBanner({ sa, isDean, selectedProgram }: { sa: SubAreaData; isDean: boolean; selectedProgram: number | null }) {
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState(sa.return_notes ?? '');
-    const [replyText, setReplyText] = useState('');
-    const [showReply, setShowReply] = useState(false);
-    const [postingReply, setPostingReply] = useState(false);
+/* ── Return Area Modal (Dean selects sub-areas + writes return comment) ── */
+function ReturnAreaModal({
+    area, onClose, selectedProgram,
+}: {
+    area: AreaData; onClose: () => void; selectedProgram: number | null;
+}) {
+    const [selectedIds, setSelectedIds] = useState<number[]>(area.sub_areas.map(sa => sa.id));
+    const [comment, setComment] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    if (!sa.return_notes && !isDean) return null;
+    const toggleSA = (id: number) =>
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-    const handleSave = () => {
-        if (!selectedProgram) return;
-        router.post(`/sub-areas/${sa.id}/note`, { notes: draft, program_id: selectedProgram }, {
+    const handleSubmit = () => {
+        if (loading) return;
+        setLoading(true);
+        const submissionId = area.submission?.id;
+        if (!submissionId) { setLoading(false); return; }
+        router.post(`/area-submissions/${submissionId}/return`, {
+            notes: comment.trim() || null,
+            sub_area_ids: selectedIds,
+        }, {
             preserveScroll: true,
-            onSuccess: () => setEditing(false),
-        });
-    };
-
-    const handlePostReply = () => {
-        if (!replyText.trim() || postingReply) return;
-        setPostingReply(true);
-        router.post(`/sub-areas/${sa.id}/note/reply`, { message: replyText }, {
-            preserveScroll: true,
-            onSuccess: () => { setReplyText(''); setShowReply(false); setPostingReply(false); },
-            onError: () => setPostingReply(false),
+            onSuccess: () => { onClose(); setLoading(false); },
+            onError: () => setLoading(false),
         });
     };
 
     return (
-        <div style={{
-            margin: '8px 0 4px 0',
-            background: 'linear-gradient(135deg, #fffbe6, #fef3c7)',
-            border: '1.5px solid #f59e0b40',
-            borderRadius: 9, padding: '10px 14px',
-            display: 'flex', gap: 10, alignItems: 'flex-start',
-        }}>
-            <StickyNote size={15} color="#b45309" style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Return Note {isDean && <span style={{ fontWeight: 400, textTransform: 'none', color: '#b45309' }}>(visible to coordinators)</span>}
+        <ModalShell onClose={onClose}>
+            <div style={{ borderBottom: '2px solid #fecaca', marginBottom: 18, paddingBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <RotateCcw size={18} color="#9b1c1c" />
+                    <span style={{ fontSize: 16, fontWeight: 700, color: '#9b1c1c' }}>Return Area for Revision</span>
                 </div>
-                {editing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <textarea
-                            value={draft}
-                            onChange={e => setDraft(e.target.value)}
-                            autoFocus
-                            rows={3}
-                            style={{
-                                width: '100%', fontSize: 12, borderRadius: 6, border: '1.5px solid #f59e0b',
-                                padding: '6px 8px', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
-                                background: '#fffde7', fontFamily: "'DM Sans', sans-serif",
-                            }}
-                        />
-                        <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={handleSave} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#b45309', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Save Note</button>
-                            <button onClick={() => { setEditing(false); setDraft(sa.return_notes ?? ''); }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
-                            {sa.return_notes && (
-                                <button onClick={() => { setDraft(''); router.post(`/sub-areas/${sa.id}/note`, { notes: '', program_id: selectedProgram }, { preserveScroll: true, onSuccess: () => setEditing(false) }); }} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', fontSize: 11, cursor: 'pointer', color: '#9b1c1c' }}>Clear</button>
+                <div style={{ fontSize: 12, color: '#8892aa', marginTop: 4 }}>
+                    Select which sub-areas to return. The area status will become <strong>Returned</strong>.
+                </div>
+            </div>
+
+            {/* Sub-area checkboxes */}
+            <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#4a5470', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Sub-areas to return
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                    {area.sub_areas.map(sa => (
+                        <label key={sa.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                            borderRadius: 8, border: `1.5px solid ${selectedIds.includes(sa.id) ? '#fecaca' : '#dde1ed'}`,
+                            background: selectedIds.includes(sa.id) ? '#fef2f2' : '#f8f9fc',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(sa.id)}
+                                onChange={() => toggleSA(sa.id)}
+                                style={{ width: 15, height: 15, accentColor: '#9b1c1c', cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 13, fontWeight: 500, color: '#0f1f3d', flex: 1 }}>{sa.name}</span>
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                                background: sa.submission_status === 'submitted_to_dean' ? '#f3eeff' : '#f0f2f8',
+                                color: sa.submission_status === 'submitted_to_dean' ? '#6b3fa0' : '#8892aa',
+                            }}>
+                                {sa.submission_status.replace(/_/g, ' ')}
+                            </span>
+                        </label>
+                    ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <button onClick={() => setSelectedIds(area.sub_areas.map(s => s.id))}
+                        style={{ fontSize: 11, color: '#9b1c1c', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        Select all
+                    </button>
+                    <span style={{ color: '#dde1ed' }}>|</span>
+                    <button onClick={() => setSelectedIds([])}
+                        style={{ fontSize: 11, color: '#8892aa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            {/* Comment */}
+            <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5470', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Return Comment <span style={{ fontWeight: 400, color: '#b8bfd4', textTransform: 'none' }}>(optional — coordinators will see this)</span>
+                </label>
+                <textarea
+                    value={comment} onChange={e => setComment(e.target.value)} rows={3}
+                    placeholder="What needs to be revised? Be specific…"
+                    style={{ width: '100%', border: '1.5px solid #fecaca', borderRadius: 8, padding: '9px 12px',
+                        fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                        fontFamily: "'DM Sans', sans-serif", background: '#fef9f9', color: '#0f1f3d' }}
+                />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#4a5470' }}>
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSubmit}
+                    disabled={loading || selectedIds.length === 0}
+                    style={{ padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: selectedIds.length === 0 || loading ? 'not-allowed' : 'pointer',
+                        background: selectedIds.length === 0 || loading ? '#e0e4ef' : '#9b1c1c',
+                        color: selectedIds.length === 0 || loading ? '#8892aa' : '#fff', transition: 'all 0.15s',
+                    }}
+                >
+                    {loading ? 'Returning…' : `Return ${selectedIds.length} Sub-area${selectedIds.length !== 1 ? 's' : ''}`}
+                </button>
+            </div>
+        </ModalShell>
+    );
+}
+
+/* ── Area Notes Modal (Dean writes general notes, coordinators reply) ── */
+function AreaNotesModal({
+    area, isDean, selectedProgram, onClose,
+}: {
+    area: AreaData; isDean: boolean; selectedProgram: number | null; onClose: () => void;
+}) {
+    const [newNote, setNewNote] = useState('');
+    const [postingNote, setPostingNote] = useState(false);
+    const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
+    const [showReplyFor, setShowReplyFor] = useState<number | null>(null);
+    const [postingReply, setPostingReply] = useState(false);
+
+    const handlePostNote = () => {
+        if (!newNote.trim() || postingNote || !selectedProgram) return;
+        setPostingNote(true);
+        router.post(`/areas/${area.id}/notes`, { content: newNote, program_id: selectedProgram }, {
+            preserveScroll: true,
+            onSuccess: () => { setNewNote(''); setPostingNote(false); },
+            onError: () => setPostingNote(false),
+        });
+    };
+
+    const handlePostReply = (noteId: number) => {
+        const msg = replyTexts[noteId]?.trim();
+        if (!msg || postingReply) return;
+        setPostingReply(true);
+        router.post(`/area-notes/${noteId}/reply`, { message: msg }, {
+            preserveScroll: true,
+            onSuccess: () => { setReplyTexts(prev => ({ ...prev, [noteId]: '' })); setShowReplyFor(null); setPostingReply(false); },
+            onError: () => setPostingReply(false),
+        });
+    };
+
+    const allNotes = area.notes ?? [];
+
+    return (
+        <ModalShell onClose={onClose}>
+            <div style={{ borderBottom: '2px solid #e6eaf6', marginBottom: 18, paddingBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <StickyNote size={18} color="#6b3fa0" />
+                    <span style={{ fontSize: 16, fontWeight: 700, color: '#0f1f3d' }}>Area Notes</span>
+                    {allNotes.length > 0 && (
+                        <span style={{ fontSize: 11, fontWeight: 700, background: '#f3eeff', color: '#6b3fa0', padding: '1px 8px', borderRadius: 10 }}>
+                            {allNotes.length}
+                        </span>
+                    )}
+                </div>
+                <div style={{ fontSize: 12, color: '#8892aa', marginTop: 4 }}>{area.name}</div>
+            </div>
+
+            {/* Notes list */}
+            <div style={{ maxHeight: 380, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                {allNotes.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '28px 0', color: '#b8bfd4', fontSize: 13, fontStyle: 'italic' }}>
+                        No notes yet. {isDean ? 'Write the first note below.' : 'The Dean hasn\'t written any notes yet.'}
+                    </div>
+                )}
+                {allNotes.map(note => (
+                    <div key={note.id} style={{
+                        borderRadius: 10, border: `1.5px solid ${note.type === 'return' ? '#fecaca' : '#e6eaf6'}`,
+                        background: note.type === 'return' ? '#fef9f9' : '#f8f9fc',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Note type badge */}
+                        <div style={{ padding: '8px 14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {note.type === 'return'
+                                    ? <span style={{ fontSize: 9.5, fontWeight: 700, background: '#fecaca', color: '#9b1c1c', padding: '1px 7px', borderRadius: 8, textTransform: 'uppercase' }}>Return Note</span>
+                                    : <span style={{ fontSize: 9.5, fontWeight: 700, background: '#e6eaf6', color: '#6b3fa0', padding: '1px 7px', borderRadius: 8, textTransform: 'uppercase' }}>Note</span>
+                                }
+                                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b3fa0' }}>{note.user_role}:</span>
+                                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#4a5470' }}>{note.user_name}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: '#b8bfd4' }}>{note.created_at}</span>
+                        </div>
+                        <div style={{ padding: '6px 14px 10px', fontSize: 13, color: '#0f1f3d', lineHeight: 1.6 }}>
+                            {note.content}
+                        </div>
+
+                        {/* Replies */}
+                        {note.replies.length > 0 && (
+                            <div style={{ borderTop: `1px solid ${note.type === 'return' ? '#fecaca40' : '#e6eaf640'}`, padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {note.replies.map(r => (
+                                    <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                        <CornerDownLeft size={11} color="#b8bfd4" style={{ marginTop: 3, flexShrink: 0 }} />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2 }}>
+                                                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b3fa0' }}>{r.user_role}:</span>
+                                                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#4a5470' }}>{r.user_name}</span>
+                                                <span style={{ fontSize: 9.5, color: '#b8bfd4' }}>{r.created_at}</span>
+                                            </div>
+                                            <div style={{ fontSize: 12.5, color: '#4a5470', lineHeight: 1.5 }}>{r.message}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Reply input */}
+                        <div style={{ borderTop: `1px solid ${note.type === 'return' ? '#fecaca40' : '#e6eaf640'}`, padding: '8px 14px' }}>
+                            {showReplyFor === note.id ? (
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <textarea
+                                        value={replyTexts[note.id] ?? ''}
+                                        onChange={e => setReplyTexts(prev => ({ ...prev, [note.id]: e.target.value }))}
+                                        autoFocus rows={2} placeholder="Write reply…"
+                                        style={{ flex: 1, fontSize: 12, border: '1.5px solid #dde1ed', borderRadius: 7, padding: '6px 8px', outline: 'none', resize: 'none', fontFamily: "'DM Sans', sans-serif" }}
+                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <button onClick={() => handlePostReply(note.id)} disabled={postingReply || !replyTexts[note.id]?.trim()}
+                                            style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#6b3fa0', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                            {postingReply ? '…' : 'Post'}
+                                        </button>
+                                        <button onClick={() => setShowReplyFor(null)}
+                                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', fontSize: 10, cursor: 'pointer', color: '#8892aa' }}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button onClick={() => setShowReplyFor(note.id)}
+                                    style={{ fontSize: 11, fontWeight: 600, color: '#6b3fa0', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+                                    <SendHorizonal size={10} /> Reply
+                                </button>
                             )}
                         </div>
                     </div>
-                ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                        <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.5, flex: 1 }}>
-                            {sa.return_notes ?? <span style={{ fontStyle: 'italic', color: '#b45309', opacity: 0.7 }}>No note written yet.</span>}
-                        </div>
-                        {isDean && (
-                            <button onClick={() => setEditing(true)} style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 6, border: '1px solid #f59e0b', background: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', color: '#b45309', whiteSpace: 'nowrap' }}>
-                                <Pencil size={10} style={{ display: 'inline', marginRight: 3 }} />Edit
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* ── Replies Thread ── */}
-                {sa.note_replies && sa.note_replies.length > 0 && (
-                    <div style={{ marginTop: 10, borderTop: '1px solid #f59e0b30', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
-                            Thread ({sa.note_replies.length})
-                        </div>
-                        {sa.note_replies.map((reply) => (
-                            <div key={reply.id} style={{
-                                background: 'rgba(255,255,255,0.7)', borderRadius: 7,
-                                padding: '7px 10px', border: '1px solid #f59e0b25',
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#78350f' }}>{reply.user_name}</span>
-                                    <span style={{ fontSize: 9.5, color: '#b8bfd4' }}>{reply.created_at}</span>
-                                </div>
-                                <div style={{ fontSize: 11.5, color: '#4a5470', lineHeight: 1.5 }}>{reply.message}</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* ── Reply Input ── */}
-                {sa.return_notes && (
-                    <div style={{ marginTop: 8 }}>
-                        {showReply ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <textarea
-                                    value={replyText}
-                                    onChange={e => setReplyText(e.target.value)}
-                                    autoFocus
-                                    rows={2}
-                                    placeholder="Write your reply…"
-                                    style={{
-                                        width: '100%', fontSize: 11.5, borderRadius: 6, border: '1.5px solid #f59e0b',
-                                        padding: '6px 8px', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
-                                        background: '#fffde7', fontFamily: "'DM Sans', sans-serif",
-                                    }}
-                                />
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                    <button
-                                        onClick={handlePostReply}
-                                        disabled={!replyText.trim() || postingReply}
-                                        style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#b45309', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: postingReply ? 0.6 : 1 }}
-                                    >
-                                        {postingReply ? 'Posting…' : 'Post Reply'}
-                                    </button>
-                                    <button onClick={() => { setShowReply(false); setReplyText(''); }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setShowReply(true)}
-                                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #f59e0b60', background: 'rgba(255,255,255,0.8)', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', color: '#b45309', display: 'flex', alignItems: 'center', gap: 4 }}
-                            >
-                                <SendHorizonal size={10} /> Reply
-                            </button>
-                        )}
-                    </div>
-                )}
+                ))}
             </div>
-        </div>
+
+            {/* Dean: write new note */}
+            {isDean && (
+                <div style={{ borderTop: '1px solid #f0f2f8', paddingTop: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#4a5470', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Add Note</div>
+                    <textarea
+                        value={newNote} onChange={e => setNewNote(e.target.value)} rows={2}
+                        placeholder="Write a note visible to coordinators…"
+                        style={{ width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8, padding: '8px 12px', fontSize: 13,
+                            outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif", marginBottom: 8 }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button onClick={handlePostNote} disabled={!newNote.trim() || postingNote}
+                            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                background: !newNote.trim() ? '#e0e4ef' : '#6b3fa0',
+                                color: !newNote.trim() ? '#8892aa' : '#fff', transition: 'all 0.15s',
+                            }}>
+                            {postingNote ? 'Posting…' : 'Post Note'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </ModalShell>
     );
 }
+
+
 
 /* ── Main Component ── */
 export default function AreasIndex({ areas, programs, role, can_act, my_program_id, assigned_area_ids, cycle_locked, is_viewing_past }: Props) {
     const isDirector = role === 'director';
     const isDean     = role === 'dean';
     const isCoord    = ['area-coordinator', 'program-coordinator'].includes(role);
-    const showNotes  = isCoord || isDean; // director does NOT see return notes
+    const showNotes  = isCoord || isDean; // director does NOT see notes
 
     const [selectedProgram, setSelectedProgram] = useState<number | null>(programs[0]?.id ?? null);
     const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
-    const [exportingId, setExportingId] = useState<string | null>(null); // tracks in-flight export key
+    const [exportingId, setExportingId] = useState<string | null>(null);
     const [showUpload, setShowUpload] = useState(false);
     const [preselect, setPreselect] = useState<{
-        sub_area_id?: number;
-        area_id?: number;
-        doc_type?: string;
-        area_name?: string;
-        sub_area_name?: string;
+        sub_area_id?: number; area_id?: number; doc_type?: string;
+        area_name?: string; sub_area_name?: string;
     } | null>(null);
+    // Area-level modals
+    const [returnAreaFor, setReturnAreaFor] = useState<AreaData | null>(null);
+    const [notesAreaFor,  setNotesAreaFor]  = useState<AreaData | null>(null);
 
     const toggleArea = (id: number) => {
         setExpandedAreas(prev => {
@@ -873,19 +1019,32 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
         router.post(`/areas/${area.id}/deadline`, { deadline_at: date || null }, { preserveScroll: true });
     };
 
-    const handleForwardToDirector = async (sa: SubAreaData) => {
-        const ok = await confirmAction({ title: 'Forward to Director?', text: `Send "${sa.name}" to the QUAMC Director for final approval.` });
-        if (ok) router.post(`/sub-areas/${sa.id}/forward`, {}, { preserveScroll: true });
+    // ── Area-level workflow ────────────────────────────────────────────────
+    const handleAreaSubmitToDean = async (area: AreaData) => {
+        const ok = await confirmAction({
+            title: 'Submit Area to Dean?',
+            text: `Submit "${area.name}" to the Dean for review?`,
+        });
+        if (ok) router.post(`/areas/${area.id}/submit-to-dean`, {}, { preserveScroll: true });
     };
 
+    const handleAreaSubmitToDirector = async (area: AreaData) => {
+        const ok = await confirmAction({
+            title: 'Submit Area to Director?',
+            text: `Forward "${area.name}" to the QUAMC Director for final review?`,
+        });
+        if (ok) router.post(`/areas/${area.id}/submit-to-director`, {}, { preserveScroll: true });
+    };
+
+    // Sub-area level director approve (still used in expanded rows for director)
     const handleApproveDirector = async (sa: SubAreaData) => {
         const ok = await confirmAction({ title: 'Approve?', text: `Approve "${sa.name}" as complete?` });
         if (ok) router.post(`/sub-areas/${sa.id}/approve`, {}, { preserveScroll: true });
     };
 
-    const handleReturn = async (sa: SubAreaData) => {
+    const handleReturnSubArea = async (sa: SubAreaData) => {
         const { value: comment, isConfirmed } = await Swal.fire({
-            title: 'Return for Revision',
+            title: 'Return Sub-area for Revision',
             input: 'textarea',
             inputLabel: 'Reason (optional)',
             inputPlaceholder: 'What needs to be revised?',
@@ -918,6 +1077,23 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
             <Head title="Accreditation Areas" />
 
             <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
+            {/* ── Area-level Modals ── */}
+            {returnAreaFor && (
+                <ReturnAreaModal
+                    area={returnAreaFor}
+                    selectedProgram={selectedProgram}
+                    onClose={() => setReturnAreaFor(null)}
+                />
+            )}
+            {notesAreaFor && (
+                <AreaNotesModal
+                    area={notesAreaFor}
+                    isDean={isDean}
+                    selectedProgram={selectedProgram}
+                    onClose={() => setNotesAreaFor(null)}
+                />
+            )}
 
             {/* ── Viewing Past Cycle Banner ── */}
             {is_viewing_past && (
@@ -1049,23 +1225,110 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 <div style={{ width: prog.pct + '%', height: '100%', background: color, borderRadius: 2, transition:'width 0.4s' }} />
                                             </div>
                                         </div>
-                                        {/* Submit All to Dean — coordinator only */}
-                                        {isCoord && (
-                                            <button
-                                                onClick={() => handleSubmitAllToDean(area)}
-                                                title="Submit all sub-areas to Dean"
-                                                style={{
-                                                    display:'flex', alignItems:'center', gap: 5,
-                                                    padding:'6px 12px', borderRadius: 8,
-                                                    background:'#6b3fa0', color:'#fff',
-                                                    fontSize: 11, fontWeight: 700,
-                                                    border:'none', cursor:'pointer',
-                                                    whiteSpace:'nowrap',
-                                                }}
-                                            >
-                                                <SendHorizonal size={12} /> Submit All to Dean
-                                            </button>
-                                        )}
+                                        {/* ── Area-level action buttons (not for director) ── */}
+
+                                        {/* COORDINATOR: Submit to Dean */}
+                                        {isCoord && (() => {
+                                            const sub = area.submission;
+                                            const isSubmitted = sub?.status === 'submitted' || sub?.status === 'submitted_to_director';
+                                            const isReturned  = sub?.status === 'returned';
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                                                    <button
+                                                        onClick={() => !isSubmitted && handleAreaSubmitToDean(area)}
+                                                        disabled={isSubmitted}
+                                                        title={isSubmitted ? 'Area already submitted' : 'Submit area to Dean'}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 5,
+                                                            padding: '6px 12px', borderRadius: 8, border: 'none',
+                                                            cursor: isSubmitted ? 'not-allowed' : 'pointer',
+                                                            background: isSubmitted ? '#1a7a4a' : '#6b3fa0',
+                                                            color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                                                            transition: 'all 0.2s',
+                                                        }}
+                                                    >
+                                                        {isSubmitted
+                                                            ? <><CheckCircle size={12} /> Submitted ✓</>
+                                                            : <><SendHorizonal size={12} /> Submit to Dean</>
+                                                        }
+                                                    </button>
+                                                    {isReturned && (
+                                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#9b1c1c', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                                            <RotateCcw size={10} /> Returned for Revision
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* DEAN: Submit to Director + Return to Coordinator */}
+                                        {isDean && (() => {
+                                            const sub = area.submission;
+                                            const canAct = sub?.status === 'submitted';
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                                    <button
+                                                        onClick={() => canAct && handleAreaSubmitToDirector(area)}
+                                                        disabled={!canAct}
+                                                        title={canAct ? 'Submit area to Director' : 'Area must be submitted by coordinator first'}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 5,
+                                                            padding: '5px 11px', borderRadius: 8, border: 'none',
+                                                            cursor: canAct ? 'pointer' : 'not-allowed',
+                                                            background: canAct ? '#185fa5' : '#e0e4ef',
+                                                            color: canAct ? '#fff' : '#8892aa',
+                                                            fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        <SendHorizonal size={11} /> Submit to Director
+                                                    </button>
+                                                    <button
+                                                        onClick={() => canAct && setReturnAreaFor(area)}
+                                                        disabled={!canAct}
+                                                        title={canAct ? 'Return area to coordinator' : 'No active submission to return'}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 5,
+                                                            padding: '5px 11px', borderRadius: 8,
+                                                            border: canAct ? '1px solid #fecaca' : '1px solid #e0e4ef',
+                                                            cursor: canAct ? 'pointer' : 'not-allowed',
+                                                            background: canAct ? '#fef2f2' : '#f8f9fc',
+                                                            color: canAct ? '#9b1c1c' : '#b8bfd4',
+                                                            fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        <RotateCcw size={11} /> Return to Coordinator
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* NOTES button — dean + coordinators only */}
+                                        {showNotes && (() => {
+                                            const noteCount = area.notes?.length ?? 0;
+                                            return (
+                                                <button
+                                                    onClick={() => setNotesAreaFor(area)}
+                                                    title="View area notes"
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 5,
+                                                        padding: '6px 11px', borderRadius: 8,
+                                                        border: '1px solid #dde1ed', background: '#fff',
+                                                        cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                                        color: '#6b3fa0', whiteSpace: 'nowrap',
+                                                        position: 'relative',
+                                                    }}
+                                                >
+                                                    <StickyNote size={13} />
+                                                    Notes
+                                                    {noteCount > 0 && (
+                                                        <span style={{ background: '#6b3fa0', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            {noteCount}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })()}
+
                                         {selectedProgram && (() => {
                                             const exportKey = `area-${area.id}`;
                                             const isGenerating = exportingId === exportKey;
@@ -1137,25 +1400,20 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                         </span>
 
                                                         {/* Individual sub-area submit removed — use area-level "Submit All to Dean" button above */}
+                                                        {/* Dean sub-area level return (area-level Submit to Director is handled via card button above) */}
                                                         {isDean && ['submitted_to_dean','returned_by_dean'].includes(sa.submission_status) && (
-                                                            <>
-                                                                <button onClick={() => handleForwardToDirector(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#185fa5', color:'#fff', border:'none', cursor:'pointer' }}>↑ Submit to Director</button>
-                                                                <button onClick={() => handleReturn(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return</button>
-                                                            </>
+                                                            <button onClick={() => handleReturnSubArea(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return Sub-area</button>
                                                         )}
                                                         {isDirector && sa.submission_status === 'submitted_to_director' && (
                                                             <>
                                                                 <button onClick={() => handleApproveDirector(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#e8f5ee', color:'#1a7a4a', border:'1px solid #a7f3d0', cursor:'pointer' }}>✓ Approve</button>
-                                                                <button onClick={() => handleReturn(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return</button>
+                                                                <button onClick={() => handleReturnSubArea(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return</button>
                                                             </>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Return Note Banner — always show when notes exist; hide for director */}
-                                                {!isDirector && (sa.return_notes || isDean) && (
-                                                    <ReturnNoteBanner sa={sa} isDean={isDean} selectedProgram={selectedProgram} />
-                                                )}
+                                                {/* Return Note Banner removed — notes are now in area-level Notes modal */}
 
                                                 {/* Navigate to the new item-based IPO detail page */}
                                                 <div style={{ marginTop: 8 }}>

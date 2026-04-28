@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\AreaChecklist;
+use App\Models\AreaNote;
 
 class Area extends Model
 {
@@ -40,6 +41,11 @@ class Area extends Model
     public function checklists(): HasMany
     {
         return $this->hasMany(AreaChecklist::class)->orderBy('order_number');
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(AreaNote::class);
     }
 
     public function createdBy(): BelongsTo

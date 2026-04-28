@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\AreaNoteController;
 use App\Http\Controllers\AreaItemController;
 use App\Http\Controllers\AreaItemResponseController;
 use App\Http\Controllers\AreaItemFileController;
@@ -73,8 +74,13 @@ Route::middleware('auth')->group(function () {
 
     // Area-level submit / return / approve
     Route::post('/areas/{area}/submit-to-dean', [AreaItemResponseController::class, 'submitArea'])->name('areas.submitToDean');
+    Route::post('/areas/{area}/submit-to-director', [AreaItemResponseController::class, 'submitAreaToDirector'])->name('areas.submitToDirector');
     Route::post('/area-submissions/{submission}/return', [AreaItemResponseController::class, 'returnArea'])->name('areas.return');
     Route::post('/area-submissions/{submission}/approve', [AreaItemResponseController::class, 'approveArea'])->name('areas.approve');
+
+    // Area-level notes (dean writes, coordinators reply)
+    Route::post('/areas/{area}/notes', [AreaNoteController::class, 'store'])->name('areas.notes.store');
+    Route::post('/area-notes/{note}/reply', [AreaNoteController::class, 'storeReply'])->name('area-notes.reply');
 
     // Supporting evidence file upload (multi), delete, download
     Route::post('/item-files', [AreaItemFileController::class, 'store'])->name('item-files.store');

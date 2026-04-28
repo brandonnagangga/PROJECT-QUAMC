@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AreaItem;
 use App\Models\AreaItemFile;
 use App\Models\AreaItemResponse;
+use App\Models\AreaNote;
 use App\Models\AreaSubmission;
 use App\Models\SubArea;
 use App\Models\AccreditationCycle;
@@ -212,18 +213,46 @@ class AreaItemResponseController extends Controller
 
     /**
      * Dean returns an area for revision.
+     * Supports multi-select sub-areas: the chosen sub-areas get returned_by_dean status.
+     * Area-level AreaSubmission status becomes 'returned'.
      */
     public function returnArea(Request $request, AreaSubmission $submission)
     {
-        $request->validate(['notes' => 'required|string|max:2000']);
+        $request->validate([
+            'notes'          => 'nullable|string|max:2000',
+            'sub_area_ids'   => 'nullable|array',
+            'sub_area_ids.*' => 'integer|exists:sub_areas,id',
+        ]);
 
         $user = $request->user();
+        if (!$user->hasRole('dean')) {
+            return back()->with('error', 'Only the Dean can return areas.');
+        }
+
+        // Update area-level submission status
         $submission->update([
             'status'       => 'returned',
             'reviewed_by'  => $user->id,
             'reviewed_at'  => now(),
-            'return_notes' => $request->notes,
+            'return_notes' => $request->notes ?? null,
         ]);
+
+        // Update selected sub-areas to returned_by_dean
+        if (!empty($request->sub_area_ids)) {
+            SubArea::whereIn('id', $request->sub_area_ids)
+                ->update(['submission_status' => 'returned_by_dean']);
+        }
+
+        // Create an area note of type 'return' if a comment was provided
+        if (!empty($request->notes)) {
+            AreaNote::create([
+                'area_id'    => $submission->area_id,
+                'program_id' => $submission->program_id,
+                'user_id'    => $user->id,
+                'type'       => 'return',
+                'content'    => $request->notes,
+            ]);
+        }
 
         // ── Notify the coordinator who submitted ────────────────
         $submission->load(['area', 'submitter', 'program']);
@@ -254,6 +283,59 @@ class AreaItemResponseController extends Controller
         ], $request->ip());
 
         return back()->with('success', 'Area returned for revision.');
+    }
+
+    /**
+     * Dean submits an area to the Director.
+     */
+    public function submitAreaToDirector(Request $request, $areaId)
+    {
+        $user      = $request->user();
+        $programId = $user->program_id;
+        $cycle     = AccreditationCycle::active();
+
+        if (!$user->hasRole('dean')) {
+            return back()->with('error', 'Only the Dean can submit areas to the Director.');
+        }
+
+        if (!$programId) {
+            return back()->withErrors(['program' => 'No program assigned.']);
+        }
+
+        $submission = AreaSubmission::where('area_id', $areaId)
+            ->where('program_id', $programId)
+            ->when($cycle, fn ($q) => $q->where('cycle_id', $cycle->id))
+            ->first();
+
+        if (!$submission || $submission->status !== 'submitted') {
+            return back()->with('error', 'Area must be submitted to Dean first before forwarding to Director.');
+        }
+
+        $submission->update([
+            'status'      => 'submitted_to_director',
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $area     = \App\Models\Area::find($areaId);
+        $areaName = $area?->name ?? 'an area';
+        $program  = \App\Models\Program::find($programId);
+
+        NotificationService::notifyRole(
+            'director',
+            'area.submitted_to_director',
+            "Dean {$user->name} submitted \"{$areaName}\" for Director review.",
+            $programId,
+            $areaId,
+            "/areas"
+        );
+
+        ActivityLogService::log($user, 'area.submitted_to_director', $area, [
+            'area_name'    => $areaName,
+            'program_name' => $program?->name ?? '',
+        ], $request->ip());
+
+        return back()->with('success', 'Area submitted to Director.');
     }
 
     /**
