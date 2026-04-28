@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { ThemeApplier } from '@/contexts/ThemeContext';
+import FacebookPagesCarousel from '@/components/FacebookPagesCarousel';
 
 interface AuthLayoutProps {
     children: ReactNode;
@@ -7,57 +9,56 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children, title = 'Login' }: AuthLayoutProps) {
+    const currentYear = new Date().getFullYear();
+    
+    useEffect(() => {
+        if ((window as any).FB) {
+            (window as any).FB.XFBML.parse();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0';
+        script.async = true;
+        script.defer = true;
+        script.crossOrigin = 'anonymous';
+        document.body.appendChild(script);
+    }, []);
+
     return (
         <>
             <Head title={title} />
-            <div style={{
-                minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #0f1f3d 0%, #1a3260 50%, #243f7a 100%)',
-                fontFamily: "'DM Sans', sans-serif",
-                position: 'relative', overflow: 'hidden',
-            }}>
-                {/* Decorative circles */}
-                <div style={{
-                    position: 'absolute', top: -80, right: -80, width: 300, height: 300,
-                    border: '60px solid rgba(201,168,76,0.08)', borderRadius: '50%', pointerEvents: 'none'
-                }} />
-                <div style={{
-                    position: 'absolute', bottom: -60, left: -60, width: 200, height: 200,
-                    border: '40px solid rgba(201,168,76,0.05)', borderRadius: '50%', pointerEvents: 'none'
-                }} />
+            <ThemeApplier />
+            <div id="fb-root"></div>
+            <div className="auth-shell">
+                <div className="auth-brand">
+                    <div className="auth-brand__top">
+                        <div className="auth-brand__masthead">
+                            <img src="/logo/TCC.png" alt="TCC Logo" className="auth-brand__logo" />
+                            <p className="auth-brand__eyebrow"><span className="ribbon-content">Tagoloan Community College</span></p>
+                        </div>
 
-                <div style={{ width: '100%', maxWidth: 420, padding: '0 20px', position: 'relative', zIndex: 1 }}>
-                    {/* Brand */}
-                    <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                        <div style={{
-                            width: 56, height: 56, background: '#c9a84c', borderRadius: '50%',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700,
-                            color: '#0f1f3d', margin: '0 auto 14px',
-                            boxShadow: '0 4px 24px rgba(201,168,76,0.3)',
-                        }}>Q</div>
-                        <div style={{
-                            fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700,
-                            color: '#fff', letterSpacing: '0.04em',
-                        }}>QUAMC</div>
-                        <div style={{
-                            fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.5)',
-                            letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginTop: 4,
-                        }}>Quality Assurance Management Center</div>
+                        <div className="auth-brand__identity">
+                            <h1 className="auth-brand__title">QUAMC</h1>
+                            <p className="auth-brand__subtitle">Quality Assurance Management Center</p>
+                        </div>
                     </div>
 
-                    {/* Card */}
-                    <div style={{
-                        background: '#fff', borderRadius: 16, padding: '32px 28px',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-                    }}>
-                        {children}
+                    <div className="auth-brand__carousel-wrap">
+                        <FacebookPagesCarousel />
                     </div>
+                </div>
 
-                    <div style={{
-                        textAlign: 'center', marginTop: 20, fontSize: 11,
-                        color: 'rgba(255,255,255,0.3)',
-                    }}>© 2025 QUAMC · University Accreditation System</div>
+                <div className="auth-panel">
+                    <div className="auth-panel__surface">
+                        <div className="auth-panel__card">
+                            {children}
+                        </div>
+
+                        <div className="auth-footer">
+                            © {currentYear} QUAMC · Quality Assurance Management Center
+                        </div>
+                    </div>
                 </div>
             </div>
         </>

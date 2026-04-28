@@ -1,0 +1,99 @@
+services:
+  # PHP-FPM Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: quamc-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./storage:/var/www/html/storage
+    networks:
+      - quamc-network
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+
+  # Nginx Service
+  nginx:
+    image: nginx:alpine
+    container_name: quamc-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - quamc-network
+    depends_on:
+      - app
+
+  # MySQL Service
+  db:
+    image: mysql:8.0
+    container_name: quamc-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - quamc-network
+
+  # Node.js for building frontend assets
+  node:
+    image: node:20-alpine
+    container_name: quamc-node
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: sh -c "npm install && npm run build"
+    networks:
+      - quamc-network
+
+  # Redis (optional - for caching and queues)
+  redis:
+    image: redis:alpine
+    container_name: quamc-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    networks:
+      - quamc-network
+
+  # Qdrant vector database for RAG retrieval
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: quamc-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - quamc-network
+
+networks:
+  quamc-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
+  qdrant-data:
+    driver: local

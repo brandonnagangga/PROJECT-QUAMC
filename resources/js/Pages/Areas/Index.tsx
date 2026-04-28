@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link } from '@inertiajs/react';
-import { confirmAction } from '@/utils/toast';
+import { confirmAction, showError, showSuccess } from '@/utils/toast';
 import Swal from 'sweetalert2';
 import {
     ChevronDown, ChevronUp, CheckCircle, Clock, RotateCcw,
@@ -975,7 +975,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
             const res = await fetch(url, { headers: { Accept: 'application/pdf' } });
             if (!res.ok) {
                 const msg = res.status === 403 ? 'Access denied.' : `Export failed (${res.status}).`;
-                Swal.fire({ icon: 'error', title: 'Export Failed', text: msg, confirmButtonColor: '#0f1f3d' });
+                showError(`Export failed: ${msg}`);
                 return;
             }
             const blob = await res.blob();
@@ -984,18 +984,9 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
             link.download = filename;
             link.click();
             URL.revokeObjectURL(link.href);
-            Swal.fire({
-                icon: 'success',
-                title: 'PDF Downloaded',
-                text: `"${filename}" has been saved to your downloads.`,
-                timer: 3000,
-                timerProgressBar: true,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end',
-            });
+            showSuccess(`PDF downloaded: "${filename}"`);
         } catch {
-            Swal.fire({ icon: 'error', title: 'Network Error', text: 'Could not connect to the server.', confirmButtonColor: '#0f1f3d' });
+            showError('Network error: Could not connect to the server.');
         } finally {
             setExportingId(null);
         }

@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\AccreditationCycle;
+use App\Services\SettingsService;
+use App\Services\ThemeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -30,6 +32,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user() ? $request->user()->load('roles') : null,
             ],
+            'theme' => app(ThemeService::class)->getThemeConfig(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
@@ -37,6 +40,20 @@ class HandleInertiaRequests extends Middleware
             'notifications_count' => fn () => $request->user()
                 ? $request->user()->unreadNotificationsCount()
                 : 0,
+            'system_settings' => fn () => $request->user()
+                ? app(SettingsService::class)->getAllSettings()
+                : [],
+            'dashboard_preferences' => fn () => $request->user()
+                ? ($request->user()->dashboard_preferences ?? [
+                    'hidden_widgets' => [],
+                    'is_edit_mode' => false,
+                    'readiness_chart_types' => ['area'],
+                ])
+                : [
+                    'hidden_widgets' => [],
+                    'is_edit_mode' => false,
+                    'readiness_chart_types' => ['area'],
+                ],
             'active_cycle' => $activeCycle ? [
                 'id'            => $activeCycle->id,
                 'name'          => $activeCycle->name,
@@ -79,4 +96,3 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 }
-

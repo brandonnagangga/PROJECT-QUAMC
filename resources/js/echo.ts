@@ -8,6 +8,10 @@ declare global {
     }
 }
 
+// Commented out to prevent WebSocket connection errors when Reverb server is not running
+// Uncomment and start Reverb server (php artisan reverb:start) to enable real-time features
+
+/*
 window.Pusher = Pusher;
 
 window.Echo = new Echo({
@@ -19,3 +23,4 @@ window.Echo = new Echo({
     forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
     enabledTransports: ['ws', 'wss'],
 });
+*/

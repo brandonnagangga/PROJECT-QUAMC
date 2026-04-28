@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class DocumentVersion extends Model
 {
@@ -20,7 +22,18 @@ class DocumentVersion extends Model
         'mime_type',
         'notes',
         'scan_status',
+        'extracted_text',
+        'extracted_at',
+        'index_status',
+        'index_error',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'extracted_at' => 'datetime',
+        ];
+    }
 
     public function document(): BelongsTo
     {
@@ -30,6 +43,16 @@ class DocumentVersion extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function chunks(): MorphMany
+    {
+        return $this->morphMany(DocumentChunk::class, 'chunkable');
+    }
+
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class);
     }
 
     /**
