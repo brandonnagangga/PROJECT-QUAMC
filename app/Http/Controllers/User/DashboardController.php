@@ -4,8 +4,11 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Area;
+use App\Models\AccreditationCycle;
+use App\Models\AreaSubmission;
 use App\Models\Document;
 use App\Models\Program;
+use App\Models\SubArea;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Carbon\Carbon;
@@ -13,6 +16,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
+
 {
     public function index(Request $request)
     {
@@ -20,6 +24,7 @@ class DashboardController extends Controller
         $role = $user->roles->first();
 
         $stats = $this->getStatsForRole($user, $role?->slug);
+        $readinessTrend = $this->buildReadinessTrend($user, $role?->slug, 365);
 
         // ── Programs with area completion (based on doc slots: 3 per sub-area) ──
         $programs = Program::where('is_active', true)->get()
@@ -88,11 +93,37 @@ class DashboardController extends Controller
                 : 0;
             $pct = $totalSlots > 0 ? round(($approvedSlots / $totalSlots) * 100) : 0;
             return [
-                'name'  => $area->name,
-                'pct'   => $pct,
-                'color' => $this->getAreaColor($area->order_number),
+                'name'        => $area->name,
+                'pct'         => $pct,
+                'color'       => $this->getAreaColor($area->order_number),
+                'deadline_at' => $area->deadline_at?->format('Y-m-d'),
             ];
         });
+
+        // ── Upcoming & overdue deadlines for coordinator dashboard ──
+        $upcomingDeadlines = Area::whereNotNull('deadline_at')
+            ->where('deadline_at', '>=', now()->subDays(1))
+            ->orderBy('deadline_at')
+            ->take(5)
+            ->get()
+            ->map(fn($a) => [
+                'id'          => $a->id,
+                'name'        => $a->name,
+                'deadline_at' => $a->deadline_at->format('Y-m-d'),
+                'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
+            ]);
+
+        $overdueDeadlines = Area::whereNotNull('deadline_at')
+            ->where('deadline_at', '<', now())
+            ->orderByDesc('deadline_at')
+            ->take(5)
+            ->get()
+            ->map(fn($a) => [
+                'id'          => $a->id,
+                'name'        => $a->name,
+                'deadline_at' => $a->deadline_at->format('Y-m-d'),
+                'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
+            ]);
 
         $page = match ($role?->slug) {
             'admin'               => 'Dashboard/Admin',
@@ -103,16 +134,48 @@ class DashboardController extends Controller
             default               => 'Dashboard/Director',
         };
 
+        // ── Pending area submissions for Dean (sub-areas submitted to dean, awaiting action) ──
+        $pendingDeanSubmissions = [];
+        if ($role?->slug === 'dean' && $user->program_id) {
+            $pendingDeanSubmissions = SubArea::where('submission_status', 'submitted_to_dean')
+                ->with('area')
+                ->get()
+                ->map(fn ($sa) => [
+                    'id'          => $sa->id,
+                    'name'        => $sa->name,
+                    'area_name'   => $sa->area?->name,
+                    'submitted_at'=> $sa->submitted_by_dean_at?->format('M j, Y') ?? '—',
+                ])->values()->toArray();
+        }
+
+        // ── Pending area reviews for Director (sub-areas forwarded to director) ──
+        $pendingDirectorReviews = [];
+        if ($role?->slug === 'director') {
+            $pendingDirectorReviews = SubArea::whereIn('submission_status', ['submitted_to_director', 'submitted'])
+                ->with('area')
+                ->get()
+                ->map(fn ($sa) => [
+                    'id'        => $sa->id,
+                    'name'      => $sa->name,
+                    'area_name' => $sa->area?->name,
+                    'status'    => $sa->submission_status,
+                ])->values()->toArray();
+        }
+
         return Inertia::render($page, [
-            'stats'       => $stats,
-            'readinessTrend' => $this->buildReadinessTrend(365),
-            'programs'    => $programs,
-            'recentDocs'  => $recentDocs,
-            'activities'  => $activities,
-            'areaItems'   => $areaItems,
-            'currentRole' => $role?->slug ?? 'director',
-            'userCount'   => User::count(),
-            'logCount'    => ActivityLog::count(),
+            'stats'                   => $stats,
+            'programs'                => $programs,
+            'readinessTrend'          => $readinessTrend,
+            'recentDocs'              => $recentDocs,
+            'activities'              => $activities,
+            'areaItems'               => $areaItems,
+            'upcomingDeadlines'       => $upcomingDeadlines,
+            'overdueDeadlines'        => $overdueDeadlines,
+            'currentRole'             => $role?->slug ?? 'director',
+            'userCount'               => User::count(),
+            'logCount'                => ActivityLog::count(),
+            'pendingDeanSubmissions'  => $pendingDeanSubmissions,
+            'pendingDirectorReviews'  => $pendingDirectorReviews,
         ]);
     }
 
@@ -135,48 +198,90 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * Build daily readiness trend (approved/total) for the past N days.
-     */
-    private function buildReadinessTrend(int $days = 365): array
+    private function buildReadinessTrend($user, ?string $roleSlug, int $days = 365): array
     {
+        $days = max(30, $days);
         $start = now()->subDays($days - 1)->startOfDay();
-        $end = now()->endOfDay();
 
-        $dailyCreated = Document::query()
-            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
-            ->whereBetween('created_at', [$start, $end])
-            ->groupBy('day')
-            ->pluck('count', 'day');
+        $query = Document::query()->select([
+            'program_id',
+            'sub_area_id',
+            'status',
+            'approval_status',
+            'created_at',
+            'updated_at',
+            'approved_at',
+        ]);
 
-        $dailyApprovedCreated = Document::query()
-            ->selectRaw('DATE(created_at) as day, COUNT(*) as count')
-            ->where('status', 'approved')
-            ->whereBetween('created_at', [$start, $end])
-            ->groupBy('day')
-            ->pluck('count', 'day');
+        // Scope trend data to the current role visibility.
+        if (in_array($roleSlug, ['dean', 'program-coordinator'], true) && $user->program_id) {
+            $query->where('program_id', $user->program_id);
+        } elseif ($roleSlug === 'area-coordinator') {
+            $assignedAreaIds = $user->areaAssignments()->pluck('area_id');
+            $query->whereHas('subArea', fn ($q) => $q->whereIn('area_id', $assignedAreaIds));
+        }
 
-        $runningTotal = Document::where('created_at', '<', $start)->count();
-        $runningApproved = Document::where('status', 'approved')
-            ->where('created_at', '<', $start)
-            ->count();
+        $documents = $query->get();
+
+        $totalDailyAdds = array_fill(0, $days, 0);
+        $approvedDailyAdds = array_fill(0, $days, 0);
+        $baseTotal = 0;
+        $baseApproved = 0;
+
+        foreach ($documents as $document) {
+            $createdAt = $document->created_at instanceof Carbon
+                ? $document->created_at
+                : Carbon::parse($document->created_at);
+
+            if ($createdAt->lt($start)) {
+                $baseTotal++;
+            } else {
+                $createdIndex = min($days - 1, $start->diffInDays($createdAt->copy()->startOfDay()));
+                $totalDailyAdds[$createdIndex]++;
+            }
+
+            $approvedMoment = null;
+            if ($document->approved_at) {
+                $approvedMoment = $document->approved_at instanceof Carbon
+                    ? $document->approved_at
+                    : Carbon::parse($document->approved_at);
+            } elseif (
+                in_array($document->status, ['approved'], true)
+                || in_array($document->approval_status, ['approved'], true)
+            ) {
+                // Fallback for legacy rows with no approved_at.
+                $approvedMoment = $document->updated_at instanceof Carbon
+                    ? $document->updated_at
+                    : Carbon::parse($document->updated_at);
+            }
+
+            if (!$approvedMoment) {
+                continue;
+            }
+
+            if ($approvedMoment->lt($start)) {
+                $baseApproved++;
+            } else {
+                $approvedIndex = min($days - 1, $start->diffInDays($approvedMoment->copy()->startOfDay()));
+                $approvedDailyAdds[$approvedIndex]++;
+            }
+        }
 
         $trend = [];
+        $runningTotal = $baseTotal;
+        $runningApproved = $baseApproved;
+
         for ($i = 0; $i < $days; $i++) {
-            $day = $start->copy()->addDays($i);
-            $dayKey = $day->toDateString();
+            $runningTotal += $totalDailyAdds[$i];
+            $runningApproved += $approvedDailyAdds[$i];
 
-            $runningTotal += (int) ($dailyCreated[$dayKey] ?? 0);
-            $runningApproved += (int) ($dailyApprovedCreated[$dayKey] ?? 0);
-
-            $pct = $runningTotal > 0
-                ? (int) round(($runningApproved / $runningTotal) * 100)
-                : 0;
+            $date = $start->copy()->addDays($i);
+            $value = $runningTotal > 0 ? round(($runningApproved / $runningTotal) * 100, 1) : 0.0;
 
             $trend[] = [
-                'date' => $dayKey,
-                'label' => Carbon::parse($dayKey)->format('M j'),
-                'value' => $pct,
+                'date' => $date->toDateString(),
+                'label' => $date->format('M j'),
+                'value' => $value,
             ];
         }
 

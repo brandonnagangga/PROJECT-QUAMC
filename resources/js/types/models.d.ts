@@ -136,6 +136,7 @@ export interface ActivityLog {
 
 // Inertia page props
 export interface PageProps {
+    [key: string]: any; // required by Inertia's generic constraint
     auth: {
         user: User;
     };
@@ -144,17 +145,5 @@ export interface PageProps {
         error?: string;
     };
     notifications_count?: number;
-    dashboard_preferences?: {
-        hidden_widgets: string[];
-        is_edit_mode: boolean;
-    };
-    active_cycle?: any;
-    theme?: {
-        mode: 'minimalist' | 'themed' | 'seasonal';
-        primary_color: string;
-        secondary_color: string;
-        seasonal_theme: string;
-        seasonal_enabled: boolean;
-    };
-    [key: string]: any; // Index signature for Inertia compatibility
+    my_program_id?: number | null;
 }

@@ -4,130 +4,70 @@
 <meta charset="UTF-8">
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-        font-family: 'DejaVu Sans', Arial, sans-serif;
-        background: #ffffff;
-        color: #0f1f3d;
-        width: 210mm;
-        height: 297mm;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 40px;
-    }
+    html, body { width: 210mm; height: 297mm; background: #ffffff; font-family: 'DejaVu Sans', Arial, sans-serif; color: #0f1f3d; }
+    table.page { width: 210mm; height: 297mm; border-collapse: collapse; }
+    td.center { vertical-align: middle; text-align: center; padding: 40px; }
     .logo-circle {
-        width: 88px;
-        height: 88px;
-        background: #0f1f3d;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 20px;
+        width: 88px; height: 88px; background: #0f1f3d;
+        border-radius: 50%; margin: 0 auto 20px;
         border: 3px solid #c9a84c;
+        padding-top: 18px;
     }
-    .logo-letter {
-        font-size: 38px;
-        font-weight: 900;
-        color: #c9a84c;
-        line-height: 1;
+    .logo-letter { font-size: 38px; font-weight: 900; color: #c9a84c; line-height: 1; }
+    .program-logo {
+        width: 100px; height: 100px; border-radius: 50%;
+        object-fit: contain; margin: 0 auto 20px; display: block;
+        border: 3px solid #c9a84c; background: #fff;
+        padding: 6px;
     }
-    .org {
-        font-size: 9px;
-        color: #8892aa;
-        letter-spacing: 3px;
-        text-transform: uppercase;
-        margin-bottom: 6px;
-    }
-    .system-name {
-        font-size: 11px;
-        color: #4a5470;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        margin-bottom: 30px;
-    }
-    .gold-bar {
-        width: 60px;
-        height: 3px;
-        background: #c9a84c;
-        margin: 0 auto 30px;
-    }
-    .area-label {
-        font-size: 10px;
-        font-weight: 700;
-        color: #c9a84c;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 10px;
-    }
-    .area-title {
-        font-size: 20px;
-        font-weight: 900;
-        color: #0f1f3d;
-        line-height: 1.3;
-        margin-bottom: 30px;
-        max-width: 400px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .program-name {
-        font-size: 11px;
-        color: #4a5470;
-        margin-bottom: 4px;
-    }
-    .program-code {
-        font-size: 10px;
-        color: #8892aa;
-        margin-bottom: 16px;
-    }
+    .org { font-size: 9px; color: #8892aa; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+
+    .system-name { font-size: 11px; color: #4a5470; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+    .gold-bar { width: 60px; height: 3px; background: #c9a84c; margin: 0 auto 30px; }
+    .area-label { font-size: 10px; font-weight: 700; color: #c9a84c; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+    .area-title { font-size: 20px; font-weight: 900; color: #0f1f3d; line-height: 1.3; margin-bottom: 30px; }
     .export-label {
-        display: inline-block;
-        padding: 5px 16px;
-        border: 1.5px solid #c9a84c;
-        border-radius: 20px;
-        font-size: 9px;
-        font-weight: 700;
-        color: #c9a84c;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        margin-bottom: 30px;
+        display: inline-block; padding: 5px 16px;
+        border: 1.5px solid #c9a84c; border-radius: 20px;
+        font-size: 9px; font-weight: 700; color: #c9a84c;
+        letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;
     }
-    .footer {
-        position: absolute;
-        bottom: 24px;
-        font-size: 9px;
-        color: #b8bfd4;
-        left: 0; right: 0;
-        text-align: center;
-    }
-    .thin-line {
-        width: 120px;
-        height: 1px;
-        background: #dde1ed;
-        margin: 0 auto 30px;
-    }
+    .thin-line { width: 120px; height: 1px; background: #dde1ed; margin: 0 auto 30px; }
+    .program-name { font-size: 11px; color: #4a5470; margin-bottom: 4px; }
+    .program-code { font-size: 10px; color: #8892aa; }
+    .footer { position: fixed; bottom: 24px; left: 0; right: 0; text-align: center; font-size: 9px; color: #b8bfd4; }
 </style>
 </head>
 <body>
-    <div class="logo-circle">
-        <span class="logo-letter">Q</span>
-    </div>
-    <div class="org">{{ $institution }}</div>
-    <div class="system-name">Quality Assurance &amp; Monitoring Center</div>
+    <table class="page">
+        <tr>
+            <td class="center">
+            {{-- Program logo or fallback Q circle --}}
+            @if(!empty($program_logo))
+                <img src="{{ $program_logo }}" class="program-logo" alt="{{ $program_code }} Logo" />
+            @else
+                <div class="logo-circle">
+                    <span class="logo-letter">Q</span>
+                </div>
+            @endif
 
-    <div class="gold-bar"></div>
+                <div class="org">{{ $institution }}</div>
+                <div class="system-name">Quality Assurance &amp; Monitoring Center</div>
 
-    <div class="area-label">Accreditation Area Export</div>
-    <div class="area-title">{{ $area_name }}</div>
+                <div class="gold-bar"></div>
 
-    <div class="export-label">Survey Documentation Package</div>
+                <div class="area-label">Accreditation Area Export</div>
+                <div class="area-title">{{ $area_name }}</div>
 
-    <div class="thin-line"></div>
+                <div class="export-label">Survey Documentation Package</div>
 
-    <div class="program-name">{{ $program_name }}</div>
-    <div class="program-code">{{ $program_code }}</div>
+                <div class="thin-line"></div>
+
+                <div class="program-name">{{ $program_name }}</div>
+                <div class="program-code">{{ $program_code }}</div>
+            </td>
+        </tr>
+    </table>
 
     <div class="footer">Generated {{ $date }} &nbsp;·&nbsp; QUAMC Accreditation System</div>
 </body>

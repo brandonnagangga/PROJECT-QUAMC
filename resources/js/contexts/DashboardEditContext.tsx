@@ -9,8 +9,10 @@ export interface DashboardPreferences {
 interface DashboardEditContextType {
     isEditMode: boolean;
     toggleEditMode: () => void;
+    commitEditMode: (value: boolean) => void;
     hiddenWidgets: string[];
     hideWidget: (id: string) => void;
+    unhideWidget: (id: string) => void;
     resetWidgets: () => void;
     hasUnsavedChanges: boolean;
     saveChanges: () => Promise<boolean>;
@@ -78,9 +80,20 @@ export const DashboardEditProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const toggleEditMode = () => setIsEditMode((prev) => !prev);
+    const commitEditMode = (value: boolean) => {
+        setIsEditMode(value);
+        setSavedPreferences((prev) => ({
+            ...prev,
+            is_edit_mode: value,
+        }));
+    };
 
     const hideWidget = (id: string) => {
         setHiddenWidgets((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    };
+
+    const unhideWidget = (id: string) => {
+        setHiddenWidgets((prev) => prev.filter((widgetId) => widgetId !== id));
     };
 
     const resetWidgets = () => {
@@ -121,8 +134,10 @@ export const DashboardEditProvider: React.FC<{ children: React.ReactNode }> = ({
             value={{
                 isEditMode,
                 toggleEditMode,
+                commitEditMode,
                 hiddenWidgets,
                 hideWidget,
+                unhideWidget,
                 resetWidgets,
                 hasUnsavedChanges,
                 saveChanges,
@@ -142,4 +157,3 @@ export const useDashboardEdit = () => {
     }
     return context;
 };
-

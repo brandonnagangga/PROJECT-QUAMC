@@ -1,6 +1,7 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { Toaster } from 'react-hot-toast';
 import '../css/app.css';
 import './echo';
 
@@ -20,6 +21,13 @@ createInertiaApp({
         root.render(
             <DashboardEditProvider>
                 <App {...props} />
+                <Toaster
+                    position="top-right"
+                    gutter={8}
+                    toastOptions={{
+                        duration: 3000,
+                    }}
+                />
             </DashboardEditProvider>
         );
     },

@@ -97,8 +97,10 @@ function formatBytes(bytes: number) {
 }
 
 export default function DocumentShow({ document, availableStandards, latestEvaluation }: Props) {
+    const standards = Array.isArray(availableStandards) ? availableStandards : [];
+
     const form = useForm({
-        standard_id: availableStandards[0]?.id ?? '',
+        standard_id: standards[0]?.id ?? '',
     });
 
     const runAnalysis = () => {
@@ -179,7 +181,7 @@ export default function DocumentShow({ document, availableStandards, latestEvalu
                                 }}
                             >
                                 <option value="">Select standard...</option>
-                                {availableStandards.map((standard) => (
+                                {standards.map((standard) => (
                                     <option key={standard.id} value={standard.id}>
                                         {standard.code ? `${standard.code} - ` : ''}{standard.title}
                                     </option>
@@ -207,7 +209,7 @@ export default function DocumentShow({ document, availableStandards, latestEvalu
                         </div>
 
                         <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
-                            {availableStandards.map((standard) => (
+                            {standards.map((standard) => (
                                 <div
                                     key={standard.id}
                                     style={{
@@ -223,7 +225,7 @@ export default function DocumentShow({ document, availableStandards, latestEvalu
                                     </div>
                                 </div>
                             ))}
-                            {availableStandards.length === 0 && (
+                            {standards.length === 0 && (
                                 <div style={{ fontSize: 12, color: '#9b1c1c' }}>
                                     No indexed standard is available for this document yet. Upload a reference PDF in the Standards page first.
                                 </div>

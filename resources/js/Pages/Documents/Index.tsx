@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import {
     FileText, Search, Filter, Eye, ChevronRight, ArrowLeft,
     Folder, File, Download, CheckCircle, Clock, RotateCcw,
@@ -61,6 +61,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
     const [viewMode, setViewMode]         = useState<'list' | 'folder'>(filters?.view === 'list' ? 'list' : 'folder');
     const [search, setSearch]             = useState(filters?.search || '');
     const [activeStatus, setActiveStatus] = useState(filters?.status || 'all');
+    const [filterMenuOpen, setFilterMenuOpen] = useState(false);
 
     // Folder navigation state
     const [currentProgram, setCurrentProgram] = useState<FolderProgram | null>(null);
@@ -69,6 +70,9 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
     const folderLevel = currentSubArea ? 'slots' : currentArea ? 'subareas' : currentProgram ? 'areas' : 'programs';
     const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
+    const [expandedPrograms, setExpandedPrograms] = useState<number[]>([]);
+    const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
+    const filterMenuRef = useRef<HTMLDivElement>(null);
 
     // Client-side filtering for Folder View
     const filteredPrograms = useMemo(() => {
@@ -113,6 +117,17 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
         return result;
     }, [programs, search, activeStatus]);
 
+    useEffect(() => {
+        const onClickOutside = (event: MouseEvent) => {
+            if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+                setFilterMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
+
     function formatBytes(bytes: number) {
         if (!bytes) return '—';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -125,6 +140,17 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
         else if (currentProgram) setCurrentProgram(null);
     };
 
+    const toggleProgramRow = (programId: number) => {
+        setExpandedPrograms((prev) =>
+            prev.includes(programId) ? prev.filter((id) => id !== programId) : [...prev, programId]
+        );
+    };
+
+    const toggleAreaRow = (programId: number, areaId: number) => {
+        const key = `${programId}-${areaId}`;
+        setExpandedAreas((prev) => (prev.includes(key) ? prev.filter((id) => id !== key) : [...prev, key]));
+    };
+
     const handleStatusFilter = (s: string) => {
         setActiveStatus(s);
         router.get('/documents', { status: s === 'all' ? undefined : s, search: search || undefined, view: viewMode }, { preserveState: true, replace: true });
@@ -135,10 +161,16 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
         router.get('/documents', { status: activeStatus === 'all' ? undefined : activeStatus, search: val || undefined, view: viewMode }, { preserveState: true, replace: true });
     };
 
+    const clearFilters = () => {
+        setFilterMenuOpen(false);
+        setActiveStatus('all');
+        setSearch('');
+        router.get('/documents', { view: viewMode }, { preserveState: true, replace: true });
+    };
+
     /* ── Breadcrumbs for folder view ── */
     const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [];
     if (viewMode === 'folder') {
-        breadcrumbs.push({ label: 'All Programs', onClick: () => { setCurrentProgram(null); setCurrentArea(null); setCurrentSubArea(null); } });
         if (currentProgram) breadcrumbs.push({ label: currentProgram.code, onClick: () => { setCurrentArea(null); setCurrentSubArea(null); } });
         if (currentArea)    breadcrumbs.push({ label: currentArea.name,    onClick: () => { setCurrentSubArea(null); } });
         if (currentSubArea) breadcrumbs.push({ label: currentSubArea.name });
@@ -172,9 +204,88 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                         </button>
                     )}
                 </div>
-                <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--color-button-secondary-bg)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, fontWeight: 500, color: 'var(--color-button-secondary-text)', cursor: 'pointer', transition: 'all 0.2s' }}>
-                    <Filter size={14} /> Filter
-                </button>
+                <div ref={filterMenuRef} style={{ position: 'relative' }}>
+                    <button
+                        type="button"
+                        onClick={() => setFilterMenuOpen((prev) => !prev)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--color-button-secondary-bg)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, fontWeight: 500, color: 'var(--color-button-secondary-text)', cursor: 'pointer', transition: 'all 0.2s' }}
+                    >
+                        <Filter size={14} />
+                        Filter
+                    </button>
+
+                    {filterMenuOpen && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: 44,
+                                right: 0,
+                                width: 220,
+                                background: 'var(--color-surface)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 12,
+                                boxShadow: '0 16px 32px rgba(15,31,61,0.16)',
+                                zIndex: 30,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>Quick Filters</div>
+                                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Filter documents by review status</div>
+                            </div>
+                            <div style={{ padding: 8, display: 'grid', gap: 6 }}>
+                                {statusTabs.map((tab) => {
+                                    const active = activeStatus === tab.key;
+                                    return (
+                                        <button
+                                            key={tab.key}
+                                            type="button"
+                                            onClick={() => {
+                                                setFilterMenuOpen(false);
+                                                handleStatusFilter(tab.key);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                border: '1px solid var(--color-border)',
+                                                background: active ? 'var(--color-hover)' : 'var(--color-surface)',
+                                                borderRadius: 8,
+                                                padding: '8px 10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                fontSize: 12,
+                                                color: 'var(--color-text)',
+                                                cursor: 'pointer',
+                                                textAlign: 'left',
+                                            }}
+                                        >
+                                            <span>{tab.label}</span>
+                                            <span style={{ color: 'var(--color-text-secondary)', fontSize: 11 }}>{active ? 'Selected' : ''}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ padding: 8, borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    style={{
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-surface)',
+                                        color: 'var(--color-text)',
+                                        borderRadius: 8,
+                                        padding: '6px 10px',
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Clear filters
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ── Header bar: tabs + view toggle ── */}
@@ -279,26 +390,227 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
                     {/* Programs */}
                     {folderLevel === 'programs' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-                            {filteredPrograms.map((prog, i) => (
-                                <div key={prog.id} onClick={() => setCurrentProgram(prog)}
-                                    style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = folderColors[i % folderColors.length]; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
-                                    <FolderIcon color={folderColors[i % folderColors.length]} size={64} label={prog.code} />
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{prog.name}</div>
-                                        <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{prog.areas.length} areas</div>
+                        <>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
+                                {filteredPrograms.map((prog, i) => (
+                                    <div key={prog.id} onClick={() => setCurrentProgram(prog)}
+                                        style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = folderColors[i % folderColors.length]; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
+                                        <FolderIcon color={folderColors[i % folderColors.length]} size={64} label={prog.code} />
+                                        <div style={{ textAlign: 'center' }}>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{prog.name}</div>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{prog.areas.length} areas</div>
+                                        </div>
                                     </div>
+                                ))}
+                                {filteredPrograms.length === 0 && (
+                                    <div style={{
+                                        gridColumn: '1 / -1',
+                                        padding: 60,
+                                        color: 'var(--color-text-secondary)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 12,
+                                        textAlign: 'center',
+                                    }}>
+                                        <Search size={40} style={{ opacity: 0.2 }} />
+                                        <div>No programs found matching your filters.</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div
+                                style={{
+                                    marginTop: 18,
+                                    background: 'var(--color-panel-bg)',
+                                    border: '1px solid var(--color-panel-border)',
+                                    borderRadius: 12,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        padding: '10px 14px',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: 'var(--color-text)',
+                                    }}
+                                >
+                                    Folder Directory Table
                                 </div>
-                            ))}
-                            {filteredPrograms.length === 0 && (
-                                <div style={{ gridColumn: '1 / -1', padding: 60, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                                    <Search size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-                                    <div>No programs found matching your filters.</div>
+
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
+                                                {['Directory', 'Type', 'Children', 'Status', 'Action'].map((header) => (
+                                                    <th
+                                                        key={header}
+                                                        style={{
+                                                            textAlign: 'left',
+                                                            fontSize: 12,
+                                                            fontWeight: 500,
+                                                            color: 'var(--color-text-secondary)',
+                                                            padding: '10px 14px',
+                                                            whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        {header}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredPrograms.map((prog) => {
+                                                const programOpen = expandedPrograms.includes(prog.id);
+                                                return (
+                                                    <Fragment key={`program-block-${prog.id}`}>
+                                                        <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                            <td style={{ padding: '11px 14px', color: 'var(--color-text)', fontWeight: 600 }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleProgramRow(prog.id)}
+                                                                    style={{
+                                                                        border: 'none',
+                                                                        background: 'transparent',
+                                                                        padding: 0,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 6,
+                                                                        cursor: 'pointer',
+                                                                        color: 'inherit',
+                                                                    }}
+                                                                >
+                                                                    <ChevronRight
+                                                                        size={14}
+                                                                        style={{ transform: programOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+                                                                    />
+                                                                    <span>{prog.code} — {prog.name}</span>
+                                                                </button>
+                                                            </td>
+                                                            <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>Program</td>
+                                                            <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>{prog.areas.length}</td>
+                                                            <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>Parent</td>
+                                                            <td style={{ padding: '11px 14px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setCurrentProgram(prog)}
+                                                                    style={{
+                                                                        border: '1px solid var(--color-border)',
+                                                                        background: 'var(--color-surface)',
+                                                                        color: 'var(--color-text)',
+                                                                        borderRadius: 7,
+                                                                        padding: '4px 9px',
+                                                                        fontSize: 11,
+                                                                        cursor: 'pointer',
+                                                                    }}
+                                                                >
+                                                                    Open
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+
+                                                        {programOpen && prog.areas.map((area) => {
+                                                            const areaKey = `${prog.id}-${area.id}`;
+                                                            const areaOpen = expandedAreas.includes(areaKey);
+                                                            return (
+                                                                <Fragment key={`area-block-${areaKey}`}>
+                                                                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
+                                                                        <td style={{ padding: '10px 14px', color: 'var(--color-text)' }}>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => toggleAreaRow(prog.id, area.id)}
+                                                                                style={{
+                                                                                    border: 'none',
+                                                                                    background: 'transparent',
+                                                                                    padding: 0,
+                                                                                    display: 'inline-flex',
+                                                                                    alignItems: 'center',
+                                                                                    gap: 6,
+                                                                                    cursor: 'pointer',
+                                                                                    color: 'inherit',
+                                                                                    marginLeft: 18,
+                                                                                }}
+                                                                            >
+                                                                                <ChevronRight
+                                                                                    size={13}
+                                                                                    style={{ transform: areaOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+                                                                                />
+                                                                                <span>{area.name}</span>
+                                                                            </button>
+                                                                        </td>
+                                                                        <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>Area</td>
+                                                                        <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>{area.sub_areas.length}</td>
+                                                                        <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>Child</td>
+                                                                        <td style={{ padding: '10px 14px' }}>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setCurrentArea(area)}
+                                                                                style={{
+                                                                                    border: '1px solid var(--color-border)',
+                                                                                    background: 'var(--color-surface)',
+                                                                                    color: 'var(--color-text)',
+                                                                                    borderRadius: 7,
+                                                                                    padding: '4px 9px',
+                                                                                    fontSize: 11,
+                                                                                    cursor: 'pointer',
+                                                                                }}
+                                                                            >
+                                                                                Open
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+
+                                                                    {areaOpen && area.sub_areas.map((subArea) => {
+                                                                        const status = SUBMISSION_STATUS[subArea.submission_status] ?? SUBMISSION_STATUS.draft;
+                                                                        return (
+                                                                            <tr key={`subarea-${areaKey}-${subArea.id}`} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                                                <td style={{ padding: '9px 14px', color: 'var(--color-text)', marginLeft: 0 }}>
+                                                                                    <span style={{ marginLeft: 44 }}>{subArea.name}</span>
+                                                                                </td>
+                                                                                <td style={{ padding: '9px 14px', color: 'var(--color-text-secondary)' }}>Sub-area</td>
+                                                                                <td style={{ padding: '9px 14px', color: 'var(--color-text-secondary)' }}>3 slots</td>
+                                                                                <td style={{ padding: '9px 14px' }}>
+                                                                                    <span
+                                                                                        style={{
+                                                                                            fontSize: 10,
+                                                                                            padding: '2px 7px',
+                                                                                            borderRadius: 999,
+                                                                                            background: status.bg,
+                                                                                            color: status.color,
+                                                                                            fontWeight: 600,
+                                                                                        }}
+                                                                                    >
+                                                                                        {status.label}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td style={{ padding: '9px 14px' }}> </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </Fragment>
+                                                            );
+                                                        })}
+                                                    </Fragment>
+                                                );
+                                            })}
+
+                                            {filteredPrograms.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: 26, textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                                                        No folders found for the current filters.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        </>
                     )}
 
                     {/* Areas */}

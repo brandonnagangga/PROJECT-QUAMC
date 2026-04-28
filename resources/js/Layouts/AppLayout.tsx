@@ -3,7 +3,7 @@ import { ReactNode, useState, useEffect, useRef } from 'react';
 import {
     LayoutDashboard, FileText, Layers, GraduationCap, Upload,
     User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, PanelLeft, Megaphone, Palette, ChevronRight,
-    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, Layout, RotateCcw, Download
+    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, Layout, RotateCcw, Download, Undo2
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { showSuccess, showError, showInfo, confirmAction, confirmSaveDiscard } from '@/utils/toast';
@@ -49,12 +49,14 @@ const allNavItems = [
 export default function AppLayout({ children, title = 'Dashboard', breadcrumb }: AppLayoutProps) {
     const page = usePage<PageProps>();
     const { auth, flash } = page.props;
-    const { theme } = useTheme();
+    const { theme, selectedThemePresetId } = useTheme();
     const {
         isEditMode,
         toggleEditMode,
+        commitEditMode,
         resetWidgets,
         hiddenWidgets,
+        unhideWidget,
         hasUnsavedChanges,
         saveChanges,
         discardChanges,
@@ -68,6 +70,56 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     const [themeSidebarOpen, setThemeSidebarOpen] = useState(false);
     const [now, setNow] = useState(new Date());
     const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
+
+    const formatWidgetName = (widgetId: string) => {
+        const [, rawName = widgetId] = widgetId.split('.');
+        return rawName
+            .replace(/[_-]+/g, ' ')
+            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    };
+
+    const formatWidgetMeta = (widgetId: string) => {
+        const [scope = 'dashboard', rawName = widgetId] = widgetId.split('.');
+        const prettyScope = scope
+            .replace(/[_-]+/g, ' ')
+            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+        const prettyName = rawName.replace(/[_-]+/g, ' ');
+
+        return `${prettyScope} / ${prettyName}`;
+    };
+
+    const handleEditPanelCancel = () => {
+        discardChanges();
+        commitEditMode(false);
+        router.post(
+            '/dashboard/preferences',
+            { is_edit_mode: false },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+        showInfo('Dashboard changes discarded.');
+    };
+
+    const handleEditPanelSave = async () => {
+        const ok = await saveChanges();
+        if (!ok) {
+            showError('Unable to save dashboard changes.');
+            return;
+        }
+
+        showSuccess('Dashboard changes saved.');
+        commitEditMode(false);
+        router.post(
+            '/dashboard/preferences',
+            { is_edit_mode: false },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    };
 
     // Global Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +155,22 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     useEffect(() => {
         syncFromServer((page.props as any).dashboard_preferences);
     }, [(page.props as any).dashboard_preferences]);
+
+    useEffect(() => {
+        if (isDashboard || !isEditMode) {
+            return;
+        }
+
+        commitEditMode(false);
+        router.post(
+            '/dashboard/preferences',
+            { is_edit_mode: false },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    }, [isDashboard, isEditMode, commitEditMode]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -311,6 +379,35 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
         return () => window.removeEventListener('beforeunload', handler);
     }, [isDashboard, isEditMode, hasUnsavedChanges]);
 
+    useEffect(() => {
+        const unbind = router.on('before', (event: any) => {
+            if (!(isDashboard && isEditMode)) {
+                return;
+            }
+
+            const visit = event?.detail?.visit;
+            const method = String(visit?.method ?? 'get').toLowerCase();
+            if (method !== 'get') {
+                return;
+            }
+
+            const nextUrl = String(visit?.url ?? '');
+            const nextPath = nextUrl ? new URL(nextUrl, window.location.origin).pathname : '';
+            const currentPathname = window.location.pathname;
+
+            if (!nextPath || nextPath === currentPathname) {
+                return;
+            }
+
+            showInfo('Editing mode is active. Save or cancel your edits before navigating.');
+            return false;
+        });
+
+        return () => {
+            unbind();
+        };
+    }, [isDashboard, isEditMode]);
+
     return (
         <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: 'var(--color-shell-bg)', color: 'var(--color-text)' }}>
             <ThemeApplier />
@@ -318,7 +415,9 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
             <ThemeSidebar open={themeSidebarOpen} onClose={() => setThemeSidebarOpen(false)} />
 
             {/* SIDEBAR */}
-            <aside className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+            <aside
+                className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${selectedThemePresetId === 'default' ? 'is-default-preset' : ''}`}
+            >
                 <div className="app-sidebar-deco-1" />
                 <div className="app-sidebar-deco-2" />
 
@@ -356,11 +455,13 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                         <div className="app-nav-item-icon">
                                             <Icon size={15} color={getIconColor(active)} />
                                         </div>
-                                        <span style={{
-                                            fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
-                                            color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-muted)',
-                                        }}>{item.name}</span>
-                                        {'badge' in item && item.badge !== null && item.badge !== undefined && (
+                                        {!sidebarCollapsed && (
+                                            <span style={{
+                                                fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
+                                                color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-muted)',
+                                            }}>{item.name}</span>
+                                        )}
+                                        {!sidebarCollapsed && 'badge' in item && item.badge !== null && item.badge !== undefined && (
                                             <span style={{
                                                 background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                                                 fontSize: 10, fontWeight: 700, padding: '1px 6px',
@@ -548,17 +649,6 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
                             {isDashboard && (
                                 <>
-                                    {hiddenWidgets.length > 0 && (
-                                        <button
-                                            type="button"
-                                            className="app-icon-btn"
-                                            title="Reset Hidden Widgets"
-                                            style={{ width: 30, height: 30, marginRight: 4 }}
-                                            onClick={resetWidgets}
-                                        >
-                                            <RotateCcw size={16} />
-                                        </button>
-                                    )}
                                     <button
                                         type="button"
                                         className={`app-icon-btn ${isEditMode ? 'active' : ''}`}
@@ -616,6 +706,193 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                             </div>
                         )}
                         {children}
+
+                        {isDashboard && isEditMode && (
+                            <aside
+                                style={{
+                                    position: 'fixed',
+                                    top: 86,
+                                    right: 18,
+                                    width: 300,
+                                    maxHeight: 'calc(100vh - 108px)',
+                                    zIndex: 125,
+                                    borderRadius: 12,
+                                    border: '1px solid var(--color-panel-border)',
+                                    background: 'color-mix(in srgb, var(--color-panel-bg) 94%, transparent)',
+                                    backdropFilter: 'blur(6px)',
+                                    WebkitBackdropFilter: 'blur(6px)',
+                                    boxShadow: '0 14px 30px rgba(15,31,61,0.18)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        padding: '12px 12px 10px',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: 10,
+                                    }}
+                                >
+                                    <div>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>Hidden Cards</div>
+                                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                            {hiddenWidgets.length} hidden in this dashboard
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={resetWidgets}
+                                        style={{
+                                            border: '1px solid var(--color-border)',
+                                            background: 'var(--color-surface)',
+                                            color: 'var(--color-text)',
+                                            borderRadius: 8,
+                                            padding: '6px 8px',
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                        }}
+                                    >
+                                        <RotateCcw size={12} />
+                                        Reset
+                                    </button>
+                                </div>
+
+                                <div style={{ padding: 10, overflowY: 'auto', display: 'grid', gap: 8 }}>
+                                    {hiddenWidgets.length === 0 && (
+                                        <div
+                                            style={{
+                                                border: '1px dashed var(--color-border)',
+                                                borderRadius: 10,
+                                                padding: '10px 12px',
+                                                fontSize: 12,
+                                                color: 'var(--color-text-secondary)',
+                                                background: 'var(--color-background)',
+                                            }}
+                                        >
+                                            No hidden cards yet.
+                                        </div>
+                                    )}
+
+                                    {hiddenWidgets.map((widgetId) => (
+                                        <div
+                                            key={widgetId}
+                                            style={{
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 10,
+                                                padding: '8px 10px',
+                                                background: 'var(--color-surface)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <div style={{ minWidth: 0 }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        color: 'var(--color-text)',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                    }}
+                                                    title={widgetId}
+                                                >
+                                                    {formatWidgetName(widgetId)}
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        fontSize: 10,
+                                                        color: 'var(--color-text-secondary)',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                    }}
+                                                >
+                                                    {formatWidgetMeta(widgetId)}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => unhideWidget(widgetId)}
+                                                style={{
+                                                    border: '1px solid var(--color-border)',
+                                                    background: 'var(--color-background)',
+                                                    color: 'var(--color-text)',
+                                                    borderRadius: 8,
+                                                    padding: '5px 8px',
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 4,
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <Undo2 size={12} />
+                                                Undo
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: 10,
+                                        borderTop: '1px solid var(--color-border)',
+                                        display: 'flex',
+                                        gap: 8,
+                                        justifyContent: 'flex-end',
+                                        background: 'var(--color-panel-bg)',
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={handleEditPanelCancel}
+                                        style={{
+                                            border: '1px solid var(--color-border)',
+                                            background: 'var(--color-surface)',
+                                            color: 'var(--color-text)',
+                                            borderRadius: 8,
+                                            padding: '7px 10px',
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleEditPanelSave}
+                                        disabled={!hasUnsavedChanges}
+                                        style={{
+                                            border: 'none',
+                                            background: hasUnsavedChanges ? 'var(--color-button-primary-bg)' : 'var(--color-border)',
+                                            color: hasUnsavedChanges ? 'var(--color-button-primary-text)' : 'var(--color-text-secondary)',
+                                            borderRadius: 8,
+                                            padding: '7px 12px',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: hasUnsavedChanges ? 'pointer' : 'not-allowed',
+                                        }}
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </aside>
+                        )}
                     </div>
                 </div>
             </div>

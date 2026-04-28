@@ -3,14 +3,284 @@ import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head } from '@inertiajs/react';
 import { confirmAction } from '@/utils/toast';
-import { Plus, Edit2, Archive, ChevronDown, ChevronUp, X, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Archive, ChevronDown, ChevronUp, X, Trash2, ChevronRight, FolderOpen } from 'lucide-react';
 
 /* ── Types ── */
-interface SubAreaRow { id: number; name: string; order_number: number; submission_status: string; is_archived: boolean; }
+interface AreaItemData {
+    id: number; label: string; ipo_type: string; order_number: number; parent_item_id: number | null;
+    children?: AreaItemData[];
+}
+interface SubAreaRow { id: number; name: string; order_number: number; submission_status: string; is_archived: boolean; items?: AreaItemData[]; }
 interface AreaRow    { id: number; name: string; order_number: number; deadline_at: string | null; is_archived: boolean; sub_areas: SubAreaRow[]; }
 interface Props      { areas: AreaRow[]; }
 
 const AREA_COLORS = ['#1a7a4a','#185FA5','#c9a84c','#6b3fa0','#e07a00','#9b1c1c','#185FA5','#9b1c1c','#1a7a4a','#c9a84c'];
+
+const IPO_CFG = {
+    input:   { label: 'Inputs',    color: '#0c447c', bg: '#e6f1fb', border: '#bdd8f7', weight: '20%' },
+    process: { label: 'Processes', color: '#633806', bg: '#faeeda', border: '#e8c07b', weight: '30%' },
+    outcome: { label: 'Outcomes',  color: '#085041', bg: '#e1f5ee', border: '#89ddb9', weight: '50%' },
+} as const;
+
+// ── Item row inside management panel ─────────────────────────────────────────
+function ManageItemRow({ item, onAddSub, onEdit, onArchive }: {
+    item: AreaItemData;
+    onAddSub: (parentId: number, subAreaId: number, ipoType: string) => void;
+    onEdit: (item: AreaItemData) => void;
+    onArchive: (item: AreaItemData) => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const hasChildren = (item.children?.length ?? 0) > 0;
+
+    return (
+        <>
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 10px', borderBottom: '1px solid #f5f5f8',
+                background: '#fff',
+            }}
+                onMouseEnter={e => e.currentTarget.style.background = '#fafbfe'}
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+            >
+                {/* Expand chevron */}
+                <div style={{ width: 16, flexShrink: 0 }}>
+                    {hasChildren && (
+                        <button onClick={() => setExpanded(p => !p)}
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+                        >
+                            {expanded ? <ChevronDown size={12} color="#8892aa" /> : <ChevronRight size={12} color="#8892aa" />}
+                        </button>
+                    )}
+                </div>
+
+                {/* Order number */}
+                <span style={{ fontSize: 10, color: '#b8bfd4', fontWeight: 600, flexShrink: 0, minWidth: 18 }}>{item.order_number}.</span>
+
+                {/* Label */}
+                <span style={{ flex: 1, fontSize: 12, color: '#1e2640', fontWeight: 500 }}>{item.label}</span>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button title="Add sub-item" onClick={() => onAddSub(item.id, 0, item.ipo_type)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px', borderRadius: 5, border: '1px solid #dde1ed', background: '#f8f9fc', cursor: 'pointer', fontSize: 10, color: '#4a5470' }}
+                    ><Plus size={9} /> Sub-item</button>
+                    <button title="Edit label" onClick={() => onEdit(item)}
+                        style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid #dde1ed', background: '#f0f2f8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    ><Edit2 size={9} color="#4a5470" /></button>
+                    <button title="Archive item" onClick={() => onArchive(item)}
+                        style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    ><Archive size={9} color="#9b1c1c" /></button>
+                </div>
+            </div>
+
+            {/* Sub-items */}
+            {hasChildren && expanded && item.children!.map(child => (
+                <div key={child.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '6px 10px 6px 42px', borderBottom: '1px solid #f5f5f8',
+                    background: '#fafbfe',
+                }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f4f6fc'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fafbfe'}
+                >
+                    <span style={{ fontSize: 9.5, color: '#b8bfd4', fontWeight: 600, flexShrink: 0, minWidth: 18 }}>{child.order_number}.</span>
+                    <span style={{ flex: 1, fontSize: 11.5, color: '#4a5470' }}>{child.label}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => onEdit(child)}
+                            style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #dde1ed', background: '#f0f2f8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        ><Edit2 size={9} color="#4a5470" /></button>
+                        <button onClick={() => onArchive(child)}
+                            style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        ><Archive size={9} color="#9b1c1c" /></button>
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+}
+
+// ── Item management panel inside a sub-area ───────────────────────────────────
+function SubAreaItemPanel({ subArea, areaColor }: { subArea: SubAreaRow; areaColor: string }) {
+    const [activeTab, setActiveTab] = useState<'input' | 'process' | 'outcome'>('input');
+    const [items, setItems] = useState<AreaItemData[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [addingLabel, setAddingLabel] = useState('');
+    const [addingParentId, setAddingParentId] = useState<number | null>(null);
+    const [editingItem, setEditingItem] = useState<AreaItemData | null>(null);
+    const [editLabel, setEditLabel] = useState('');
+
+    const load = () => {
+        if (items !== null) return;
+        setLoading(true);
+        fetch(`/sub-areas/${subArea.id}/items`, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then(r => r.json())
+            .then(data => {
+                // Combine all IPO types into flat array for local state
+                const all: AreaItemData[] = [];
+                for (const t of ['input','process','outcome'] as const) {
+                    (data.items?.[t] ?? []).forEach((it: any) => {
+                        all.push({ ...it, children: it.children ?? [] });
+                    });
+                }
+                setItems(all);
+            })
+            .finally(() => setLoading(false));
+    };
+
+    const tabItems = (items ?? []).filter(it => it.ipo_type === activeTab);
+
+    const handleAddItem = (parentId: number | null) => {
+        if (!addingLabel.trim()) return;
+        router.post('/area-items', {
+            sub_area_id: subArea.id,
+            ipo_type: activeTab,
+            parent_item_id: parentId,
+            label: addingLabel.trim(),
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { setAddingLabel(''); setAddingParentId(null); setItems(null); load(); },
+        });
+    };
+
+    const handleEditSave = () => {
+        if (!editingItem || !editLabel.trim()) return;
+        router.put(`/area-items/${editingItem.id}`, { label: editLabel.trim() }, {
+            preserveScroll: true,
+            onSuccess: () => { setEditingItem(null); setItems(null); load(); },
+        });
+    };
+
+    const handleArchive = async (item: AreaItemData) => {
+        const ok = await confirmAction({ title: `Archive "${item.label}"?`, text: 'This item will be hidden from coordinators.' });
+        if (ok) router.delete(`/area-items/${item.id}`, {
+            preserveScroll: true,
+            onSuccess: () => { setItems(null); load(); },
+        });
+    };
+
+    return (
+        <div style={{ background: '#f8f9fc', borderTop: '1px solid #edf0f7', padding: '12px 16px' }}>
+            {/* IPO tabs */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                {(['input','process','outcome'] as const).map(t => {
+                    const cfg = IPO_CFG[t];
+                    return (
+                        <button key={t} onClick={() => { setActiveTab(t); if (!items) load(); }}
+                            style={{
+                                padding: '5px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                                fontSize: 11, fontWeight: 700,
+                                background: activeTab === t ? cfg.bg : '#fff',
+                                color: activeTab === t ? cfg.color : '#8892aa',
+                                boxShadow: activeTab === t ? `inset 0 0 0 1.5px ${cfg.border}` : '0 0 0 1px #e5e7eb',
+                                transition: 'all 0.12s',
+                            }}
+                        >
+                            {cfg.label} <span style={{ fontWeight: 400, fontSize: 9.5, opacity: 0.7 }}>({cfg.weight})</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Item list */}
+            <div style={{ border: '1px solid #dde1ed', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+                {loading && (
+                    <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: '#b8bfd4' }}>Loading items…</div>
+                )}
+                {!loading && items !== null && tabItems.length === 0 && (
+                    <div style={{ padding: '14px', textAlign: 'center', fontSize: 11.5, color: '#c4c8d8', fontStyle: 'italic' }}>No items yet — add one below.</div>
+                )}
+                {!loading && tabItems.map(item => (
+                    <ManageItemRow
+                        key={item.id}
+                        item={item}
+                        onAddSub={(parentId) => { setAddingParentId(parentId); setAddingLabel(''); }}
+                        onEdit={(it) => { setEditingItem(it); setEditLabel(it.label); }}
+                        onArchive={handleArchive}
+                    />
+                ))}
+
+                {/* Add root item row */}
+                <div style={{ display: 'flex', gap: 6, padding: '8px 10px', background: '#fafbfe', borderTop: tabItems.length > 0 ? '1px solid #f0f2f8' : 'none' }}>
+                    <input
+                        value={addingParentId === null ? addingLabel : ''}
+                        onChange={e => { setAddingParentId(null); setAddingLabel(e.target.value); }}
+                        onFocus={() => { if (!items) load(); }}
+                        placeholder={`+ Add ${IPO_CFG[activeTab].label.toLowerCase().replace('s','')} item…`}
+                        style={{
+                            flex: 1, padding: '5px 10px', borderRadius: 6, border: '1px solid #dde1ed',
+                            fontSize: 11.5, outline: 'none', fontFamily: "'Inter', sans-serif",
+                            color: '#1e2640',
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && handleAddItem(null)}
+                    />
+                    <button onClick={() => handleAddItem(null)}
+                        disabled={addingParentId !== null || !addingLabel.trim()}
+                        style={{
+                            padding: '5px 12px', borderRadius: 6, border: 'none',
+                            background: addingLabel.trim() && addingParentId === null ? areaColor : '#e5e7eb',
+                            color: addingLabel.trim() && addingParentId === null ? '#fff' : '#9ca3af',
+                            cursor: addingLabel.trim() && addingParentId === null ? 'pointer' : 'not-allowed',
+                            fontSize: 11.5, fontWeight: 700, transition: 'background 0.12s',
+                        }}
+                    >Add</button>
+                </div>
+
+                {/* Add sub-item row (shown when a parent is selected) */}
+                {addingParentId !== null && (
+                    <div style={{ display: 'flex', gap: 6, padding: '7px 10px 7px 42px', background: '#f4f6fc', borderTop: '1px solid #edf0f7' }}>
+                        <input
+                            value={addingLabel}
+                            onChange={e => setAddingLabel(e.target.value)}
+                            placeholder="Sub-item label…"
+                            autoFocus
+                            style={{
+                                flex: 1, padding: '4px 10px', borderRadius: 6, border: '1px solid #dde1ed',
+                                fontSize: 11.5, outline: 'none', fontFamily: "'Inter', sans-serif",
+                            }}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddItem(addingParentId); if (e.key === 'Escape') setAddingParentId(null); }}
+                        />
+                        <button onClick={() => handleAddItem(addingParentId)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: areaColor, color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                        >Add Sub-item</button>
+                        <button onClick={() => setAddingParentId(null)}
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', cursor: 'pointer', fontSize: 11 }}
+                        >Cancel</button>
+                    </div>
+                )}
+            </div>
+
+            {/* Edit label modal */}
+            {editingItem && (
+                <div onClick={() => setEditingItem(null)}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}
+                >
+                    <div onClick={e => e.stopPropagation()}
+                        style={{ background: '#fff', borderRadius: 12, padding: '22px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
+                    >
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0f1f3d', marginBottom: 12 }}>Edit Item Label</div>
+                        <input
+                            value={editLabel}
+                            onChange={e => setEditLabel(e.target.value)}
+                            autoFocus
+                            onKeyDown={e => e.key === 'Enter' && handleEditSave()}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: '1.5px solid #dde1ed', fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setEditingItem(null)}
+                                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #dde1ed', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#4a5470' }}
+                            >Cancel</button>
+                            <button onClick={handleEditSave}
+                                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: '#0f1f3d', color: '#c9a84c', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
+                            >Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 /* ── Shared Modal Shell (560px, matching system standard) ── */
 function ModalShell({ title, subtitle, onClose, children }: {
@@ -415,6 +685,11 @@ export default function AreasManagement({ areas }: Props) {
     const [editingArea, setEditingArea]         = useState<AreaRow | null>(null);
     const [editingSub, setEditingSub]           = useState<SubAreaRow | null>(null);
     const [addingSubFor, setAddingSubFor]       = useState<number | null>(null); // area id
+    const [expandedSubItems, setExpandedSubItems] = useState<Set<number>>(new Set());
+
+    const toggleSubItems = (saId: number) => {
+        setExpandedSubItems(prev => { const n = new Set(prev); n.has(saId) ? n.delete(saId) : n.add(saId); return n; });
+    };
 
     const toggleArea = (id: number) => {
         setExpandedAreas(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -538,35 +813,46 @@ export default function AreasManagement({ areas }: Props) {
                             {isExpanded && area.sub_areas.length > 0 && (
                                 <div style={{ borderTop: '1px solid #f0f2f8' }}>
                                     {area.sub_areas.map((sa, si) => (
-                                        <div key={sa.id} style={{
-                                            padding: '10px 18px 10px 60px',
-                                            borderBottom: si < area.sub_areas.length - 1 ? '1px solid #f8f9fc' : 'none',
-                                            background: si % 2 === 0 ? '#fff' : '#fafbfe',
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                {/* Order dot + number */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                                                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
-                                                    <span style={{ fontSize: 10, color: '#b8bfd4', fontWeight: 600 }}>{sa.order_number}</span>
-                                                </div>
-                                                <span style={{ fontSize: 12.5, color: '#0f1f3d', fontWeight: 500, flex: 1 }}>{sa.name}</span>
-                                                <div style={{ display: 'flex', gap: 4 }}>
-                                                    <button
-                                                        title="Edit sub-area"
-                                                        onClick={() => setEditingSub(sa)}
-                                                        style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid #dde1ed', background: '#f0f2f8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    >
-                                                        <Edit2 size={10} color="#4a5470" />
-                                                    </button>
-                                                    <button
-                                                        title="Archive sub-area"
-                                                        onClick={() => handleArchiveSub(sa)}
-                                                        style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    >
-                                                        <Archive size={10} color="#9b1c1c" />
-                                                    </button>
+                                        <div key={sa.id}>
+                                            <div style={{
+                                                padding: '10px 18px 10px 60px',
+                                                borderBottom: '1px solid #f8f9fc',
+                                                background: si % 2 === 0 ? '#fff' : '#fafbfe',
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    {/* Order dot + number */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+                                                        <span style={{ fontSize: 10, color: '#b8bfd4', fontWeight: 600 }}>{sa.order_number}</span>
+                                                    </div>
+                                                    <span style={{ fontSize: 12.5, color: '#0f1f3d', fontWeight: 500, flex: 1 }}>{sa.name}</span>
+                                                    <div style={{ display: 'flex', gap: 4 }}>
+                                                        {/* Toggle items panel */}
+                                                        <button
+                                                            title="Manage items"
+                                                            onClick={() => toggleSubItems(sa.id)}
+                                                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', height: 24, borderRadius: 6, border: '1px solid #dde1ed', background: expandedSubItems.has(sa.id) ? '#0f1f3d' : '#f8f9fc', cursor: 'pointer', fontSize: 10, color: expandedSubItems.has(sa.id) ? '#c9a84c' : '#4a5470', fontWeight: 600 }}
+                                                        >
+                                                            <FolderOpen size={10} /> Items
+                                                        </button>
+                                                        <button
+                                                            title="Edit sub-area"
+                                                            onClick={() => setEditingSub(sa)}
+                                                            style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid #dde1ed', background: '#f0f2f8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        ><Edit2 size={10} color="#4a5470" /></button>
+                                                        <button
+                                                            title="Archive sub-area"
+                                                            onClick={() => handleArchiveSub(sa)}
+                                                            style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        ><Archive size={10} color="#9b1c1c" /></button>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            {/* Item management panel */}
+                                            {expandedSubItems.has(sa.id) && (
+                                                <SubAreaItemPanel subArea={sa} areaColor={color} />
+                                            )}
                                         </div>
                                     ))}
                                 </div>

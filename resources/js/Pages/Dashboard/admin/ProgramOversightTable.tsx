@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProgramReadiness } from './types';
 import { GenerateReportModal, type ReportPayloadRow } from './GenerateReportModal';
 
@@ -17,6 +17,23 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
     const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
     const [sortByReadiness, setSortByReadiness] = useState<'asc' | 'desc'>('desc');
     const [showGenerateModal, setShowGenerateModal] = useState(false);
+    const [riskMenuOpen, setRiskMenuOpen] = useState(false);
+    const [sortMenuOpen, setSortMenuOpen] = useState(false);
+    const riskMenuRef = useRef<HTMLDivElement>(null);
+    const sortMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const onClickOutside = (event: MouseEvent) => {
+            if (riskMenuRef.current && !riskMenuRef.current.contains(event.target as Node)) {
+                setRiskMenuOpen(false);
+            }
+            if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+                setSortMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
 
     const complianceRows = useMemo(() => {
         return programs.map((program) => {
@@ -195,42 +212,143 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                             }}
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setRiskFilter((prev) =>
-                                prev === 'all' ? 'low' : prev === 'low' ? 'medium' : prev === 'medium' ? 'high' : 'all'
-                            )
-                        }
-                        style={{
-                            height: 32,
-                            border: '1px solid var(--color-border)',
-                            borderRadius: 8,
-                            background: 'var(--color-button-secondary-bg)',
-                            padding: '0 12px',
-                            fontSize: 13,
-                            color: 'var(--color-button-secondary-text)',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        Filter: {riskFilter === 'all' ? 'All Risk' : `${riskFilter[0].toUpperCase()}${riskFilter.slice(1)} Risk`}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setSortByReadiness((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-                        style={{
-                            height: 32,
-                            border: '1px solid var(--color-border)',
-                            borderRadius: 8,
-                            background: 'var(--color-button-secondary-bg)',
-                            padding: '0 12px',
-                            fontSize: 13,
-                            color: 'var(--color-button-secondary-text)',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        Sort: Readiness {sortByReadiness === 'desc' ? '↓' : '↑'}
-                    </button>
+                    <div ref={riskMenuRef} style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setRiskMenuOpen((prev) => !prev);
+                                setSortMenuOpen(false);
+                            }}
+                            style={{
+                                height: 32,
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 8,
+                                background: 'var(--color-button-secondary-bg)',
+                                padding: '0 12px',
+                                fontSize: 13,
+                                color: 'var(--color-button-secondary-text)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                            }}
+                        >
+                            <span>Filter: {riskFilter === 'all' ? 'All Risk' : `${riskFilter[0].toUpperCase()}${riskFilter.slice(1)} Risk`}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>▾</span>
+                        </button>
+                        {riskMenuOpen && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 36,
+                                    left: 0,
+                                    minWidth: 150,
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 8,
+                                    background: 'var(--color-surface)',
+                                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.14)',
+                                    zIndex: 20,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {(['all', 'low', 'medium', 'high'] as const).map((option) => {
+                                    const active = riskFilter === option;
+                                    const label = option === 'all' ? 'All Risk' : `${option[0].toUpperCase()}${option.slice(1)} Risk`;
+                                    return (
+                                        <button
+                                            key={option}
+                                            type="button"
+                                            onClick={() => {
+                                                setRiskFilter(option);
+                                                setRiskMenuOpen(false);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                border: 'none',
+                                                borderBottom: '1px solid var(--color-border)',
+                                                background: active ? 'var(--color-hover)' : 'var(--color-surface)',
+                                                padding: '8px 10px',
+                                                fontSize: 13,
+                                                color: 'var(--color-text)',
+                                                textAlign: 'left',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    <div ref={sortMenuRef} style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSortMenuOpen((prev) => !prev);
+                                setRiskMenuOpen(false);
+                            }}
+                            style={{
+                                height: 32,
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 8,
+                                background: 'var(--color-button-secondary-bg)',
+                                padding: '0 12px',
+                                fontSize: 13,
+                                color: 'var(--color-button-secondary-text)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                            }}
+                        >
+                            <span>Sort: Readiness {sortByReadiness === 'desc' ? '↓' : '↑'}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>▾</span>
+                        </button>
+                        {sortMenuOpen && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 36,
+                                    left: 0,
+                                    minWidth: 170,
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 8,
+                                    background: 'var(--color-surface)',
+                                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.14)',
+                                    zIndex: 20,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {([
+                                    { id: 'desc', label: 'Readiness (High to Low)' },
+                                    { id: 'asc', label: 'Readiness (Low to High)' },
+                                ] as const).map((option) => (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSortByReadiness(option.id);
+                                            setSortMenuOpen(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            border: 'none',
+                                            borderBottom: '1px solid var(--color-border)',
+                                            background: sortByReadiness === option.id ? 'var(--color-hover)' : 'var(--color-surface)',
+                                            padding: '8px 10px',
+                                            fontSize: 13,
+                                            color: 'var(--color-text)',
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <button

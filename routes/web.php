@@ -2,9 +2,14 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\User\DashboardController;
+use App\Http\Controllers\User\DashboardPreferencesController;
 use App\Http\Controllers\User\DocumentController;
 use App\Http\Controllers\Admin\AreaController;
+use App\Http\Controllers\AreaItemController;
+use App\Http\Controllers\AreaItemResponseController;
+use App\Http\Controllers\AreaItemFileController;
 use App\Http\Controllers\User\SubAreaSubmissionController;
+use App\Http\Controllers\SubAreaNoteReplyController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ActivityLogController;
@@ -13,10 +18,8 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StandardController;
 use App\Http\Controllers\User\ReadinessController;
 use App\Http\Controllers\Admin\CycleController;
-use App\Http\Controllers\User\DocumentEvaluationController;
 use App\Http\Controllers\User\ExportController;
-use App\Http\Controllers\Admin\ThemeController;
-use App\Http\Controllers\User\DashboardPreferencesController;
+
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -27,8 +30,6 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
-    // Global Search
-    Route::get('/global-search', [\App\Http\Controllers\GlobalSearchController::class, 'index'])->name('global-search');
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -36,18 +37,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/dashboard/preferences', [DashboardPreferencesController::class, 'update'])->name('dashboard.preferences.update');
 
     // ── Areas (global — Director manages structure) ──
-    Route::middleware('throttle:60,1')->group(function () {
-        Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
-        Route::get('/areas/management', [AreaController::class, 'management'])->name('areas.management');
-        Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
-        Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
-        Route::post('/areas/{area}/archive', [AreaController::class, 'archive'])->name('areas.archive');
+    Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
+    Route::get('/areas/management', [AreaController::class, 'management'])->name('areas.management');
+    Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
+    Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
+    Route::post('/areas/{area}/archive', [AreaController::class, 'archive'])->name('areas.archive');
+    Route::post('/areas/{area}/deadline', [AreaController::class, 'setDeadline'])->name('areas.setDeadline');
+    Route::post('/areas/{area}/submit-all', [SubAreaSubmissionController::class, 'submitArea'])->name('areas.submitAll');
 
 
-        // ── Sub-areas (Director CRUD, workflow for submission) ──
-        Route::post('/areas/{area}/sub-areas', [SubAreaSubmissionController::class, 'store'])->name('sub-areas.store');
-        Route::put('/sub-areas/{subArea}', [SubAreaSubmissionController::class, 'update'])->name('sub-areas.update');
-        Route::post('/sub-areas/{subArea}/archive', [SubAreaSubmissionController::class, 'archive'])->name('sub-areas.archive');
+    // ── Sub-areas (Director CRUD, workflow for submission) ──
+    Route::post('/areas/{area}/sub-areas', [SubAreaSubmissionController::class, 'store'])->name('sub-areas.store');
+    Route::put('/sub-areas/{subArea}', [SubAreaSubmissionController::class, 'update'])->name('sub-areas.update');
+    Route::post('/sub-areas/{subArea}/archive', [SubAreaSubmissionController::class, 'archive'])->name('sub-areas.archive');
 
     // Sub-area workflow (submission flow)
     Route::post('/sub-areas/{subArea}/submit', [SubAreaSubmissionController::class, 'submit'])->name('sub-areas.submit');
@@ -55,68 +57,111 @@ Route::middleware('auth')->group(function () {
     Route::post('/sub-areas/{subArea}/approve', [SubAreaSubmissionController::class, 'approveDirector'])->name('sub-areas.approve');
     Route::post('/sub-areas/{subArea}/return', [SubAreaSubmissionController::class, 'returnSubArea'])->name('sub-areas.return');
     Route::post('/sub-areas/{subArea}/note', [SubAreaSubmissionController::class, 'updateNote'])->name('sub-areas.note');
+    Route::post('/sub-areas/{subArea}/note/reply', [SubAreaNoteReplyController::class, 'store'])->name('sub-areas.note.reply');
 
-        // ── Exports ──
-        Route::get('/export/sub-area/{subArea}', [ExportController::class, 'subArea'])->name('export.subArea');
-        Route::get('/export/area/{area}', [ExportController::class, 'area'])->name('export.area');
+    // ── Exports ──
+    Route::get('/export/sub-area/{subArea}', [ExportController::class, 'subArea'])->name('export.subArea');
+    Route::get('/export/area/{area}', [ExportController::class, 'area'])->name('export.area');
+
+    // ── IPO Item System ──────────────────────────────────────────────────────
+
+    // Sub-area detail page (shows items grouped by IPO)
+    Route::get('/sub-areas/{subArea}/items', [AreaItemResponseController::class, 'subAreaItems'])->name('sub-areas.items');
+
+    // Save draft narrative + rating for one item
+    Route::post('/area-items/{item}/response', [AreaItemResponseController::class, 'saveDraft'])->name('item-responses.saveDraft');
+
+    // Get response JSON for modal (AJAX)
+    Route::get('/area-items/{item}/response', [AreaItemResponseController::class, 'getResponse'])->name('item-responses.get');
+
+    // Area-level submit / return / approve
+    Route::post('/areas/{area}/submit-to-dean', [AreaItemResponseController::class, 'submitArea'])->name('areas.submitToDean');
+    Route::post('/area-submissions/{submission}/return', [AreaItemResponseController::class, 'returnArea'])->name('areas.return');
+    Route::post('/area-submissions/{submission}/approve', [AreaItemResponseController::class, 'approveArea'])->name('areas.approve');
+
+    // Supporting evidence file upload (multi), delete, download
+    Route::post('/item-files', [AreaItemFileController::class, 'store'])->name('item-files.store');
+    Route::delete('/item-files/{file}', [AreaItemFileController::class, 'destroy'])->name('item-files.destroy');
+    Route::get('/item-files/{file}/download', [AreaItemFileController::class, 'download'])->name('item-files.download');
+    Route::get('/item-files/{file}/preview', [AreaItemFileController::class, 'preview'])->name('item-files.preview');
+
+    // Area item CRUD (Director/Admin only)
+    Route::post('/area-items', [AreaItemController::class, 'store'])->name('area-items.store');
+    Route::put('/area-items/{item}', [AreaItemController::class, 'update'])->name('area-items.update');
+    Route::delete('/area-items/{item}', [AreaItemController::class, 'destroy'])->name('area-items.destroy');
+
+    // ── Documents ──
+    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+    Route::get('/documents/upload-data', [DocumentController::class, 'uploadModalData'])->name('documents.upload-data');
+    Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+    Route::get('/documents/upload', [DocumentController::class, 'uploadPage'])->name('documents.upload');
+    Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
+    Route::get('/documents/{document}/versions/{version}/download', [DocumentController::class, 'downloadVersion'])->name('documents.downloadVersion');
+    Route::post('/documents/{document}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
+    Route::post('/documents/{document}/reject', [DocumentController::class, 'reject'])->name('documents.reject');
+    Route::post('/documents/{document}/submit', [DocumentController::class, 'submitDocument'])->name('documents.submit');
+    Route::post('/documents/{document}/workflow', [DocumentController::class, 'workflow'])->name('documents.workflow');
+    Route::post('/documents/{document}/resubmit', [DocumentController::class, 'resubmit'])->name('documents.resubmit');
+    Route::get('/documents/item-file/{file}/download', [DocumentController::class, 'downloadItemFile'])->name('documents.item-file.download');
 
 
-        // ── Documents ──
-        Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
-        Route::get('/documents/upload-data', [DocumentController::class, 'uploadModalData'])->name('documents.upload-data');
-        Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
-        Route::get('/documents/upload', [DocumentController::class, 'uploadPage'])->name('documents.upload');
-        Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
-        Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-        Route::get('/documents/{document}/versions/{version}/download', [DocumentController::class, 'downloadVersion'])->name('documents.downloadVersion');
-        Route::post('/documents/{document}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
-        Route::post('/documents/{document}/reject', [DocumentController::class, 'reject'])->name('documents.reject');
-        Route::post('/documents/{document}/analyze', [DocumentEvaluationController::class, 'store'])->name('documents.analyze');
+    // ── Programs ──
+    Route::get('/programs', [ProgramController::class, 'index'])->name('programs.index');
+    Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
+    Route::get('/programs/{program}', [ProgramController::class, 'show'])->name('programs.show');
+    Route::post('/programs/{program}/users', [ProgramController::class, 'addUser'])->name('programs.addUser');
+    Route::post('/programs/{program}/logo', [ProgramController::class, 'uploadLogo'])->name('programs.logo.upload');
+    Route::get('/programs/{program}/logo', [ProgramController::class, 'serveLogo'])->name('programs.logo');
 
-        // ── Programs ──
-        Route::get('/programs', [ProgramController::class, 'index'])->name('programs.index');
-        Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
-        Route::get('/programs/{program}', [ProgramController::class, 'show'])->name('programs.show');
-        Route::post('/programs/{program}/users', [ProgramController::class, 'addUser'])->name('programs.addUser');
+    // ── Standards ──
+    Route::get('/standards', [StandardController::class, 'index'])->name('standards.index');
+    Route::post('/standards', [StandardController::class, 'store'])->name('standards.store');
 
-        // ── Users ──
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::post('/users', [UserController::class, 'store'])->name('users.store');
-        Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
-        Route::post('/users/{user}/toggle', [UserController::class, 'toggleActive'])->name('users.toggle');
-        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
-        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-        Route::post('/users/{user}/assign-area', [UserController::class, 'assignArea'])->name('users.assignArea');
-        Route::delete('/users/{user}/remove-area/{area}', [UserController::class, 'removeArea'])->name('users.removeArea');
+    // ── Users ──
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::post('/users/{user}/assign-area', [UserController::class, 'assignArea'])->name('users.assignArea');
+    Route::delete('/users/{user}/remove-area/{area}', [UserController::class, 'removeArea'])->name('users.removeArea');
+    Route::post('/users/{user}/assign-program', [UserController::class, 'assignProgram'])->name('users.assignProgram');
 
-        // ── Notifications ──
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.markRead');
-        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    // ── Notifications ──
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.markRead');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 
-        // ── Activity Logs ──
-        Route::get('/logs', [ActivityLogController::class, 'index'])->name('logs.index');
+    // ── Activity Logs ──
+    Route::get('/logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
-        // ── Settings ──
-        Route::get('/settings', fn () => redirect('/dashboard'))->name('settings.index');
-        Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    // ── Settings ──
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
     // ── Reports ──
     Route::get('/reports/readiness', [ReadinessController::class, 'index'])->name('reports.readiness');
     Route::get('/reports/readiness/export', [ReadinessController::class, 'export'])->name('reports.readiness.export');
     Route::get('/reports/readiness/export/{program}', [ReadinessController::class, 'exportProgram'])->name('reports.readiness.exportProgram');
 
-        // ── Accreditation Cycles ──
-        Route::get('/cycles', [CycleController::class, 'index'])->name('cycles.index');
-        Route::post('/cycles', [CycleController::class, 'store'])->name('cycles.store');
-        Route::put('/cycles/{cycle}', [CycleController::class, 'update'])->name('cycles.update');
-        Route::post('/cycles/{cycle}/activate', [CycleController::class, 'activate'])->name('cycles.activate');
-        Route::delete('/cycles/{cycle}', [CycleController::class, 'destroy'])->name('cycles.destroy');
+    // ── Accreditation Cycles ──
+    Route::get('/cycles', [CycleController::class, 'index'])->name('cycles.index');
+    Route::post('/cycles', [CycleController::class, 'store'])->name('cycles.store');
+    Route::put('/cycles/{cycle}', [CycleController::class, 'update'])->name('cycles.update');
+    Route::post('/cycles/{cycle}/activate', [CycleController::class, 'activate'])->name('cycles.activate');
+    Route::post('/cycles/{cycle}/deactivate', [CycleController::class, 'deactivate'])->name('cycles.deactivate');
+    Route::delete('/cycles/{cycle}', [CycleController::class, 'destroy'])->name('cycles.destroy');
 
-        // ── Theme Management ──
-        Route::get('/admin/theme', [ThemeController::class, 'index'])->name('admin.theme.index');
-        Route::post('/admin/theme', [ThemeController::class, 'update'])->name('admin.theme.update');
-        Route::get('/standards', [StandardController::class, 'index'])->name('standards.index');
-        Route::post('/standards', [StandardController::class, 'store'])->name('standards.store');
-    });
+    // ── Cycle Switcher (session-based viewing context) ──
+    Route::post('/cycles/{cycle}/switch', [CycleController::class, 'switchViewing'])->name('cycles.switch');
+
+    // ── Area Evidence Checklist (Director manages, Coordinators view & toggle) ──
+    Route::get('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'index'])->name('checklist.index');
+    Route::post('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'store'])->name('checklist.store');
+    Route::put('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'update'])->name('checklist.update');
+    Route::post('/checklist/{checklist}/toggle', [\App\Http\Controllers\User\ChecklistController::class, 'toggleComplete'])->name('checklist.toggle');
+    Route::delete('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'destroy'])->name('checklist.destroy');
 });
+

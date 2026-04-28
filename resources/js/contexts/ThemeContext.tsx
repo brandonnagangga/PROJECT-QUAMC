@@ -186,8 +186,8 @@ function buildThemePresets(serverTheme: ThemeConfig): ThemePreset[] {
     },
     {
       id: 'claude',
-      name: 'Claude',
-      description: 'Warm amber tones',
+      name: 'Sunset Amber',
+      description: 'Warm amber and sand tones',
       theme: {
         mode: 'themed',
         primary_color: '#C97B36',
@@ -276,8 +276,8 @@ function buildThemePresets(serverTheme: ThemeConfig): ThemePreset[] {
     },
     {
       id: 'twitter',
-      name: 'Twitter',
-      description: 'Clean sky blue',
+      name: 'Sky Blue',
+      description: 'Fresh and clean blue tones',
       theme: {
         mode: 'themed',
         primary_color: '#1D9BF0',
@@ -364,8 +364,8 @@ function buildThemePresets(serverTheme: ThemeConfig): ThemePreset[] {
     },
     {
       id: 'supabase',
-      name: 'Supabase',
-      description: 'Emerald green calm',
+      name: 'Mint Breeze',
+      description: 'Calm emerald and lavender tones',
       theme: {
         mode: 'themed',
         primary_color: '#3ECF8E',
@@ -452,8 +452,8 @@ function buildThemePresets(serverTheme: ThemeConfig): ThemePreset[] {
     },
     {
       id: 'darkmatter',
-      name: 'Darkmatter',
-      description: 'Amber and teal on charcoal',
+      name: 'Midnight Contrast',
+      description: 'High-contrast dark theme',
       theme: {
         mode: 'themed',
         primary_color: '#D19949',
@@ -496,8 +496,8 @@ function buildThemePresets(serverTheme: ThemeConfig): ThemePreset[] {
     },
     {
       id: 'doom-64',
-      name: 'Doom 64',
-      description: 'Retro shooter contrast',
+      name: 'Retro Stone',
+      description: 'Muted retro gray with earthy accents',
       theme: {
         mode: 'themed',
         primary_color: '#A34C3D',

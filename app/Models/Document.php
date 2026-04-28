@@ -14,6 +14,7 @@ class Document extends Model
     protected $fillable = [
         'sub_area_id',
         'program_id',
+        'cycle_id',
         'doc_type',     // input | process | outcome
         'uploaded_by',
         'title',
@@ -44,6 +45,11 @@ class Document extends Model
     public function program(): BelongsTo
     {
         return $this->belongsTo(Program::class);
+    }
+
+    public function cycle(): BelongsTo
+    {
+        return $this->belongsTo(AccreditationCycle::class);
     }
 
     public function uploader(): BelongsTo

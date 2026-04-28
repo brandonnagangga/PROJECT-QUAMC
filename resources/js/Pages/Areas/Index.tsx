@@ -2,12 +2,13 @@ import { router, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link } from '@inertiajs/react';
-import { confirmAction } from '@/utils/toast';
+import { confirmAction, showError, showSuccess } from '@/utils/toast';
 import Swal from 'sweetalert2';
 import {
     ChevronDown, ChevronUp, Upload, CheckCircle, Clock, RotateCcw,
     FileText, Download, Eye, ArrowRight, Pencil, ThumbsUp, ThumbsDown,
-    CloudUpload, StickyNote, X,
+    CloudUpload, StickyNote, X, Calendar, SendHorizonal, AlertTriangle,
+    Lock, AlertCircle, Timer, History,
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -17,10 +18,12 @@ interface DocSlot {
     approval_status: string; rejection_reason: string | null;
     doc_id: string;
 }
+interface NoteReply { id: number; message: string; user_name: string; created_at: string; }
 interface SubAreaData {
     id: number; name: string; order_number: number;
     submission_status: string; submitted_by_dean_at: string | null;
     return_notes: string | null;
+    note_replies: NoteReply[];
     slots: Record<number, { input: DocSlot | null; process: DocSlot | null; outcome: DocSlot | null }>;
 }
 interface AreaData {
@@ -37,6 +40,8 @@ interface Props {
     can_act: boolean;
     my_program_id: number | null;
     assigned_area_ids: number[];
+    cycle_locked: boolean;
+    is_viewing_past: boolean;
 }
 
 /* ── Constants ── */
@@ -59,10 +64,31 @@ const SLOT_STYLES = {
 const AREA_COLORS = ['#1a7a4a','#185FA5','#c9a84c','#6b3fa0','#e07a00','#9b1c1c','#185FA5','#9b1c1c','#1a7a4a','#c9a84c'];
 
 const APPROVAL_CONFIG = {
-    pending:  { bg: '#f0f2f8', color: '#8892aa', label: 'Pending Review' },
-    approved: { bg: '#e8f5ee', color: '#1a7a4a', label: 'Approved ✓' },
-    rejected: { bg: '#fef2f2', color: '#9b1c1c', label: 'Rejected' },
+    pending:        { bg: '#f0f2f8', color: '#8892aa', label: 'Pending Review' },
+    approved:       { bg: '#e8f5ee', color: '#1a7a4a', label: 'Approved ✓' },
+    rejected:       { bg: '#fef2f2', color: '#9b1c1c', label: 'Rejected' },
+    needs_resubmit: { bg: '#fff7ed', color: '#9a3412', label: 'Needs Resubmit' },
 };
+
+/* ── Deadline Badge helper ── */
+function DeadlineBadge({ deadlineAt }: { deadlineAt: string | null }) {
+    if (!deadlineAt) return null;
+    const diff = Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 86_400_000);
+    let bg = '#e8f5ee', color = '#1a7a4a';
+    let Icon: any = CheckCircle;
+    let label = `${diff}d left`;
+    if (diff <= 0)      { bg = '#fef2f2'; color = '#9b1c1c'; Icon = AlertCircle; label = 'OVERDUE'; }
+    else if (diff <= 7) { bg = '#fff7ed'; color = '#9a3412'; Icon = Timer;       label = `${diff}d left`; }
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            padding: '2px 8px', borderRadius: 12, fontSize: 9.5,
+            fontWeight: 700, background: bg, color, whiteSpace: 'nowrap',
+        }}>
+            <Icon size={9} /> {label}
+        </span>
+    );
+}
 
 /* ── Shared Modal Shell ── */
 function ModalShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
@@ -91,9 +117,58 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
     );
 }
 
+/* ── Preview Modal ── */
+function PreviewModal({ docId, filename, mime, onClose }: { docId: string; filename: string; mime: string; onClose: () => void }) {
+    const isPdf   = mime === 'application/pdf';
+    const isImage = mime.startsWith('image/');
+    const src = `/documents/${docId}/preview`;
+    return (
+        <div
+            style={{
+                position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.75)',
+                display: 'flex', flexDirection: 'column', zIndex: 300,
+            }}
+            onClick={onClose}
+        >
+            {/* Header bar */}
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                    background: '#0f1f3d', padding: '10px 20px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}
+            >
+                <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13 }}>{filename}</span>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                    <X size={16} /> Close
+                </button>
+            </div>
+            {/* Content */}
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+            >
+                {isPdf && (
+                    <iframe src={src} style={{ width: '100%', height: '100%', border: 'none' }} title="Document Preview" />
+                )}
+                {isImage && (
+                    <img src={src} alt={filename} style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain', borderRadius: 8 }} />
+                )}
+                {!isPdf && !isImage && (
+                    <div style={{ color: '#fff', textAlign: 'center' }}>
+                        <FileText size={48} color="#c9a84c" style={{ marginBottom: 12 }} />
+                        <div style={{ fontSize: 14, marginBottom: 8 }}>This file type cannot be previewed in-browser.</div>
+                        <a href={`/documents/${docId}/download`} style={{ color: '#c9a84c', fontWeight: 700, fontSize: 13 }}>⬇ Download instead</a>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 /* ── SlotCard ── */
 function SlotCard({
-    type, doc, sa, area, selectedProgram, role, can_act,
+    type, doc, sa, area, selectedProgram, role, can_act, cycleLocked,
     onUpload,
 }: {
     type: 'input' | 'process' | 'outcome';
@@ -103,14 +178,35 @@ function SlotCard({
     selectedProgram: number | null;
     role: string;
     can_act: boolean;
+    cycleLocked: boolean;
     onUpload: (subAreaId: number, areaId: number, docType: string, areaName: string, subAreaName: string) => void;
 }) {
-    const isDean = role === 'dean';
+    const isDean  = role === 'dean';
+    const isCoord = ['area-coordinator', 'program-coordinator'].includes(role);
     const st = SLOT_STYLES[type];
 
     const [hovered, setHovered] = useState(false);
     const [showDeanBar, setShowDeanBar] = useState<null | 'approve' | 'reject'>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [preview, setPreview] = useState<{ mime: string; filename: string } | null>(null);
+
+    const handlePreview = async () => {
+        if (!doc) return;
+        try {
+            const res = await fetch(`/documents/${doc.doc_id}/preview`, { method: 'HEAD' });
+            const ct  = res.headers.get('Content-Type') ?? '';
+            // If it returned JSON (not previewable), fall back to showing download notice
+            const mime = ct.includes('json') ? 'application/octet-stream' : ct.split(';')[0].trim();
+            setPreview({ mime, filename: doc.title });
+        } catch {
+            setPreview({ mime: 'application/octet-stream', filename: doc?.title ?? '' });
+        }
+    };
+
+    const handleResubmit = () => {
+        if (!doc) return;
+        router.post(`/documents/${doc.doc_id}/resubmit`, {}, { preserveScroll: true });
+    };
 
     const handleApprove = () => {
         if (!doc) return;
@@ -125,9 +221,20 @@ function SlotCard({
         setRejectReason('');
     };
 
-    const approvalCfg = doc ? (APPROVAL_CONFIG[doc.approval_status as keyof typeof APPROVAL_CONFIG] ?? APPROVAL_CONFIG.pending) : null;
+    const approvalCfg = doc
+        ? (APPROVAL_CONFIG[doc.approval_status as keyof typeof APPROVAL_CONFIG] ?? APPROVAL_CONFIG.pending)
+        : null;
 
     return (
+        <>
+        {preview && (
+            <PreviewModal
+                docId={doc!.doc_id}
+                filename={preview.filename}
+                mime={preview.mime}
+                onClose={() => setPreview(null)}
+            />
+        )}
         <div
             style={{
                 border: `1.5px solid ${doc ? st.border + '60' : '#edf0f7'}`,
@@ -177,6 +284,22 @@ function SlotCard({
                             </div>
                         )}
 
+                        {/* Coordinator: needs_resubmit — show Submit for Review button */}
+                        {isCoord && doc.approval_status === 'needs_resubmit' && (
+                            <button
+                                onClick={handleResubmit}
+                                style={{
+                                    width: '100%', padding: '6px 0', borderRadius: 6, border: 'none',
+                                    cursor: 'pointer', background: '#9a3412', color: '#fff',
+                                    fontSize: 10, fontWeight: 700, marginBottom: 6,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                                }}
+                            >
+                                <SendHorizonal size={11} /> Submit for Review
+                            </button>
+                        )}
+
+                        {/* Upload / View / Download — hidden only when cycle locked for coordinators */}
                         {can_act && (
                             <div style={{
                                 display: 'flex', gap: 4, justifyContent: 'flex-end',
@@ -185,16 +308,32 @@ function SlotCard({
                                 transition: 'opacity 0.18s, transform 0.18s',
                                 marginTop: 4,
                             }}>
+                                {/* Upload (edit) — blocked if cycle locked for coordinators */}
+                                {(!cycleLocked || isDean) && (
+                                    <button
+                                        title="Upload new version"
+                                        onClick={() => onUpload(sa.id, area.id, type, area.name, sa.name)}
+                                        style={{
+                                            width: 28, height: 28, borderRadius: 6, border: `1px solid ${st.color}40`,
+                                            background: st.bg, color: st.color, cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        }}
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                )}
+
+                                {/* Preview */}
                                 <button
-                                    title="Upload new version"
-                                    onClick={() => onUpload(sa.id, area.id, type, area.name, sa.name)}
+                                    title="Preview"
+                                    onClick={handlePreview}
                                     style={{
-                                        width: 28, height: 28, borderRadius: 6, border: `1px solid ${st.color}40`,
-                                        background: st.bg, color: st.color, cursor: 'pointer',
+                                        width: 28, height: 28, borderRadius: 6, border: '1px solid #dde1ed',
+                                        background: '#fff', color: '#6b3fa0', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     }}
                                 >
-                                    <Pencil size={12} />
+                                    <Eye size={12} />
                                 </button>
 
                                 <Link
@@ -206,7 +345,7 @@ function SlotCard({
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     }}
                                 >
-                                    <Eye size={12} />
+                                    <FileText size={12} />
                                 </Link>
 
                                 <a
@@ -282,7 +421,7 @@ function SlotCard({
                     <>
                         <div style={{ fontSize: 10, color: '#b8bfd4', fontStyle: 'italic', marginBottom: 6 }}>No file yet</div>
 
-                        {can_act && (
+                        {can_act && !cycleLocked && (
                             <button
                                 onClick={() => onUpload(sa.id, area.id, type, area.name, sa.name)}
                                 title="Upload evidence for this slot"
@@ -299,243 +438,244 @@ function SlotCard({
                                 <CloudUpload size={13} /> Upload
                             </button>
                         )}
+                        {can_act && cycleLocked && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                                fontSize: 9.5, color: '#b8bfd4', fontStyle: 'italic', marginTop: 4,
+                            }}>
+                                <Lock size={9} color="#b8bfd4" /> Uploads locked
+                            </div>
+                        )}
                     </>
                 )}
+            </div>
+        </div>
+        </>
+    );
+}
+
+/* ── Upload Modal ── */
+const TYPE_CFG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+    input:   { label: 'Input',   color: '#0c447c', bg: '#e6f1fb', icon: '↓' },
+    process: { label: 'Process', color: '#633806', bg: '#faeeda', icon: '⟳' },
+    outcome: { label: 'Outcome', color: '#085041', bg: '#e1f5ee', icon: '✓' },
+};
+
+function UploadModal({
+    open, onClose, preselect, selectedProgram,
+}: {
+    open: boolean; onClose: () => void;
+    preselect: { sub_area_id?: number; area_id?: number; doc_type?: string; area_name?: string; sub_area_name?: string } | null;
+    selectedProgram: number | null;
+    programs?: Program[];
+}) {
+    const [file, setFile]     = useState<File | null>(null);
+    const [title, setTitle]   = useState('');
+    const [notes, setNotes]   = useState('');
+    const [dragOver, setDragOver] = useState(false);
+    const [loading, setLoading]   = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (open && preselect?.sub_area_name && preselect?.doc_type) {
+            const tl = TYPE_CFG[preselect.doc_type]?.label ?? preselect.doc_type;
+            setTitle(`${preselect.sub_area_name} — ${tl} Evidence`);
+        }
+        if (!open) { setFile(null); setTitle(''); setNotes(''); setDragOver(false); }
+    }, [open]);
+
+    if (!open) return null;
+
+    const docType = preselect?.doc_type ?? 'input';
+    const tc      = TYPE_CFG[docType] ?? TYPE_CFG.input;
+
+    const getMimeIcon = (f: File) => {
+        if (f.type.includes('pdf'))        return '📄';
+        if (f.name.endsWith('.docx') || f.type.includes('word'))  return '📝';
+        if (f.name.endsWith('.xlsx') || f.type.includes('sheet')) return '📊';
+        if (f.type.startsWith('image/'))   return '🖼️';
+        return '📎';
+    };
+
+    const canSubmit = !loading && !!file && !!title.trim() && !!selectedProgram && !!preselect?.sub_area_id;
+
+    const handleSubmit = () => {
+        if (!canSubmit) return;
+        setLoading(true);
+        const fd = new FormData();
+        fd.append('file',         file!);
+        fd.append('title',        title);
+        fd.append('notes',        notes);
+        fd.append('program_id',   String(selectedProgram));
+        fd.append('sub_area_id',  String(preselect!.sub_area_id));
+        fd.append('doc_type',     docType);
+        router.post('/documents', fd as any, {
+            forceFormData: true, preserveScroll: true,
+            onSuccess: () => { onClose(); setFile(null); setTitle(''); setNotes(''); setLoading(false); },
+            onError:   () => setLoading(false),
+        });
+    };
+
+    const breadcrumbs = [preselect?.area_name, preselect?.sub_area_name, tc.label, 'Upload file'].filter(Boolean);
+
+    return (
+        <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.52)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}
+            onClick={onClose}
+        >
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(15,31,61,0.25)', overflow: 'hidden', fontFamily: "'DM Sans', sans-serif" }}
+            >
+                {/* ── HEADER ── */}
+                <div style={{ background: '#0f1f3d' }}>
+                    <div style={{ padding: '16px 20px 12px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ width: 38, height: 38, background: 'rgba(201,168,76,0.18)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>📎</div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>Upload Evidence</div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
+                                {tc.label} evidence for {preselect?.sub_area_name}
+                            </div>
+                        </div>
+                        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                    </div>
+                    {/* Breadcrumb */}
+                    <div style={{ padding: '9px 20px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.14)' }}>
+                        {breadcrumbs.map((item, i) => (
+                            <>
+                                <span key={i} style={{ fontSize: 10.5, fontWeight: i === breadcrumbs.length - 1 ? 600 : 500, color: i === breadcrumbs.length - 1 ? '#c9a84c' : 'rgba(255,255,255,0.55)' }}>{item}</span>
+                                {i < breadcrumbs.length - 1 && <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>›</span>}
+                            </>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ── BODY ── */}
+                <div style={{ padding: '18px 20px' }}>
+                    {/* Context notice */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#eeedfe', border: '1px solid #d4c8f8', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
+                        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>🔒</span>
+                        <div style={{ fontSize: 11.5, color: '#3c3489', lineHeight: 1.6 }}>
+                            Uploading to <strong>{preselect?.area_name} › {preselect?.sub_area_name}</strong> — type: <strong style={{ color: tc.color }}>{tc.label}</strong>. A new version is created if the slot already has a file.
+                        </div>
+                    </div>
+
+                    {/* Section label */}
+                    <div style={{ fontSize: 10.5, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        Upload file <div style={{ flex: 1, height: 1, background: '#f0f2f8' }} />
+                    </div>
+
+                    {/* Dropzone */}
+                    <div
+                        onClick={() => !file && fileRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
+                        style={{
+                            border: `2px dashed ${dragOver ? '#0f1f3d' : '#dde1ed'}`,
+                            borderRadius: 12, padding: '26px 20px', textAlign: 'center',
+                            cursor: file ? 'default' : 'pointer', transition: 'all 0.2s',
+                            background: dragOver ? '#fdf6e3' : '#f8f9fc',
+                        }}
+                    >
+                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
+                        {file ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
+                                <div style={{ width: 38, height: 38, background: tc.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>{getMimeIcon(file)}</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1e2640', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                                    <div style={{ fontSize: 11, color: '#8892aa', marginTop: 2, fontFamily: "'DM Mono', monospace" }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                                </div>
+                                <span
+                                    onClick={e => { e.stopPropagation(); setFile(null); if (fileRef.current) fileRef.current.value = ''; }}
+                                    style={{ fontSize: 18, color: '#b8bfd4', cursor: 'pointer', flexShrink: 0 }}
+                                >✕</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
+                                <div style={{ fontSize: 13, color: '#4a5470', fontWeight: 500 }}>Drop file here or click to browse</div>
+                                <div style={{ fontSize: 11, color: '#8892aa', marginTop: 4 }}>Maximum 50 MB per file</div>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 10, flexWrap: 'wrap' }}>
+                                    {['PDF','DOCX','XLSX','JPG','PNG'].map(t => (
+                                        <span key={t} style={{ fontSize: 9.5, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#0f1f3d', color: '#fff', padding: '2px 7px', borderRadius: 4 }}>{t}</span>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Document title */}
+                    <div style={{ marginTop: 14 }}>
+                        <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document title <span style={{ color: '#9b1c1c' }}>*</span></label>
+                        <input
+                            value={title} onChange={e => setTitle(e.target.value)}
+                            placeholder="e.g. CMO Alignment Matrix AY 2024-2025"
+                            style={{ width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d', outline: 'none', boxSizing: 'border-box' as any }}
+                        />
+                    </div>
+
+                    {/* Notes */}
+                    <div style={{ marginTop: 13 }}>
+                        <label style={{ fontSize: 11.5, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Notes <span style={{ fontWeight: 400, color: '#b8bfd4' }}>(optional)</span></label>
+                        <textarea
+                            value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                            placeholder="Version notes or context…"
+                            style={{ width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d', outline: 'none', boxSizing: 'border-box' as any, resize: 'none' }}
+                        />
+                    </div>
+                </div>
+
+                {/* ── FOOTER ── */}
+                <div style={{ padding: '13px 20px', borderTop: '1px solid #f0f2f8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8f9fc' }}>
+                    <div style={{ fontSize: 11.5, color: '#8892aa' }}>Supporting evidence upload</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#4a5470', fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                            style={{
+                                padding: '8px 22px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700,
+                                background: canSubmit ? '#c9a84c' : '#e0e4ef',
+                                color: canSubmit ? '#0f1f3d' : '#8892aa',
+                                cursor: canSubmit ? 'pointer' : 'not-allowed',
+                                fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s',
+                            }}
+                        >
+                            {loading ? 'Uploading…' : 'Submit Evidence'}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
 
-/* ── Upload Modal ── */
-function UploadModal({
-    open, onClose, preselect, selectedProgram, programs,
-}: {
-    open: boolean; onClose: () => void;
-    preselect: {
-        sub_area_id?: number;
-        area_id?: number;
-        doc_type?: string;
-        area_name?: string;
-        sub_area_name?: string;
-    } | null;
-    selectedProgram: number | null;
-    programs: Program[];
-}) {
-    const isPreselected = !!(preselect?.sub_area_id && preselect?.doc_type && preselect?.area_id);
-
-    const [file, setFile] = useState<File | null>(null);
-    const [title, setTitle] = useState('');
-    const [notes, setNotes] = useState('');
-    const [areaId, setAreaId] = useState<number | ''>(preselect?.area_id ?? '');
-    const [subAreaId, setSubAreaId] = useState<number | ''>(preselect?.sub_area_id ?? '');
-    const [docType, setDocType] = useState<string>(preselect?.doc_type ?? '');
-    const [areas, setAreas] = useState<{ id: number; name: string; sub_areas: { id: number; name: string }[] }[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [dragOver, setDragOver] = useState(false);
-    const fileRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (open && preselect) {
-            if (preselect.area_id)     setAreaId(preselect.area_id);
-            if (preselect.sub_area_id) setSubAreaId(preselect.sub_area_id);
-            if (preselect.doc_type)    setDocType(preselect.doc_type);
-        }
-        if (!open) {
-            setFile(null);
-            setTitle('');
-            setNotes('');
-        }
-    }, [open, preselect]);
-
-    // Only fetch areas list if NOT fully preselected
-    if (open && !isPreselected && areas.length === 0) {
-        fetch('/documents/upload-data')
-            .then(r => r.json())
-            .then(d => setAreas(d.areas ?? []));
-    }
-
-    const selectedArea = areas.find(a => a.id === areaId);
-    const subAreas = selectedArea?.sub_areas ?? [];
-
-    const handleSubmit = () => {
-        if (!file || !title || !selectedProgram || !subAreaId || !docType) return;
-        setLoading(true);
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('title', title);
-        fd.append('notes', notes);
-        fd.append('program_id', String(selectedProgram));
-        fd.append('sub_area_id', String(subAreaId));
-        fd.append('doc_type', docType);
-
-        // Use Inertia router with forceFormData to correctly send multipart file uploads
-        router.post('/documents', fd as any, {
-            forceFormData: true,
-            preserveScroll: true,
-            onSuccess: () => { onClose(); setFile(null); setTitle(''); setNotes(''); setLoading(false); },
-            onError: () => setLoading(false),
-        });
-    };
-
-    if (!open) return null;
-
-    const inp: React.CSSProperties = {
-        width: '100%', border: '1.5px solid #dde1ed', borderRadius: 8,
-        padding: '9px 12px', fontSize: 12.5, outline: 'none', boxSizing: 'border-box',
-        fontFamily: "'DM Sans', sans-serif", color: '#0f1f3d',
-    };
-
-    const docTypeLabel = docType ? (docType.charAt(0).toUpperCase() + docType.slice(1)) : '';
-
-    return (
-        <ModalShell onClose={onClose}>
-            {/* Close button */}
-            <button
-                onClick={onClose}
-                style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: 8, border: '1px solid #dde1ed', background: '#f8f9fc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-                <X size={14} color="#8892aa" />
-            </button>
-
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#0f1f3d', marginBottom: 4 }}>Upload Evidence</div>
-            <div style={{ fontSize: 11.5, color: '#8892aa', marginBottom: 20 }}>A new version will be created if a file already exists for this slot.</div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Context banner (replaces locked inputs when preselected) */}
-                {isPreselected ? (
-                    <div style={{
-                        background: 'linear-gradient(135deg, #e6f1fb, #eef5ff)',
-                        border: '1.5px solid #378add40',
-                        borderRadius: 10, padding: '12px 16px',
-                        display: 'flex', alignItems: 'center', gap: 10,
-                    }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#185fa5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <FileText size={18} color="#fff" />
-                        </div>
-                        <div>
-                            <div style={{ fontSize: 11, color: '#8892aa', fontWeight: 500, marginBottom: 2 }}>Uploading to</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f1f3d', lineHeight: 1.3 }}>
-                                {preselect?.area_name} &rsaquo; {preselect?.sub_area_name}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#185fa5', fontWeight: 600, marginTop: 2 }}>
-                                Document Type: {docTypeLabel}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {/* Area dropdown */}
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Area</label>
-                            <select style={inp} value={areaId} onChange={e => { setAreaId(Number(e.target.value)); setSubAreaId(''); }}>
-                                <option value="">Select area…</option>
-                                {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Sub-area dropdown */}
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Sub-area</label>
-                            <select style={inp} value={subAreaId} onChange={e => setSubAreaId(Number(e.target.value))} disabled={!areaId}>
-                                <option value="">Select sub-area…</option>
-                                {(areas.find(a => a.id === areaId)?.sub_areas ?? []).map(sa => <option key={sa.id} value={sa.id}>{sa.name}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Doc type dropdown */}
-                        <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Type</label>
-                            <select style={inp} value={docType} onChange={e => setDocType(e.target.value)}>
-                                <option value="">Select type…</option>
-                                <option value="input">Input</option>
-                                <option value="process">Process</option>
-                                <option value="outcome">Outcome</option>
-                            </select>
-                        </div>
-                    </>
-                )}
-
-                {/* Document Title */}
-                <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Document Title <span style={{ color: '#9b1c1c' }}>*</span></label>
-                    <input style={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CMO Alignment Matrix" />
-                </div>
-
-                {/* File picker with drag & drop */}
-                <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>File <span style={{ color: '#9b1c1c' }}>*</span></label>
-                    <div
-                        onClick={() => fileRef.current?.click()}
-                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
-                        style={{
-                            border: `2px dashed ${dragOver ? '#185fa5' : '#dde1ed'}`,
-                            borderRadius: 10, padding: '24px 16px',
-                            textAlign: 'center', cursor: 'pointer',
-                            background: dragOver ? '#e6f1fb' : '#f8f9fc',
-                            transition: 'all 0.15s',
-                        }}
-                    >
-                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
-                        {file ? (
-                            <div>
-                                <FileText size={20} color="#0f1f3d" style={{ marginBottom: 6 }} />
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1f3d' }}>{file.name}</div>
-                                <div style={{ fontSize: 10, color: '#8892aa', marginTop: 2 }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-                            </div>
-                        ) : (
-                            <div>
-                                <CloudUpload size={24} color="#b8bfd4" style={{ marginBottom: 6 }} />
-                                <div style={{ fontSize: 12, color: '#8892aa' }}>Click to browse or drag & drop</div>
-                                <div style={{ fontSize: 10, color: '#b8bfd4', marginTop: 3 }}>PDF, DOCX, XLSX up to 50 MB</div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4a5470', display: 'block', marginBottom: 5 }}>Notes <span style={{ color: '#8892aa', fontWeight: 400 }}>(optional)</span></label>
-                    <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' } as any} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any relevant notes…" />
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-                    <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 8, border: '1px solid #dde1ed', background: '#fff', fontSize: 12.5, cursor: 'pointer', color: '#4a5470', fontWeight: 500 }}>Cancel</button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading || !file || !title || !selectedProgram || !subAreaId || !docType}
-                        style={{
-                            padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 12.5, fontWeight: 700,
-                            background: '#0f1f3d', color: '#c9a84c', cursor: 'pointer',
-                            opacity: (loading || !file || !title || !selectedProgram || !subAreaId || !docType) ? 0.55 : 1,
-                            transition: 'opacity 0.15s',
-                        }}
-                    >
-                        {loading ? 'Uploading…' : 'Upload Evidence'}
-                    </button>
-                </div>
-            </div>
-        </ModalShell>
-    );
-}
-
-/* ── Return Note Banner (coordinator + dean visible, dean can edit) ── */
+/* ── Return Note Banner (coordinator + dean visible, dean can edit, both can reply) ── */
 function ReturnNoteBanner({ sa, isDean, selectedProgram }: { sa: SubAreaData; isDean: boolean; selectedProgram: number | null }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(sa.return_notes ?? '');
+    const [replyText, setReplyText] = useState('');
+    const [showReply, setShowReply] = useState(false);
+    const [postingReply, setPostingReply] = useState(false);
 
     if (!sa.return_notes && !isDean) return null;
-    if (!sa.return_notes && isDean) {
-        // Dean can add a note even if none exists
-    }
 
     const handleSave = () => {
         if (!selectedProgram) return;
         router.post(`/sub-areas/${sa.id}/note`, { notes: draft, program_id: selectedProgram }, {
             preserveScroll: true,
             onSuccess: () => setEditing(false),
+        });
+    };
+
+    const handlePostReply = () => {
+        if (!replyText.trim() || postingReply) return;
+        setPostingReply(true);
+        router.post(`/sub-areas/${sa.id}/note/reply`, { message: replyText }, {
+            preserveScroll: true,
+            onSuccess: () => { setReplyText(''); setShowReply(false); setPostingReply(false); },
+            onError: () => setPostingReply(false),
         });
     };
 
@@ -585,13 +725,73 @@ function ReturnNoteBanner({ sa, isDean, selectedProgram }: { sa: SubAreaData; is
                         )}
                     </div>
                 )}
+
+                {/* ── Replies Thread ── */}
+                {sa.note_replies && sa.note_replies.length > 0 && (
+                    <div style={{ marginTop: 10, borderTop: '1px solid #f59e0b30', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                            Thread ({sa.note_replies.length})
+                        </div>
+                        {sa.note_replies.map((reply) => (
+                            <div key={reply.id} style={{
+                                background: 'rgba(255,255,255,0.7)', borderRadius: 7,
+                                padding: '7px 10px', border: '1px solid #f59e0b25',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#78350f' }}>{reply.user_name}</span>
+                                    <span style={{ fontSize: 9.5, color: '#b8bfd4' }}>{reply.created_at}</span>
+                                </div>
+                                <div style={{ fontSize: 11.5, color: '#4a5470', lineHeight: 1.5 }}>{reply.message}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Reply Input ── */}
+                {sa.return_notes && (
+                    <div style={{ marginTop: 8 }}>
+                        {showReply ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <textarea
+                                    value={replyText}
+                                    onChange={e => setReplyText(e.target.value)}
+                                    autoFocus
+                                    rows={2}
+                                    placeholder="Write your reply…"
+                                    style={{
+                                        width: '100%', fontSize: 11.5, borderRadius: 6, border: '1.5px solid #f59e0b',
+                                        padding: '6px 8px', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                                        background: '#fffde7', fontFamily: "'DM Sans', sans-serif",
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <button
+                                        onClick={handlePostReply}
+                                        disabled={!replyText.trim() || postingReply}
+                                        style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#b45309', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: postingReply ? 0.6 : 1 }}
+                                    >
+                                        {postingReply ? 'Posting…' : 'Post Reply'}
+                                    </button>
+                                    <button onClick={() => { setShowReply(false); setReplyText(''); }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #dde1ed', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#4a5470' }}>Cancel</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setShowReply(true)}
+                                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #f59e0b60', background: 'rgba(255,255,255,0.8)', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', color: '#b45309', display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                                <SendHorizonal size={10} /> Reply
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
 /* ── Main Component ── */
-export default function AreasIndex({ areas, programs, role, can_act, my_program_id, assigned_area_ids }: Props) {
+export default function AreasIndex({ areas, programs, role, can_act, my_program_id, assigned_area_ids, cycle_locked, is_viewing_past }: Props) {
     const isDirector = role === 'director';
     const isDean     = role === 'dean';
     const isCoord    = ['area-coordinator', 'program-coordinator'].includes(role);
@@ -599,6 +799,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
 
     const [selectedProgram, setSelectedProgram] = useState<number | null>(programs[0]?.id ?? null);
     const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
+    const [exportingId, setExportingId] = useState<string | null>(null); // tracks in-flight export key
     const [showUpload, setShowUpload] = useState(false);
     const [preselect, setPreselect] = useState<{
         sub_area_id?: number;
@@ -616,6 +817,31 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
         });
     };
 
+    // ── Export PDF handler ────────────────────────────────────────────────
+    const handleExport = async (url: string, filename: string, key: string) => {
+        if (exportingId === key) return; // prevent double-click
+        setExportingId(key);
+        try {
+            const res = await fetch(url, { headers: { Accept: 'application/pdf' } });
+            if (!res.ok) {
+                const msg = res.status === 403 ? 'Access denied.' : `Export failed (${res.status}).`;
+                showError(`Export failed: ${msg}`);
+                return;
+            }
+            const blob = await res.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            showSuccess(`PDF downloaded: "${filename}"`);
+        } catch {
+            showError('Network error: Could not connect to the server.');
+        } finally {
+            setExportingId(null);
+        }
+    };
+
     const openUpload = (subAreaId: number, areaId: number, docType: string, areaName: string, subAreaName: string) => {
         setPreselect({ sub_area_id: subAreaId, area_id: areaId, doc_type: docType, area_name: areaName, sub_area_name: subAreaName });
         setShowUpload(true);
@@ -624,6 +850,18 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
     const handleSubmitSubArea = async (sa: SubAreaData) => {
         const ok = await confirmAction({ title: 'Submit for Dean Review?', text: `Submit "${sa.name}" to the Dean?` });
         if (ok) router.post(`/sub-areas/${sa.id}/submit`, {}, { preserveScroll: true });
+    };
+
+    const handleSubmitAllToDean = async (area: AreaData) => {
+        const ok = await confirmAction({
+            title: 'Submit All to Dean?',
+            text: `Submit all sub-areas of "${area.name}" to the Dean for review?`,
+        });
+        if (ok) router.post(`/areas/${area.id}/submit-all`, {}, { preserveScroll: true });
+    };
+
+    const handleSetDeadline = (area: AreaData, date: string) => {
+        router.post(`/areas/${area.id}/deadline`, { deadline_at: date || null }, { preserveScroll: true });
     };
 
     const handleForwardToDirector = async (sa: SubAreaData) => {
@@ -672,6 +910,37 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
 
             <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
 
+            {/* ── Viewing Past Cycle Banner ── */}
+            {is_viewing_past && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: '#fff7ed', border: '1.5px solid #fed7aa',
+                    borderRadius: 10, padding: '10px 16px', marginBottom: 10,
+                    fontSize: 12.5, color: '#9a3412', fontWeight: 600,
+                }}>
+                    <History size={15} />
+                    You are viewing a <strong style={{ margin: '0 4px' }}>past accreditation cycle</strong>.
+                    Documents shown are read-only historical records.
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9a3412', fontStyle: 'italic' }}>
+                        Use the cycle switcher in the header ↑
+                    </span>
+                </div>
+            )}
+
+            {/* ── Cycle Locked Banner ── */}
+            {cycle_locked && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: '#fef2f2', border: '1.5px solid #fecaca',
+                    borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+                    fontSize: 12.5, color: '#9b1c1c', fontWeight: 600,
+                }}>
+                    <AlertTriangle size={16} />
+                    No active accreditation cycle — document uploads are currently <strong style={{ marginLeft: 4 }}>locked</strong>.
+                    {isDirector && <Link href="/cycles" style={{ marginLeft: 8, color: '#185fa5' }}>Manage Cycles</Link>}
+                </div>
+            )}
+
             {/* ── Subtitle & Actions ── */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 24 }}>
                 <div>
@@ -687,15 +956,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                             fontSize: 12, fontWeight: 600, textDecoration:'none', border:'1px solid #dde1ed',
                         }}>⚙ Manage Structure</a>
                     )}
-                    {can_act && (
-                        <button onClick={() => { setPreselect(null); setShowUpload(true); }} style={{
-                            display:'flex', alignItems:'center', gap: 6, padding:'9px 18px',
-                            borderRadius: 8, border:'none', cursor:'pointer',
-                            background:'#0f1f3d', color:'#c9a84c', fontSize: 12, fontWeight: 600,
-                        }}>
-                            <Upload size={13} /> Upload Evidence
-                        </button>
-                    )}
+
                 </div>
             </div>
 
@@ -743,11 +1004,30 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 <div style={{ fontSize: 15, fontWeight: 600, color:'#0f1f3d', fontFamily:"'Inter', sans-serif" }}>
                                                     {area.name}
                                                 </div>
-                                                <div style={{ fontSize: 11, color:'#8892aa', marginTop: 1 }}>
-                                                    {area.sub_areas.length} sub-areas
-                                                    {area.deadline_at && ` · Deadline: ${area.deadline_at}`}
-                                                    {area.coordinators.length > 0 && ` · ${area.coordinators.map(c => c.name).join(', ')}`}
+                                                <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 2, flexWrap:'wrap' }}>
+                                                    <span style={{ fontSize: 11, color:'#8892aa' }}>
+                                                        {area.sub_areas.length} sub-areas
+                                                        {area.coordinators.length > 0 && ` · ${area.coordinators.map(c => c.name).join(', ')}`}
+                                                    </span>
+                                                    <DeadlineBadge deadlineAt={area.deadline_at} />
                                                 </div>
+                                                {/* Deadline picker — Dean + Director only */}
+                                                {(isDean || isDirector) && (
+                                                    <div style={{ display:'flex', alignItems:'center', gap: 6, marginTop: 5 }}>
+                                                        <Calendar size={11} color="#8892aa" />
+                                                        <span style={{ fontSize: 10, color:'#8892aa' }}>Set deadline:</span>
+                                                        <input
+                                                            type="date"
+                                                            defaultValue={area.deadline_at ?? ''}
+                                                            onChange={e => handleSetDeadline(area, e.target.value)}
+                                                            style={{
+                                                                fontSize: 10, border: '1px solid #dde1ed', borderRadius: 5,
+                                                                padding: '2px 6px', color: '#0f1f3d', cursor: 'pointer',
+                                                                fontFamily: "'DM Sans', sans-serif",
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -760,22 +1040,54 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                 <div style={{ width: prog.pct + '%', height: '100%', background: color, borderRadius: 2, transition:'width 0.4s' }} />
                                             </div>
                                         </div>
-                                        {selectedProgram && (
-                                            <a
-                                                href={`/export/area/${area.id}?program_id=${selectedProgram}`}
-                                                title="Export full area as ALCU Survey PDF"
+                                        {/* Submit All to Dean — coordinator only */}
+                                        {isCoord && (
+                                            <button
+                                                onClick={() => handleSubmitAllToDean(area)}
+                                                title="Submit all sub-areas to Dean"
                                                 style={{
                                                     display:'flex', alignItems:'center', gap: 5,
                                                     padding:'6px 12px', borderRadius: 8,
-                                                    background:'#0f1f3d', color:'#c9a84c',
+                                                    background:'#6b3fa0', color:'#fff',
                                                     fontSize: 11, fontWeight: 700,
-                                                    textDecoration:'none', border:'none',
+                                                    border:'none', cursor:'pointer',
                                                     whiteSpace:'nowrap',
                                                 }}
                                             >
-                                                ⬇ Export Area PDF
-                                            </a>
+                                                <SendHorizonal size={12} /> Submit All to Dean
+                                            </button>
                                         )}
+                                        {selectedProgram && (() => {
+                                            const exportKey = `area-${area.id}`;
+                                            const isGenerating = exportingId === exportKey;
+                                            const filename = `QUAMC_Area_${area.name.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+                                            return (
+                                                <button
+                                                    onClick={() => handleExport(
+                                                        `/export/area/${area.id}?program_id=${selectedProgram}`,
+                                                        filename, exportKey
+                                                    )}
+                                                    disabled={isGenerating}
+                                                    title="Export full area as ALCU Survey PDF"
+                                                    style={{
+                                                        display:'flex', alignItems:'center', gap: 5,
+                                                        padding:'6px 12px', borderRadius: 8,
+                                                        background: isGenerating ? '#4a5470' : '#0f1f3d',
+                                                        color:'#c9a84c',
+                                                        fontSize: 11, fontWeight: 700,
+                                                        border:'none', cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                                        whiteSpace:'nowrap', opacity: isGenerating ? 0.8 : 1,
+                                                        transition: 'background 0.2s',
+                                                    }}
+                                                >
+                                                    {isGenerating ? (
+                                                        <><span style={{ display:'inline-block', animation:'spin 1s linear infinite', marginRight: 4 }}>⟳</span> Generating…</>
+                                                    ) : (
+                                                        <>⬇ Export Area PDF</>
+                                                    )}
+                                                </button>
+                                            );
+                                        })()}
                                         <button onClick={() => toggleArea(area.id)} style={{
                                             width: 32, height: 32, borderRadius: 8, border:'1px solid #dde1ed',
                                             background:'#f8f9fc', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
@@ -814,13 +1126,9 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                         <span style={{ display:'inline-flex', alignItems:'center', gap: 4, padding:'3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: ss.bg, color: ss.color }}>
                                                             <SsIcon size={10} /> {ss.label}
                                                         </span>
-                                                        {selectedProgram && (
-                                                            <a href={`/export/sub-area/${sa.id}?program_id=${selectedProgram}`}
-                                                                style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#f0f2f8', color:'#4a5470', border:'1px solid #dde1ed', textDecoration:'none', display:'inline-flex', alignItems:'center', gap: 3 }}>
-                                                                ⬇ Export PDF
-                                                            </a>
-                                                        )}
-                                                        {isDean && ['draft','submitted_to_dean','returned_by_dean','returned'].includes(sa.submission_status) && (
+
+                                                        {/* Individual sub-area submit removed — use area-level "Submit All to Dean" button above */}
+                                                        {isDean && ['submitted_to_dean','returned_by_dean'].includes(sa.submission_status) && (
                                                             <>
                                                                 <button onClick={() => handleForwardToDirector(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#185fa5', color:'#fff', border:'none', cursor:'pointer' }}>↑ Submit to Director</button>
                                                                 <button onClick={() => handleReturn(sa)} style={{ padding:'3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background:'#fef2f2', color:'#9b1c1c', border:'1px solid #fecaca', cursor:'pointer' }}>Return</button>
@@ -835,28 +1143,42 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                     </div>
                                                 </div>
 
-                                                {/* Return Note Banner — coordinator & dean only */}
-                                                {showNotes && (sa.return_notes || isDean) && (
+                                                {/* Return Note Banner — always show when notes exist; hide for director */}
+                                                {!isDirector && (sa.return_notes || isDean) && (
                                                     <ReturnNoteBanner sa={sa} isDean={isDean} selectedProgram={selectedProgram} />
                                                 )}
 
-                                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
-                                                    {(['input','process','outcome'] as const).map(type => {
-                                                        const progSlots = selectedProgram ? sa.slots[selectedProgram] : null;
-                                                        return (
-                                                            <SlotCard
-                                                                key={type}
-                                                                type={type}
-                                                                doc={progSlots ? progSlots[type] : null}
-                                                                sa={sa}
-                                                                area={area}
-                                                                selectedProgram={selectedProgram}
-                                                                role={role}
-                                                                can_act={can_act}
-                                                                onUpload={openUpload}
-                                                            />
-                                                        );
-                                                    })}
+                                                {/* Navigate to the new item-based IPO detail page */}
+                                                <div style={{ marginTop: 8 }}>
+                                                    <a
+                                                        href={`/sub-areas/${sa.id}/items`}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                            padding: '10px 14px', borderRadius: 10,
+                                                            border: '1.5px dashed #c9d4f0',
+                                                            background: '#fafbfe', textDecoration: 'none',
+                                                            transition: 'all 0.15s',
+                                                            color: '#0f1f3d',
+                                                        }}
+                                                        onMouseEnter={e => { e.currentTarget.style.background = '#f0f4fc'; e.currentTarget.style.borderColor = '#0f1f3d'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = '#fafbfe'; e.currentTarget.style.borderColor = '#c9d4f0'; }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <div style={{ display: 'flex', gap: 6 }}>
+                                                                {(['input','process','outcome'] as const).map(t => (
+                                                                    <span key={t} style={{
+                                                                        padding: '3px 9px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                                                                        background: t === 'input' ? '#e6f1fb' : t === 'process' ? '#faeeda' : '#e1f5ee',
+                                                                        color:      t === 'input' ? '#0c447c' : t === 'process' ? '#633806' : '#085041',
+                                                                    }}>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+                                                                ))}
+                                                            </div>
+                                                            <span style={{ fontSize: 12, color: '#8892aa' }}>Click to open items &amp; write evidence</span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#0f1f3d' }}>
+                                                            <ArrowRight size={14} /> Open
+                                                        </div>
+                                                    </a>
                                                 </div>
                                             </div>
                                         );
@@ -868,14 +1190,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                 })}
             </div>
 
-            {/* Upload Modal */}
-            <UploadModal
-                open={showUpload}
-                onClose={() => setShowUpload(false)}
-                preselect={preselect}
-                selectedProgram={selectedProgram}
-                programs={programs}
-            />
+
         </AppLayout>
     );
 }

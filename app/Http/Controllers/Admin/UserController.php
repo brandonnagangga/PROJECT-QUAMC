@@ -3,30 +3,22 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\AssignAreaRequest;
-use App\Http\Requests\Admin\StoreUserRequest;
-use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Program;
 use App\Models\AreaAssignment;
-use App\Services\UserService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class UserController extends Controller
 {
-    public function __construct(
-        protected UserService $userService
-    ) {}
     public function index(Request $request)
     {
         $authUser = $request->user();
         $authRole = $authUser->roles->first()?->slug ?? '';
         $isDean   = $authRole === 'dean';
-        $filters  = $request->only(['search', 'role', 'status']);
 
         // Programs: Dean sees only their assigned program, others see all
         $programQuery = Program::where('is_active', true);
@@ -85,81 +77,68 @@ class UserController extends Controller
             'assignments'    => $assignments,
             'authRole'       => $authRole,
             'deanProgramId'  => $isDean ? $authUser->program_id : null,
-            'filters'        => $filters,
         ]);
     }
 
-    public function store(StoreUserRequest $request)
+    public function store(Request $request)
     {
-        Gate::authorize('create', User::class);
+        $validated = $request->validate([
+            'name'       => 'required|string|max:255',
+            'email'      => 'required|email|unique:users,email',
+            'password'   => 'required|string|min:6',
+            'role_id'    => 'required|exists:roles,id',
+            'program_id' => 'nullable|exists:programs,id',
+        ]);
 
-        $this->userService->createUser($request->validated());
+        $user = User::create([
+            'id'         => (string) Str::uuid(),
+            'name'       => $validated['name'],
+            'email'      => $validated['email'],
+            'password'   => Hash::make($validated['password']),
+            'program_id' => $validated['program_id'] ?? null,
+            'is_active'  => true,
+        ]);
+
+        $user->roles()->attach($validated['role_id']);
 
         return redirect()->back()->with('success', 'User created.');
     }
 
-    public function export(Request $request)
+    public function assignArea(Request $request, User $user)
     {
-        Gate::authorize('viewAny', User::class);
-
         $authUser = $request->user();
         $authRole = $authUser->roles->first()?->slug ?? '';
-        $format = $request->string('format')->lower()->value() ?: 'csv';
 
-        $userQuery = User::with(['roles', 'program']);
-        if ($authRole === 'dean' && $authUser->program_id) {
-            $userQuery->where(function ($query) use ($authUser) {
-                $query->where('program_id', $authUser->program_id)
-                    ->orWhere('id', $authUser->id);
-            });
+        // Allow admin or dean (dean scoped to their program)
+        if (!in_array($authRole, ['admin', 'dean'])) {
+            abort(403, 'Only admins or Deans may assign areas.');
         }
 
-        $users = $userQuery->get();
-
-        if ($format === 'pdf') {
-            $pdf = Pdf::loadView('exports.users-directory', [
-                'users' => $users,
-                'generatedAt' => now(),
-            ])->setPaper('a4', 'portrait');
-
-            return $pdf->download('users-directory.pdf');
-        }
-
-        return response()->streamDownload(function () use ($users) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['name', 'email', 'role', 'department', 'status', 'joined_at']);
-
-            foreach ($users as $user) {
-                fputcsv($handle, [
-                    $user->name,
-                    $user->email,
-                    $user->roles->first()?->name ?? '',
-                    $user->program?->name ?? '',
-                    $user->is_active ? 'Active' : 'Inactive',
-                    $user->created_at?->format('Y-m-d') ?? '',
-                ]);
-            }
-
-            fclose($handle);
-        }, 'users-directory.csv', [
-            'Content-Type' => 'text/csv',
+        $validated = $request->validate([
+            'area_ids'      => 'required|array|min:1',
+            'area_ids.*'    => 'required|exists:areas,id',
+            'role_type'     => 'required|string',
+            'academic_year' => 'required|string',
         ]);
-    }
 
-    public function assignArea(AssignAreaRequest $request)
-    {
-        Gate::authorize('assignArea', User::class);
+        $created = 0;
+        foreach ($validated['area_ids'] as $areaId) {
+            $exists = AreaAssignment::where('user_id', $user->id)
+                ->where('area_id', $areaId)
+                ->where('academic_year', $validated['academic_year'])
+                ->exists();
 
-        $validated = $request->validated();
-        $user = User::findOrFail($validated['user_id']);
-
-        $created = $this->userService->assignAreas(
-            $user,
-            $validated['area_ids'],
-            $validated['role_type'],
-            $validated['academic_year'],
-            $request->user()
-        );
+            if (!$exists) {
+                AreaAssignment::create([
+                    'user_id'       => $user->id,
+                    'area_id'       => $areaId,
+                    'assigned_by'   => $authUser->id,
+                    'role_type'     => $validated['role_type'],
+                    'academic_year' => $validated['academic_year'],
+                ]);
+                $created++;
+            }
+        }
 
         $msg = $created > 0
             ? "{$created} area(s) assigned successfully."
@@ -170,19 +149,23 @@ class UserController extends Controller
 
     public function toggleActive(Request $request, User $user)
     {
-        Gate::authorize('update', $user);
-
-        $this->userService->toggleUserStatus($user);
-
+        $user->update(['is_active' => !$user->is_active]);
         return redirect()->back()->with('success', 'User status updated.');
     }
 
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(Request $request, User $user)
     {
-        Gate::authorize('update', $user);
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'password' => 'sometimes|string|min:6',
+        ]);
 
-        $this->userService->updateUser($user, $request->validated());
+        if (isset($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        }
 
+        $user->update($validated);
         return redirect()->back()->with('success', 'User updated.');
     }
 
@@ -198,13 +181,36 @@ class UserController extends Controller
 
     public function removeAssignment(Request $request, $areaId, $userId)
     {
-        Gate::authorize('assignArea', User::class);
-        
         AreaAssignment::where('area_id', $areaId)
             ->where('user_id', $userId)
             ->delete();
-            
         return redirect()->back()->with('success', 'Assignment removed.');
     }
 
+    /**
+     * Admin-only: assign (or clear) a user's program_id.
+     */
+    public function assignProgram(Request $request, User $user)
+    {
+        $authUser = $request->user();
+        $authRole = $authUser->roles->first()?->slug ?? '';
+
+        // Only System Admin can assign programs
+        if ($authRole !== 'admin') {
+            abort(403, 'Only the System Administrator may assign programs to users.');
+        }
+
+        $validated = $request->validate([
+            'program_id' => 'nullable|exists:programs,id',
+        ]);
+
+        $user->update(['program_id' => $validated['program_id']]);
+
+        $programName = $validated['program_id']
+            ? Program::find($validated['program_id'])?->name
+            : 'None';
+
+        return redirect()->back()->with('success', "Program for {$user->name} set to: {$programName}.");
+    }
 }
+

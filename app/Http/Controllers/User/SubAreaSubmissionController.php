@@ -3,25 +3,50 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\User\ReturnSubAreaRequest;
-use App\Http\Requests\User\StoreSubAreaRequest;
-use App\Http\Requests\User\UpdateSubAreaRequest;
+use App\Models\Area;
 use App\Models\SubArea;
 use App\Models\SubAreaNote;
-use App\Services\AreaService;
 use Illuminate\Http\Request;
 
 class SubAreaSubmissionController extends Controller
 {
-    public function __construct(
-        protected AreaService $areaService
-    ) {}
+    /**
+     * Coordinator submits ALL eligible sub-areas in an area to the Dean at once.
+     */
+    public function submitArea(Area $area, Request $request)
+    {
+        $user = $request->user();
+        if (!$user->hasRole(['area-coordinator', 'program-coordinator'])) {
+            return back()->with('error', 'Only coordinators can submit sub-areas.');
+        }
+
+        $submittable = ['draft', 'returned', 'returned_by_dean'];
+        $count = 0;
+
+        foreach ($area->subAreas()->where('is_archived', false)->get() as $subArea) {
+            if (in_array($subArea->submission_status, $submittable)) {
+                $subArea->update(['submission_status' => 'submitted_to_dean']);
+                $count++;
+            }
+        }
+
+        if ($count === 0) {
+            return back()->with('error', 'No sub-areas are ready to submit (all are already submitted or approved).');
+        }
+
+        return back()->with('success', "{$count} sub-area(s) in \"{$area->name}\" submitted to Dean.");
+    }
+
     /**
      * Coordinator submits a sub-area to the Dean.
      */
     public function submit(SubArea $subArea, Request $request)
+
     {
-        $this->authorize('submit', $subArea);
+        $user = $request->user();
+        if (!$user->hasRole(['area-coordinator', 'program-coordinator'])) {
+            return back()->with('error', 'Only coordinators can submit sub-areas.');
+        }
 
         if (!in_array($subArea->submission_status, ['draft', 'returned', 'returned_by_dean'])) {
             return back()->with('error', 'This sub-area cannot be submitted in its current state.');
@@ -37,7 +62,9 @@ class SubAreaSubmissionController extends Controller
      */
     public function forwardToDirector(SubArea $subArea, Request $request)
     {
-        $this->authorize('forward', $subArea);
+        if (!$request->user()->hasRole('dean')) {
+            return back()->with('error', 'Only Deans can forward sub-areas.');
+        }
 
         if ($subArea->submission_status !== 'submitted_to_dean') {
             return back()->with('error', 'Sub-area must be submitted to Dean first.');
@@ -56,7 +83,9 @@ class SubAreaSubmissionController extends Controller
      */
     public function approveDirector(SubArea $subArea, Request $request)
     {
-        $this->authorize('approve', $subArea);
+        if (!$request->user()->hasRole('director')) {
+            return back()->with('error', 'Only the Director can give final approval.');
+        }
 
         if ($subArea->submission_status !== 'submitted_to_director') {
             return back()->with('error', 'Sub-area must be submitted to Director first.');
@@ -70,13 +99,20 @@ class SubAreaSubmissionController extends Controller
     /**
      * Dean or Director returns a sub-area for revision.
      */
-    public function returnSubArea(SubArea $subArea, ReturnSubAreaRequest $request)
+    public function returnSubArea(SubArea $subArea, Request $request)
     {
-        $this->authorize('return', $subArea);
-
+        $request->validate([
+            'comment'    => 'nullable|string|max:1000',
+            'program_id' => 'nullable|exists:programs,id',
+        ]);
         $user = $request->user();
-        $isDean = $user->hasRole('dean');
+
+        $isDean     = $user->hasRole('dean');
         $isDirector = $user->hasRole('director');
+
+        if (!$isDean && !$isDirector) {
+            return back()->with('error', 'Not authorized to return sub-areas.');
+        }
 
         if ($isDean && $subArea->submission_status !== 'submitted_to_dean') {
             return back()->with('error', 'Sub-area is not awaiting Dean review.');
@@ -132,29 +168,49 @@ class SubAreaSubmissionController extends Controller
 
     /* ── Director-only Sub-area CRUD ── */
 
-    public function store(StoreSubAreaRequest $request)
+    public function store(Request $request)
     {
-        $this->authorize('create', SubArea::class);
+        if (!$request->user()->hasRole('director')) {
+            return back()->with('error', 'Only the Director can create sub-areas.');
+        }
 
-        $subArea = $this->areaService->createSubArea($request->validated(), $request->user());
+        $data = $request->validate([
+            'area_id'      => 'required|exists:areas,id',
+            'name'         => 'required|string|max:200',
+            'order_number' => 'nullable|integer|min:0',
+        ]);
+
+        $subArea = SubArea::create([
+            ...$data,
+            'created_by' => $request->user()->id,
+        ]);
 
         return back()->with('success', "Sub-area \"{$subArea->name}\" created.");
     }
 
-    public function update(SubArea $subArea, UpdateSubAreaRequest $request)
+    public function update(SubArea $subArea, Request $request)
     {
-        $this->authorize('update', $subArea);
+        if (!$request->user()->hasRole('director')) {
+            return back()->with('error', 'Only the Director can edit sub-areas.');
+        }
 
-        $this->areaService->updateSubArea($subArea, $request->validated());
+        $data = $request->validate([
+            'name'         => 'required|string|max:200',
+            'order_number' => 'nullable|integer|min:0',
+        ]);
+
+        $subArea->update($data);
 
         return back()->with('success', 'Sub-area updated.');
     }
 
     public function archive(SubArea $subArea, Request $request)
     {
-        $this->authorize('delete', $subArea);
+        if (!$request->user()->hasRole('director')) {
+            return back()->with('error', 'Only the Director can archive sub-areas.');
+        }
 
-        $this->areaService->archiveSubArea($subArea);
+        $subArea->update(['is_archived' => true]);
 
         return back()->with('success', "\"{$subArea->name}\" archived.");
     }

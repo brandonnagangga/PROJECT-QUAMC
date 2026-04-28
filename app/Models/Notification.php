@@ -13,6 +13,8 @@ class Notification extends Model
     protected $fillable = [
         'user_id',
         'document_id',
+        'area_id',
+        'link',
         'type',
         'message',
         'is_read',
@@ -31,5 +33,10 @@ class Notification extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);
+    }
+
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Area::class);
     }
 }

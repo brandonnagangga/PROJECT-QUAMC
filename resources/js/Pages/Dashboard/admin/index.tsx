@@ -9,6 +9,14 @@ import { SystemOverviewCards } from './SystemOverviewCards';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
 import type { AdminDashboardProps, MetricCard } from './types';
 
+function parsePercent(value: string | number | null | undefined): number {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value !== 'string') return 0;
+
+    const numeric = parseFloat(value.replace('%', '').trim());
+    return Number.isFinite(numeric) ? numeric : 0;
+}
+
 export default function AdminDashboard({
     stats,
     userCount,
@@ -21,7 +29,7 @@ export default function AdminDashboard({
     const pendingCount = Number(stats.pending ?? 0);
     const totalDocs = approvedCount + pendingCount;
     const approvalRate = totalDocs > 0 ? Math.round((approvedCount / totalDocs) * 100) : 0;
-    const readinessPercent = Math.max(0, Math.min(100, Number(stats.readiness ?? 0) || 0));
+    const readinessPercent = Math.max(0, Math.min(100, parsePercent(stats.readiness)));
 
     const systemMetrics = useMemo<MetricCard[]>(
         () => [

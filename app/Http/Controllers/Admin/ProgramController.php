@@ -3,21 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\AddUserToProgramRequest;
-use App\Http\Requests\Admin\StoreProgramRequest;
 use App\Models\Area;
 use App\Models\Document;
 use App\Models\Program;
 use App\Models\User;
-use App\Services\ProgramService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
 {
-    public function __construct(
-        protected ProgramService $programService
-    ) {}
     public function index(Request $request)
     {
         $authUser = $request->user()->load('roles');
@@ -82,6 +76,9 @@ class ProgramController extends Controller
                     'name'          => $program->name,
                     'code'          => $program->code,
                     'is_active'     => $program->is_active,
+                    'logo_url'      => $program->logo_path
+                                        ? route('programs.logo', $program->id)
+                                        : null,
                     'totalAreas'    => $totalAreas,
                     'totalSlots'    => $totalSlots,
                     'approvedItems' => $approved,
@@ -91,6 +88,7 @@ class ProgramController extends Controller
                     'areas'         => $areaBreakdown->values()->toArray(),
                     'users'         => $programUsers->values()->toArray(),
                 ];
+
             });
 
         // For admin: list of users not yet assigned to any program (for adding)
@@ -118,26 +116,82 @@ class ProgramController extends Controller
     }
 
     /**
-     * Admin: Create a new program.
+     * Admin: Create a new program (with optional logo).
      */
-    public function store(StoreProgramRequest $request)
+    public function store(Request $request)
     {
-        $this->authorize('create', Program::class);
+        $authRole = $request->user()->roles->first()?->slug ?? '';
+        if ($authRole !== 'admin') abort(403);
 
-        $program = $this->programService->createProgram($request->validated());
+        $data = $request->validate([
+            'name'  => 'required|string|max:200',
+            'code'  => 'required|string|max:20|unique:programs,code',
+            'logo'  => 'nullable|image|max:2048', // 2 MB max
+        ]);
 
-        return back()->with('success', "Program \"{$program->name}\" created.");
+        $logoPath = null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('program-logos', 'local');
+        }
+
+        Program::create([
+            'name'      => $data['name'],
+            'code'      => $data['code'],
+            'logo_path' => $logoPath,
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', "Program \"{$data['name']}\" created.");
+    }
+
+    /**
+     * Admin: Upload / replace a program logo.
+     */
+    public function uploadLogo(Request $request, Program $program)
+    {
+        $authRole = $request->user()->roles->first()?->slug ?? '';
+        if ($authRole !== 'admin') abort(403);
+
+        $request->validate(['logo' => 'required|image|max:2048']);
+
+        $logoPath = $request->file('logo')->store('program-logos', 'local');
+        $program->update(['logo_path' => $logoPath]);
+
+        return back()->with('success', 'Program logo updated.');
+    }
+
+    /**
+     * Serve the program logo image.
+     */
+    public function serveLogo(Program $program)
+    {
+        if (!$program->logo_path) abort(404);
+
+        $path = storage_path('app/private/' . $program->logo_path);
+        if (!file_exists($path)) {
+            $path = storage_path('app/' . $program->logo_path);
+        }
+        if (!file_exists($path)) abort(404);
+
+        return response()->file($path, [
+            'Content-Type'  => mime_content_type($path),
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
     /**
      * Admin: Assign an existing user to this program.
      */
-    public function addUser(AddUserToProgramRequest $request, Program $program)
+    public function addUser(Request $request, Program $program)
     {
-        $this->authorize('addUser', $program);
+        $authRole = $request->user()->roles->first()?->slug ?? '';
+        if ($authRole !== 'admin') abort(403);
 
-        $user = User::findOrFail($request->validated()['user_id']);
-        $this->programService->assignUserToProgram($user, $program);
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        User::where('id', $data['user_id'])->update(['program_id' => $program->id]);
 
         return back()->with('success', 'User assigned to program.');
     }
