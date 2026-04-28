@@ -63,8 +63,12 @@ class User extends Authenticatable
 
     // ── Role Helpers ──
 
-    public function hasRole(string $slug): bool
+    public function hasRole(string|array $slug): bool
     {
+        if (is_array($slug)) {
+            return $this->hasAnyRole($slug);
+        }
+
         return $this->roles->contains('slug', $slug);
     }
 

@@ -62,6 +62,8 @@ const IPO_CONFIG = {
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
     draft:            { label: 'Draft',     color: '#6b7280', bg: '#f3f4f6', icon: <FileText size={10} /> },
     submitted_to_dean:{ label: 'Submitted', color: '#d97706', bg: '#fffbeb', icon: <Clock size={10} /> },
+    submitted:        { label: 'Submitted to Dean', color: '#d97706', bg: '#fffbeb', icon: <Clock size={10} /> },
+    submitted_to_director:{ label: 'Submitted to Director', color: '#2563eb', bg: '#eff6ff', icon: <Clock size={10} /> },
     returned:         { label: 'Returned',  color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={10} /> },
     approved:         { label: 'Approved',  color: '#059669', bg: '#ecfdf5', icon: <CheckCircle2 size={10} /> },
 };
@@ -295,7 +297,7 @@ export default function SubAreaDetail({
     const [showReturn, setShowReturn] = useState(false);
     const [returnNotes, setReturnNotes] = useState('');
 
-    const isLocked = submission?.status === 'submitted' || submission?.status === 'approved';
+    const isLocked = submission?.status === 'submitted' || submission?.status === 'submitted_to_director' || submission?.status === 'approved';
     const canSubmit = authRole === 'area-coordinator' || authRole === 'program-coordinator' || authRole === 'dean';
     const canReturn = authRole === 'dean' && submission?.status === 'submitted';
     const canApprove = authRole === 'dean' && submission?.status === 'submitted';
@@ -351,7 +353,7 @@ export default function SubAreaDetail({
                             border: '1px solid currentColor',
                         }}>
                             {STATUS_BADGE[submission.status]?.icon}
-                            Area {submission.status === 'submitted' ? 'Submitted' : submission.status === 'approved' ? 'Approved' : 'Returned'}
+                            {STATUS_BADGE[submission.status]?.label ?? submission.status.replace(/_/g, ' ')}
                         </span>
                     )}
 
@@ -394,7 +396,7 @@ export default function SubAreaDetail({
                     display: 'flex', alignItems: 'center', gap: 8,
                 }}>
                     <AlertCircle size={14} color="#f59e0b" />
-                    This area has been submitted to the Dean. Items are read-only until returned or approved.
+                    This area has been submitted for review. Items are read-only until returned or approved.
                 </div>
             )}
 

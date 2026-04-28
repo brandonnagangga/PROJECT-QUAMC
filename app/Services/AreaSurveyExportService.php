@@ -24,7 +24,7 @@ class AreaSurveyExportService
      *  3. Per sub-area:
      *       a. Sub-area divider card
      *       b. Items content page (INPUTS / PROCESSES / OUTCOMES with narratives,
-     *          extracted PDF text, embedded images, sub-items, and rating means)
+     *          inline PDF page previews, embedded images, sub-items, and rating means)
      */
     public function export(Area $area, int $programId): string
     {
@@ -138,7 +138,7 @@ class AreaSurveyExportService
 
     /**
      * Build the full IPO data structure for a sub-area, including narratives,
-     * extracted PDF text, and embedded images.
+     * PDF page previews and embedded images.
      */
     private function buildIpoGroups(SubArea $subArea, int $programId, ?int $cycleId, PdfTextExtractorService $extractor): array
     {
@@ -204,7 +204,7 @@ class AreaSurveyExportService
 
     /**
      * Build the file data array for a response's files.
-     * Handles PDFs (text extraction) and images (base64 embedding).
+     * Handles PDFs (page-image embedding) and images (base64 embedding).
      */
     private function buildFileData($files, PdfTextExtractorService $extractor): array
     {
@@ -221,12 +221,13 @@ class AreaSurveyExportService
             $isImage  = str_starts_with($mime, 'image/');
             $isPdf    = ($mime === 'application/pdf');
 
-            $extractedText = null;
-            $imageData     = null;
+            $imageData = null;
+            $pdfPath   = null;
+            $pdfPages  = [];
 
             if ($isPdf) {
-                $extracted     = $extractor->extractFromPath($absPath);
-                $extractedText = $extracted['text'];
+                $pdfPath = file_exists($absPath) ? $absPath : null;
+                $pdfPages = $pdfPath ? $this->pdfToImageDataUris($pdfPath) : [];
             } elseif ($isImage) {
                 $imageData = $extractor->imageToDataUri($absPath, $mime);
             }
@@ -236,7 +237,8 @@ class AreaSurveyExportService
                 'mime_type'         => $mime,
                 'is_image'          => $isImage,
                 'is_pdf'            => $isPdf,
-                'extracted_text'    => $extractedText,
+                'pdf_pages'         => $pdfPages,
+                'extracted_text'    => null,
                 'image_data'        => $imageData,
             ];
         }
@@ -314,6 +316,79 @@ class AreaSurveyExportService
         $path = tempnam(sys_get_temp_dir(), 'quamc_' . $prefix . '_') . '.pdf';
         $pdf->save($path);
         return $path;
+    }
+
+    private function pdfToImageDataUris(string $absolutePath): array
+    {
+        if (!file_exists($absolutePath)) {
+            return [];
+        }
+
+        $workDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'quamc_pdf_preview_' . uniqid('', true);
+        if (!@mkdir($workDir, 0777, true) && !is_dir($workDir)) {
+            return [];
+        }
+
+        $prefix = $workDir . DIRECTORY_SEPARATOR . 'page';
+        $cmd = escapeshellarg($this->popplerBinaryPath('pdftoppm'))
+            . ' -r 144 -png '
+            . escapeshellarg($absolutePath)
+            . ' '
+            . escapeshellarg($prefix)
+            . ' 2>&1';
+
+        $output = [];
+        $exitCode = 0;
+        exec($cmd, $output, $exitCode);
+
+        $images = glob($prefix . '-*.png') ?: [];
+        natsort($images);
+        $images = array_values($images);
+
+        if ($exitCode !== 0 || empty($images)) {
+            \Log::warning("PDF preview conversion failed for {$absolutePath}: " . implode("\n", $output));
+            $this->removeDirectory($workDir);
+            return [];
+        }
+
+        $pages = [];
+        foreach ($images as $pageIndex => $imagePath) {
+            $data = @file_get_contents($imagePath);
+            if ($data === false) {
+                continue;
+            }
+
+            $pages[] = [
+                'page' => $pageIndex + 1,
+                'image_data' => 'data:image/png;base64,' . base64_encode($data),
+            ];
+        }
+
+        $this->removeDirectory($workDir);
+
+        return $pages;
+    }
+
+    private function popplerBinaryPath(string $binary): string
+    {
+        $envPath = env(strtoupper($binary) . '_PATH');
+        if ($envPath) {
+            return $envPath;
+        }
+
+        $extension = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? '.exe' : '';
+        $localPath = base_path("bin/poppler/bin/{$binary}{$extension}");
+
+        return file_exists($localPath) ? $localPath : $binary . $extension;
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        foreach (glob($directory . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
+            @unlink($file);
+        }
+
+        @rmdir($directory);
     }
 
     private function mergePdfs(array $pdfPaths): string

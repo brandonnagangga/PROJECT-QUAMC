@@ -171,11 +171,24 @@ class AreaItemResponseController extends Controller
         $programId = $user->program_id;
         $cycle     = AccreditationCycle::active();
 
+        if (!$user->hasRole(['area-coordinator', 'program-coordinator'])) {
+            return back()->with('error', 'Only coordinators can submit areas to the Dean.');
+        }
+
         if (!$programId) {
             return back()->withErrors(['program' => 'No program assigned.']);
         }
 
         $area = \App\Models\Area::find($areaId);
+
+        $existing = AreaSubmission::where('area_id', $areaId)
+            ->where('program_id', $programId)
+            ->when($cycle, fn($q) => $q->where('cycle_id', $cycle->id))
+            ->first();
+
+        if ($existing && in_array($existing->status, ['submitted', 'submitted_to_director', 'approved'])) {
+            return back()->with('error', 'This area has already been submitted.');
+        }
 
         $submission = AreaSubmission::updateOrCreate(
             [
@@ -225,8 +238,19 @@ class AreaItemResponseController extends Controller
         ]);
 
         $user = $request->user();
-        if (!$user->hasRole('dean')) {
-            return back()->with('error', 'Only the Dean can return areas.');
+        $isDean = $user->hasRole('dean');
+        $isDirector = $user->hasRole('director');
+
+        if (!$isDean && !$isDirector) {
+            return back()->with('error', 'Only the Dean or Director can return areas.');
+        }
+
+        if ($isDean && $submission->status !== 'submitted') {
+            return back()->with('error', 'Area is not awaiting Dean review.');
+        }
+
+        if ($isDirector && $submission->status !== 'submitted_to_director') {
+            return back()->with('error', 'Area is not awaiting Director review.');
         }
 
         // Update area-level submission status
@@ -237,10 +261,11 @@ class AreaItemResponseController extends Controller
             'return_notes' => $request->notes ?? null,
         ]);
 
-        // Update selected sub-areas to returned_by_dean
+        // Keep legacy sub-area badges aligned with the area-level return.
         if (!empty($request->sub_area_ids)) {
-            SubArea::whereIn('id', $request->sub_area_ids)
-                ->update(['submission_status' => 'returned_by_dean']);
+            SubArea::where('area_id', $submission->area_id)
+                ->whereIn('id', $request->sub_area_ids)
+                ->update(['submission_status' => $isDirector ? 'returned' : 'returned_by_dean']);
         }
 
         // Create an area note of type 'return' if a comment was provided
@@ -262,7 +287,7 @@ class AreaItemResponseController extends Controller
             NotificationService::send(
                 $submission->submitted_by,
                 'area.returned_by_dean',
-                "Dean {$user->name} returned \"{$areaName}\" for revision. Open to view notes.",
+                ($isDirector ? 'Director' : 'Dean') . " {$user->name} returned \"{$areaName}\" for revision. Open to view notes.",
                 $submission->area_id,
                 "/sub-areas/" . ($submission->area?->subAreas?->first()?->id ?? '') . "/items"
             );
@@ -271,7 +296,7 @@ class AreaItemResponseController extends Controller
         NotificationService::notifyRole(
             'area-coordinator',
             'area.returned_by_dean',
-            "Dean {$user->name} returned \"{$areaName}\" for revision. Open to view notes.",
+            ($isDirector ? 'Director' : 'Dean') . " {$user->name} returned \"{$areaName}\" for revision. Open to view notes.",
             $submission->program_id,
             $submission->area_id,
             "/sub-areas/" . ($submission->area?->subAreas?->first()?->id ?? '') . "/items"
@@ -344,6 +369,15 @@ class AreaItemResponseController extends Controller
     public function approveArea(Request $request, AreaSubmission $submission)
     {
         $user = $request->user();
+
+        if (!$user->hasRole('director')) {
+            return back()->with('error', 'Only the Director can give final approval.');
+        }
+
+        if ($submission->status !== 'submitted_to_director') {
+            return back()->with('error', 'Area must be submitted to Director before final approval.');
+        }
+
         $submission->update([
             'status'      => 'approved',
             'reviewed_by' => $user->id,
@@ -357,18 +391,18 @@ class AreaItemResponseController extends Controller
         if ($submission->submitted_by) {
             NotificationService::send(
                 $submission->submitted_by,
-                'area.approved_by_dean',
-                "Dean {$user->name} approved \"{$areaName}\". Great work!",
+                'area.approved_by_director',
+                "Director {$user->name} approved \"{$areaName}\".",
                 $submission->area_id
             );
         }
 
-        ActivityLogService::log($user, 'area.approved_by_dean', $submission->area, [
+        ActivityLogService::log($user, 'area.approved_by_director', $submission->area, [
             'area_name'    => $areaName,
             'program_name' => $submission->program?->name ?? '',
         ], $request->ip());
 
-        return back()->with('success', 'Area approved.');
+        return back()->with('success', 'Area approved by Director.');
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

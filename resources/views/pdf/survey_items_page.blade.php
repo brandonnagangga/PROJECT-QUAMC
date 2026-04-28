@@ -50,9 +50,12 @@ body {
 .extracted-text { font-size: 8.5pt; color: '#2c2c2c'; margin-left: 10px; line-height: 1.6; word-wrap: break-word; }
 .extracted-text p { margin: 0 0 6px 0; }
 .not-extractable { font-size: 8pt; color: #aaa; font-style: italic; margin-left: 10px; }
+.pdf-page-wrap { margin-left: 10px; margin-top: 8px; page-break-inside: avoid; }
+.pdf-page-label { font-size: 7.5pt; color: #4a5470; margin-bottom: 3px; }
+.pdf-page-wrap img { width: 100%; height: auto; display: block; border: 1px solid #d8deeb; border-radius: 3px; }
 
-.img-wrap { margin-left: 10px; margin-top: 5px; }
-.img-wrap img { max-width: 100%; max-height: 220px; }
+.img-wrap { margin-left: 10px; margin-top: 8px; page-break-inside: avoid; }
+.img-wrap img { width: 100%; height: auto; display: block; border: 1px solid #e0e4ef; border-radius: 3px; }
 
 /* Sub-item */
 .subitem-block { margin-left: 30px; margin-top: 7px; }
@@ -146,7 +149,20 @@ foreach (['input','process','outcome'] as $ipo) {
                 <div style="font-size:8.5pt; font-weight:bold; color:#0f1f3d; margin-top:6px; margin-left:10px; border-left:2px solid #c9a84c; padding-left:6px;">
                     FILE: {{ $file['original_filename'] }}
                 </div>
-                @if($file['extracted_text'])
+                @if($file['is_pdf'])
+                    @if(!empty($file['pdf_pages']))
+                        @foreach($file['pdf_pages'] as $page)
+                            <div class="pdf-page-wrap">
+                                @if(count($file['pdf_pages']) > 1)
+                                    <div class="pdf-page-label">Page {{ $page['page'] }}</div>
+                                @endif
+                                <img src="{{ $page['image_data'] }}" />
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="not-extractable" style="margin-left:10px;">[PDF preview unavailable]</div>
+                    @endif
+                @elseif($file['extracted_text'])
                     <div class="extracted-text" style="white-space: pre-wrap; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9pt; color: #1a1a2e; line-height: 1.6; padding: 4px 0;">
                         {{ $file['extracted_text'] }}
                     </div>
@@ -178,7 +194,20 @@ foreach (['input','process','outcome'] as $ipo) {
                     <div style="font-size:8.5pt; font-weight:bold; color:#0f1f3d; margin-top:6px; margin-left:10px; border-left:2px solid #c9a84c; padding-left:6px;">
                         FILE: {{ $file['original_filename'] }}
                     </div>
-                    @if($file['extracted_text'])
+                    @if($file['is_pdf'])
+                        @if(!empty($file['pdf_pages']))
+                            @foreach($file['pdf_pages'] as $page)
+                                <div class="pdf-page-wrap">
+                                    @if(count($file['pdf_pages']) > 1)
+                                        <div class="pdf-page-label">Page {{ $page['page'] }}</div>
+                                    @endif
+                                    <img src="{{ $page['image_data'] }}" />
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="not-extractable" style="margin-left:10px;">[PDF preview unavailable]</div>
+                        @endif
+                    @elseif($file['extracted_text'])
                             <div class="extracted-text" style="white-space: pre-wrap; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9pt; color: #1a1a2e; line-height: 1.6; padding: 4px 0;">
                                 {{ $file['extracted_text'] }}
                             </div>
@@ -186,7 +215,7 @@ foreach (['input','process','outcome'] as $ipo) {
                         <div class="not-extractable" style="margin-left:10px;">[Text extraction unavailable for this file type]</div>
                     @endif
                     @if($file['is_image'] && !empty($file['image_data']))
-                        <div class="img-wrap"><img src="{{ $file['image_data'] }}" style="max-height:150px;" /></div>
+                        <div class="img-wrap"><img src="{{ $file['image_data'] }}" /></div>
                     @endif
                     @if(!$loop->last)
                         <hr style="border:none; border-top:1px dashed #e0e0e0; margin: 6px 10px;" />

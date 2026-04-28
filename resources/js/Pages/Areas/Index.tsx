@@ -41,6 +41,7 @@ interface AreaData {
     id: number; name: string; order_number: number;
     deadline_at: string | null;
     submission: AreaSubmission | null;
+    submissions?: Record<number, AreaSubmission>;
     notes: AreaNote[];
     coordinators: { name: string; role_type: string }[];
     sub_areas: SubAreaData[];
@@ -680,7 +681,10 @@ function ReturnAreaModal({
     const handleSubmit = () => {
         if (loading) return;
         setLoading(true);
-        const submissionId = area.submission?.id;
+        const submission = selectedProgram && area.submissions?.[selectedProgram]
+            ? area.submissions[selectedProgram]
+            : area.submission;
+        const submissionId = submission?.id;
         if (!submissionId) { setLoading(false); return; }
         router.post(`/area-submissions/${submissionId}/return`, {
             notes: comment.trim() || null,
@@ -1036,6 +1040,14 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
         if (ok) router.post(`/areas/${area.id}/submit-to-director`, {}, { preserveScroll: true });
     };
 
+    const handleAreaApproveByDirector = async (submission: AreaSubmission, area: AreaData) => {
+        const ok = await confirmAction({
+            title: 'Approve Area?',
+            text: `Give final approval for "${area.name}"?`,
+        });
+        if (ok) router.post(`/area-submissions/${submission.id}/approve`, {}, { preserveScroll: true });
+    };
+
     // Sub-area level director approve (still used in expanded rows for director)
     const handleApproveDirector = async (sa: SubAreaData) => {
         const ok = await confirmAction({ title: 'Approve?', text: `Approve "${sa.name}" as complete?` });
@@ -1071,6 +1083,12 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
         });
         return { total, filled, approved, pct: total > 0 ? Math.round((approved/total)*100) : 0 };
     };
+
+    const getAreaSubmission = (area: AreaData) => (
+        selectedProgram && area.submissions?.[selectedProgram]
+            ? area.submissions[selectedProgram]
+            : area.submission
+    );
 
     return (
         <AppLayout title="Areas" breadcrumb="Accreditation Areas">
@@ -1229,7 +1247,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
 
                                         {/* COORDINATOR: Submit to Dean */}
                                         {isCoord && (() => {
-                                            const sub = area.submission;
+                                            const sub = getAreaSubmission(area);
                                             const isSubmitted = sub?.status === 'submitted' || sub?.status === 'submitted_to_director';
                                             const isReturned  = sub?.status === 'returned';
                                             return (
@@ -1263,7 +1281,7 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
 
                                         {/* DEAN: Submit to Director + Return to Coordinator */}
                                         {isDean && (() => {
-                                            const sub = area.submission;
+                                            const sub = getAreaSubmission(area);
                                             const canAct = sub?.status === 'submitted';
                                             return (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -1297,6 +1315,47 @@ export default function AreasIndex({ areas, programs, role, can_act, my_program_
                                                         }}
                                                     >
                                                         <RotateCcw size={11} /> Return to Coordinator
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* DIRECTOR: Final approval + return after Dean submission */}
+                                        {isDirector && (() => {
+                                            const sub = getAreaSubmission(area);
+                                            const canAct = sub?.status === 'submitted_to_director';
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                                    <button
+                                                        onClick={() => canAct && sub && handleAreaApproveByDirector(sub, area)}
+                                                        disabled={!canAct}
+                                                        title={canAct ? 'Give final approval' : 'Area must be submitted by Dean first'}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 5,
+                                                            padding: '5px 11px', borderRadius: 8, border: 'none',
+                                                            cursor: canAct ? 'pointer' : 'not-allowed',
+                                                            background: canAct ? '#1a7a4a' : '#e0e4ef',
+                                                            color: canAct ? '#fff' : '#8892aa',
+                                                            fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={11} /> Final Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => canAct && setReturnAreaFor(area)}
+                                                        disabled={!canAct}
+                                                        title={canAct ? 'Return area for revision' : 'No Director-level submission to return'}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 5,
+                                                            padding: '5px 11px', borderRadius: 8,
+                                                            border: canAct ? '1px solid #fecaca' : '1px solid #e0e4ef',
+                                                            cursor: canAct ? 'pointer' : 'not-allowed',
+                                                            background: canAct ? '#fef2f2' : '#f8f9fc',
+                                                            color: canAct ? '#9b1c1c' : '#b8bfd4',
+                                                            fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        <RotateCcw size={11} /> Return Area
                                                     </button>
                                                 </div>
                                             );

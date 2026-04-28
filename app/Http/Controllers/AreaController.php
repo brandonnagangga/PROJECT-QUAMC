@@ -63,13 +63,12 @@ class AreaController extends Controller
         $activeCycleId = $activeCycle?->id;
         $myProgramId = $user->program_id;
 
-        $submissionsMap = $myProgramId
-            ? AreaSubmission::whereIn('area_id', $areas->pluck('id'))
-                ->where('program_id', $myProgramId)
-                ->when($activeCycleId, fn($q) => $q->where('cycle_id', $activeCycleId))
-                ->get()
-                ->keyBy('area_id')
-            : collect();
+        $submissionProgramIds = $visibleProgramIds ?? $programs->pluck('id')->all();
+        $submissionsByArea = AreaSubmission::whereIn('area_id', $areas->pluck('id'))
+            ->when(!empty($submissionProgramIds), fn($q) => $q->whereIn('program_id', $submissionProgramIds))
+            ->when($activeCycleId, fn($q) => $q->where('cycle_id', $activeCycleId))
+            ->get()
+            ->groupBy('area_id');
 
         $notesMap = $myProgramId
             ? AreaNote::whereIn('area_id', $areas->pluck('id'))
@@ -89,8 +88,11 @@ class AreaController extends Controller
         // Dean: see ALL statuses — can act on submitted_to_dean
         // Director: can see ALL but typically focuses on submitted_to_director
 
-        $mappedAreas = $areas->map(function ($area) use ($isDirector, $isCoord, $isDean, $canAct, $user, $submissionsMap, $notesMap) {
-            $submission = $submissionsMap->get($area->id);
+        $mappedAreas = $areas->map(function ($area) use ($isDirector, $isCoord, $isDean, $canAct, $user, $myProgramId, $submissionsByArea, $notesMap) {
+            $areaSubmissions = $submissionsByArea->get($area->id) ?? collect();
+            $submission = $myProgramId
+                ? $areaSubmissions->firstWhere('program_id', $myProgramId)
+                : null;
             $areaNotes = ($notesMap->get($area->id) ?? collect())->map(fn($n) => [
                 'id' => $n->id,
                 'type' => $n->type,
@@ -118,6 +120,14 @@ class AreaController extends Controller
                     'return_notes' => $submission->return_notes,
                     'submitted_at' => $submission->submitted_at?->format('M j, Y'),
                 ] : null,
+                'submissions' => $areaSubmissions->mapWithKeys(fn($s) => [
+                    $s->program_id => [
+                        'id' => $s->id,
+                        'status' => $s->status,
+                        'return_notes' => $s->return_notes,
+                        'submitted_at' => $s->submitted_at?->format('M j, Y'),
+                    ],
+                ]),
                 'notes' => $areaNotes,
                 'coordinators' => $area->assignments->map(fn($a) => [
                     'name' => $a->user?->name,
@@ -344,4 +354,3 @@ class AreaController extends Controller
         };
     }
 }
-
