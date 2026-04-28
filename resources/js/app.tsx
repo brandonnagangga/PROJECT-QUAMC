@@ -1,8 +1,11 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { Toaster } from 'react-hot-toast';
 import '../css/app.css';
 import './echo';
+
+import { DashboardEditProvider } from './contexts/DashboardEditContext';
 
 const appName = import.meta.env.VITE_APP_NAME || 'QUAMC';
 
@@ -15,9 +18,21 @@ createInertiaApp({
         ),
     setup({ el, App, props }) {
         const root = createRoot(el);
-        root.render(<App {...props} />);
+        root.render(
+            <DashboardEditProvider>
+                <App {...props} />
+                <Toaster
+                    position="top-right"
+                    gutter={8}
+                    toastOptions={{
+                        duration: 3000,
+                    }}
+                />
+            </DashboardEditProvider>
+        );
     },
     progress: {
         color: '#c9a84c',
+        includeCSS: false,
     },
 });

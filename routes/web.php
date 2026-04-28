@@ -1,22 +1,24 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\AreaController;
+use App\Http\Controllers\User\DashboardController;
+use App\Http\Controllers\User\DashboardPreferencesController;
+use App\Http\Controllers\User\DocumentController;
+use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\AreaItemController;
 use App\Http\Controllers\AreaItemResponseController;
 use App\Http\Controllers\AreaItemFileController;
-use App\Http\Controllers\SubAreaSubmissionController;
+use App\Http\Controllers\User\SubAreaSubmissionController;
 use App\Http\Controllers\SubAreaNoteReplyController;
-use App\Http\Controllers\ProgramController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\ReadinessController;
-use App\Http\Controllers\CycleController;
-use App\Http\Controllers\ExportController;
+use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\User\NotificationController;
+use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\StandardController;
+use App\Http\Controllers\User\ReadinessController;
+use App\Http\Controllers\Admin\CycleController;
+use App\Http\Controllers\User\ExportController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -32,6 +34,7 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
+    Route::post('/dashboard/preferences', [DashboardPreferencesController::class, 'update'])->name('dashboard.preferences.update');
 
     // ── Areas (global — Director manages structure) ──
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
@@ -112,6 +115,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/programs/{program}/logo', [ProgramController::class, 'uploadLogo'])->name('programs.logo.upload');
     Route::get('/programs/{program}/logo', [ProgramController::class, 'serveLogo'])->name('programs.logo');
 
+    // ── Standards ──
+    Route::get('/standards', [StandardController::class, 'index'])->name('standards.index');
+    Route::post('/standards', [StandardController::class, 'store'])->name('standards.store');
+
     // ── Users ──
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -151,12 +158,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/cycles/{cycle}/switch', [CycleController::class, 'switchViewing'])->name('cycles.switch');
 
     // ── Area Evidence Checklist (Director manages, Coordinators view & toggle) ──
-    Route::get('/areas/{area}/checklist', [\App\Http\Controllers\ChecklistController::class, 'index'])->name('checklist.index');
-    Route::post('/areas/{area}/checklist', [\App\Http\Controllers\ChecklistController::class, 'store'])->name('checklist.store');
-    Route::put('/checklist/{checklist}', [\App\Http\Controllers\ChecklistController::class, 'update'])->name('checklist.update');
-    Route::post('/checklist/{checklist}/toggle', [\App\Http\Controllers\ChecklistController::class, 'toggleComplete'])->name('checklist.toggle');
-    Route::delete('/checklist/{checklist}', [\App\Http\Controllers\ChecklistController::class, 'destroy'])->name('checklist.destroy');
+    Route::get('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'index'])->name('checklist.index');
+    Route::post('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'store'])->name('checklist.store');
+    Route::put('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'update'])->name('checklist.update');
+    Route::post('/checklist/{checklist}/toggle', [\App\Http\Controllers\User\ChecklistController::class, 'toggleComplete'])->name('checklist.toggle');
+    Route::delete('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'destroy'])->name('checklist.destroy');
 });
-
-
 

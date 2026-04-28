@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./layout.css";
 
 @theme {
     --color-navy: #0f1f3d;
@@ -60,8 +61,698 @@ h1.page-header {
     line-height: 1.15;
 }
 
-/* Spin animation — used by export "Generating…" button */
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+/* Theme System CSS Variables */
+:root {
+  /* Default theme colors - will be overridden by ThemeContext */
+  --color-primary: #185FA5;
+  --color-secondary: #1a7a4a;
+  --color-background: #F9FAFB;
+  --color-surface: #FFFFFF;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-accent: #c9a84c; /* Default accent, only visible in themed mode */
+
+  /* Fonts - will be overridden by ThemeContext */
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* Apply theme variables to body */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+/* Authentication screens */
+.auth-shell {
+    --auth-ink: #14181f;
+    --auth-muted: #5f6877;
+    --auth-line: #e5e8ee;
+    --auth-soft: #f6f7f9;
+    --auth-panel: #ffffff;
+    --auth-accent: #161b22;
+    --auth-accent-strong: #0f1319;
+    min-height: 100dvh;
+    background: linear-gradient(90deg, #f4f6fa 0%, #f4f6fa 56%, #fbfcfe 56%, #fbfcfe 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 56%) minmax(0, 44%);
+    font-family: 'Inter', sans-serif;
+}
+
+.auth-brand {
+    position: relative;
+    background:
+        linear-gradient(rgba(245, 246, 248, 0.78), rgba(245, 246, 248, 0.78)),
+        url('/logo/image.png') center / cover no-repeat;
+    padding: clamp(24px, 4vw, 50px) clamp(24px, 4vw, 52px) clamp(18px, 3vw, 34px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 18px;
+    border-right: 1px solid #eceff3;
+    overflow: hidden;
+}
+
+.auth-brand::before {
+    content: '';
+    position: absolute;
+    right: -120px;
+    top: -120px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(217, 224, 236, 0.25));
+    pointer-events: none;
+}
+
+.auth-brand > * {
+    position: relative;
+    z-index: 1;
+}
+
+.auth-brand__eyebrow {
+    position: relative;
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 17px;
+    color: #ffffff;
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+    background: #8f2b4a;
+    padding: 10px 24px;
+    box-shadow: 0 8px 14px rgba(79, 20, 40, 0.22);
+    font-family: 'Playfair Display', serif;
+    z-index: 1;
+    padding-left: 34px;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.auth-brand__eyebrow::before,
+.auth-brand__eyebrow::after {
+    content: '';
+    position: absolute;
+    display: block;
+    bottom: -8px;
+    border: 16px solid #8f2b4a;
+    z-index: -1;
+}
+
+.auth-brand__eyebrow::before {
+    left: -25px;
+    border-right-width: 24px;
+    border-left-color: transparent;
+}
+
+.auth-brand__eyebrow::after {
+    right: -25px;
+    border-left-width: 24px;
+    border-right-color: transparent;
+}
+
+.auth-brand__eyebrow .ribbon-content::before,
+.auth-brand__eyebrow .ribbon-content::after {
+    content: '';
+    position: absolute;
+    display: block;
+    border-style: solid;
+    border-color: #74223d transparent transparent transparent;
+    bottom: -8px;
+}
+
+.auth-brand__eyebrow .ribbon-content::before {
+    left: 0;
+    border-width: 8px 0 0 14px;
+}
+
+.auth-brand__eyebrow .ribbon-content::after {
+    right: 0;
+    border-width: 8px 14px 0 0;
+}
+
+.auth-brand__top {
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(18px, 2.6vw, 36px);
+    width: 100%;
+    max-width: 100%;
+}
+
+.auth-brand__masthead {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    max-width: none;
+    order: 2;
+    margin-left: auto;
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.auth-brand__logo {
+    width: 82px;
+    height: auto;
+    margin: 0;
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 3;
+    margin-right: -18px;
+    transform: translateX(8px);
+}
+
+.auth-brand__title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(42px, 4.8vw, 62px);
+    line-height: 0.9;
+    margin: 0;
+    color: #121720;
+    letter-spacing: -0.025em;
+}
+
+.auth-brand__subtitle {
+    margin-top: 12px;
+    color: #566172;
+    font-size: 15px;
+    max-width: 30ch;
+    line-height: 1.45;
+}
+
+.auth-brand__identity {
+    margin-top: 0;
+    max-width: 34ch;
+    order: 1;
+}
+
+.auth-brand__carousel-wrap {
+    margin-top: 4px;
+    border: 1px solid #e4e8ef;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fcfdff 0%, #f9fbff 100%);
+    padding: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    height: clamp(340px, 50vh, 520px);
+    min-height: 300px;
+    display: flex;
+}
+
+@media (max-width: 1200px) {
+    .auth-brand__top {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        max-width: 100%;
+    }
+
+    .auth-brand__masthead {
+        width: 100%;
+    }
+}
+
+.fb-carousel {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    align-items: flex-start;
+    padding: 0 10px;
+}
+
+.fb-carousel__track {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: start;
+    min-width: max-content;
+}
+
+.fb-carousel__item {
+    width: 100%;
+    min-width: 300px;
+    height: 430px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e5e9ef;
+    background: #ffffff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 1500px) {
+    .fb-carousel__track {
+        grid-template-columns: repeat(3, 300px);
+    }
+}
+
+.auth-panel {
+    background: #ffffff;
+    padding: clamp(24px, 4vw, 56px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-panel__surface {
+    width: min(500px, 100%);
+}
+
+.auth-panel__header {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.auth-panel__logo {
+    width: 66px;
+    height: auto;
+    margin-inline: auto;
+    margin-bottom: 10px;
+}
+
+.auth-panel__header h2 {
+    font-size: 39px;
+    margin: 0;
+    color: #202532;
+    font-family: 'Playfair Display', serif;
+    line-height: 1;
+}
+
+.auth-panel__header p {
+    margin-top: 8px;
+    color: #697384;
+    font-size: 14px;
+}
+
+.auth-panel__card {
+    background: #fffdfd;
+    border: 1px solid #d9e0ea;
+    border-radius: 22px;
+    padding: 34px 28px;
+    box-shadow: 0 18px 42px rgba(20, 24, 31, 0.08);
+}
+
+.auth-footer {
+    text-align: center;
+    font-size: 12px;
+    color: #6a2b40;
+    margin-top: 16px;
+}
+
+.auth-login__heading h2 {
+    font-size: 46px;
+    line-height: 1.1;
+    margin: 0;
+    color: #111017;
+    font-family: 'Playfair Display', serif;
+    letter-spacing: -0.02em;
+}
+
+.auth-login__heading p {
+    margin-top: 12px;
+    color: #4f2033;
+    line-height: 1.55;
+    font-size: 16px;
+}
+
+.auth-login__form {
+    margin-top: 28px;
+    display: grid;
+    gap: 18px;
+}
+
+.auth-login__stage {
+    position: relative;
+    min-height: 430px;
+    overflow: hidden;
+}
+
+.auth-login__view {
+    width: 100%;
+}
+
+.auth-login__view--slide-in {
+    animation: auth-slide-in 0.42s ease;
+}
+
+.auth-login__view--slide-out {
+    animation: auth-slide-out 0.42s ease forwards;
+}
+
+.auth-greeting,
+.auth-preloader {
+    min-height: 350px;
+    display: grid;
+    place-content: center;
+    text-align: center;
+    gap: 10px;
+    padding: 20px;
+}
+
+.auth-greeting__kicker {
+    display: inline-block;
+    justify-self: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #6a2b40;
+    background: #f7e8ee;
+    border: 1px solid #deb4c2;
+    margin-bottom: 4px;
+}
+
+.auth-greeting h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(40px, 4.5vw, 56px);
+    line-height: 1;
+    color: #111017;
+}
+
+.auth-greeting p,
+.auth-preloader p {
+    font-size: 18px;
+    color: #5a3a46;
+    line-height: 1.4;
+    max-width: 30ch;
+    margin-inline: auto;
+}
+
+.auth-preloader h3 {
+    font-size: 30px;
+    line-height: 1.2;
+    color: #22141b;
+    font-family: 'Playfair Display', serif;
+    margin: 2px 0 0;
+}
+
+.auth-preloader__spinner {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 6px;
+    border-radius: 50%;
+    border: 4px solid rgba(143, 43, 74, 0.2);
+    border-top-color: #8f2b4a;
+    animation: auth-spin 0.8s linear infinite;
+}
+
+@keyframes auth-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(32px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes auth-slide-out {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-32px);
+    }
+}
+
+@keyframes auth-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.auth-field label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #4a1327;
+}
+
+.auth-input {
+    width: 100%;
+    border: 1px solid #c995a8;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #111827;
+    height: 50px;
+    padding: 0 14px;
+    font-size: 15px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input::placeholder {
+    color: #96a0af;
+}
+
+.auth-input:focus-visible {
+    outline: none;
+    border-color: #7e1735;
+    box-shadow: 0 0 0 3px rgba(143, 43, 74, 0.22);
+}
+
+.auth-error {
+    margin-top: 7px;
+    font-size: 12px;
+    color: #b91c1c;
+}
+
+.auth-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #24151c;
+    user-select: none;
+}
+
+.auth-remember input {
+    width: 18px;
+    height: 18px;
+    accent-color: #8f2b4a;
+}
+
+.auth-submit {
+    height: 50px;
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #8f2b4a;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    box-shadow: 0 12px 24px rgba(79, 20, 40, 0.24);
+}
+
+.auth-submit:hover {
+    transform: translateY(-1px);
+    background: #74223d;
+}
+
+.auth-submit:active {
+    transform: translateY(0);
+}
+
+.auth-submit:disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+}
+
+@media (max-width: 960px) {
+    .auth-shell {
+        background: #ffffff;
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .auth-panel {
+        padding: 22px 16px;
+    }
+}
+
+@media (max-width: 560px) {
+    .auth-panel__card {
+        border-radius: 14px;
+        padding: 22px 16px;
+    }
+
+    .auth-login__heading h2 {
+        font-size: 38px;
+    }
+
+    .auth-login__heading p {
+        font-size: 15px;
+    }
+}
+
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  background: var(--color-button-primary-bg);
+  position: fixed;
+  z-index: 1031;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+}
+
+#nprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  box-shadow: 0 0 10px var(--color-button-primary-bg), 0 0 5px var(--color-button-primary-bg);
+  opacity: 1;
+  transform: rotate(3deg) translate(0, -4px);
+}
+
+#nprogress .spinner {
+  display: none;
+}
+
+/* Minimalist theme overrides */
+.theme-minimalist {
+  --font-heading: system-ui, -apple-system, sans-serif !important;
+  --font-body: system-ui, -apple-system, sans-serif !important;
+  --color-accent: transparent; /* No accent in minimalist mode */
+}
+
+/* Force system fonts in minimalist mode - override everything */
+.theme-minimalist,
+.theme-minimalist * {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-variant-numeric: normal !important;
+  font-feature-settings: normal !important;
+}
+
+/* Preserve monospace for code elements */
+.theme-minimalist code,
+.theme-minimalist pre,
+.theme-minimalist kbd,
+.theme-minimalist samp,
+.theme-minimalist .font-mono {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace !important;
+}
+
+/* Dashboard Calendar Styles */
+.dashboard-calendar .react-calendar {
+    width: 100%;
+    border: none;
+    font-family: 'Inter', sans-serif;
+}
+
+.dashboard-calendar .react-calendar__navigation {
+    display: flex;
+    height: 44px;
+    margin-bottom: 12px;
+}
+
+.dashboard-calendar .react-calendar__navigation button {
+    min-width: 44px;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f1f3d;
+    border: none;
+    cursor: pointer;
+}
+
+.dashboard-calendar .react-calendar__navigation button:enabled:hover,
+.dashboard-calendar .react-calendar__navigation button:enabled:focus {
+    background-color: #f8f9fc;
+    border-radius: 6px;
+}
+
+.dashboard-calendar .react-calendar__navigation button:disabled {
+    background-color: transparent;
+    color: #b8bfd4;
+}
+
+.dashboard-calendar .react-calendar__month-view__weekdays {
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 10px;
+    color: #8892aa;
+    letter-spacing: 0.06em;
+}
+
+.dashboard-calendar .react-calendar__month-view__weekdays__weekday {
+    padding: 8px 0;
+}
+
+.dashboard-calendar .react-calendar__month-view__weekdays__weekday abbr {
+    text-decoration: none;
+}
+
+.dashboard-calendar .react-calendar__tile {
+    max-width: 100%;
+    padding: 10px 6px;
+    background: none;
+    text-align: center;
+    line-height: 16px;
+    font-size: 12px;
+    color: #0f1f3d;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.dashboard-calendar .react-calendar__tile:enabled:hover,
+.dashboard-calendar .react-calendar__tile:enabled:focus {
+    background-color: #f8f9fc;
+}
+
+.dashboard-calendar .react-calendar__tile--now {
+    background: #fff8e5;
+    color: #c9a84c;
+    font-weight: 600;
+}
+
+.dashboard-calendar .react-calendar__tile--now:enabled:hover,
+.dashboard-calendar .react-calendar__tile--now:enabled:focus {
+    background: #fff3d6;
+}
+
+.dashboard-calendar .react-calendar__tile--active {
+    background: #0f1f3d !important;
+    color: white !important;
+    font-weight: 600;
+}
+
+.dashboard-calendar .react-calendar__tile--active:enabled:hover,
+.dashboard-calendar .react-calendar__tile--active:enabled:focus {
+    background: #1a2f5a !important;
+}
+
+.dashboard-calendar .react-calendar__month-view__days__day--neighboringMonth {
+    color: #b8bfd4;
+}
+
+.dashboard-calendar .react-calendar__month-view__days__day--weekend {
+    color: #9b1c1c;
 }

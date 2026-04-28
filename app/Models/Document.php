@@ -31,6 +31,7 @@ class Document extends Model
     {
         return [
             'submitted_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -66,9 +67,19 @@ class Document extends Model
         return $this->hasMany(WorkflowAction::class)->orderByDesc('acted_at');
     }
 
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class)->latest();
+    }
+
     public function latestVersion(): ?DocumentVersion
     {
         return $this->versions()->first();
+    }
+
+    public function latestEvaluation(): ?Evaluation
+    {
+        return $this->evaluations()->first();
     }
 
     /**
