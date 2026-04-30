@@ -80,12 +80,6 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
-                <SoftStatCard title={isProgramCoord ? 'Assigned Areas' : 'My Documents'} value={stats.programs} delta="+3.1%" tint="#f3f4ff" />
-                <SoftStatCard title="Area Progress" value={stats.readiness} delta="+5.0%" tint="#eef5ff" />
-                <SoftStatCard title="Approved" value={stats.approved} delta="+7.4%" tint="#eefbf3" />
-                <SoftStatCard title={isProgramCoord ? 'Pending' : 'Returned'} value={stats.pending} delta="-1.3%" tint="#f8f5ff" />
-            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="coordinator.area_progress_chart">

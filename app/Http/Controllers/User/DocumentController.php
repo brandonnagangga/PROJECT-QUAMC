@@ -153,7 +153,7 @@ class DocumentController extends Controller
             });
 
         // ── Flat document list for the "list" view tab ──
-        $filters   = $request->only(['search', 'status']);
+        $filters   = $request->only(['search']);
         $docsQuery = Document::with(['subArea.area', 'program', 'uploader'])
             ->when($viewingCycleId, fn ($q) => $q->where('cycle_id', $viewingCycleId))
             ->orderByDesc('updated_at');
@@ -161,12 +161,6 @@ class DocumentController extends Controller
         if (!empty($filters['search'])) {
             $docsQuery->where('title', 'like', '%' . $filters['search'] . '%');
         }
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $statusMap = ['pending' => 'pending_review'];
-            $mapped = $statusMap[$filters['status']] ?? $filters['status'];
-            $docsQuery->where('status', $mapped);
-        }
-
         $documents = $docsQuery->take(100)->get()->map(fn ($d) => [
             'id'       => $d->id,
             'title'    => $d->title,

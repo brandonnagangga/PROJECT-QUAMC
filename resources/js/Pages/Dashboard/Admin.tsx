@@ -1,2 +1,1 @@
-export { default } from './admin';
-
+export { default } from './admin/index';

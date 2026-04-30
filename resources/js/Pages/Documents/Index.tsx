@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import type { ReactNode } from 'react';
 import {
     FileText, Search, Filter, Eye, ChevronRight, ArrowLeft,
     Folder, File, Download, CheckCircle, Clock, RotateCcw,
@@ -20,7 +21,29 @@ interface FolderSubArea {
 }
 interface FolderArea { id: number; name: string; sub_areas: FolderSubArea[]; }
 interface FolderProgram { id: number; name: string; code: string; areas: FolderArea[]; }
-interface Props { documents: DocInfo[]; programs: FolderProgram[]; filters: { status?: string; search?: string; view?: 'list' | 'folder' }; role: string; }
+interface ProgramOption { id: number; name: string; code: string; }
+interface ItemFileInfo {
+    id: number; original_filename: string; mime_type: string; file_size: string;
+    uploader: string; uploaded_at: string; download_url: string; preview_url: string;
+}
+interface ItemTreeItem {
+    id: number; label: string; ipo_type: 'input' | 'process' | 'outcome';
+    files: ItemFileInfo[]; children: ItemTreeItem[];
+}
+interface ItemTreeSubArea {
+    id: number; name: string; total_files: number;
+    groups: Record<'input' | 'process' | 'outcome', ItemTreeItem[]>;
+}
+interface ItemTreeArea { id: number; name: string; total_files: number; sub_areas: ItemTreeSubArea[]; }
+interface Props {
+    documents: DocInfo[];
+    programs: FolderProgram[];
+    filters: { status?: string; search?: string; view?: 'list' | 'folder' };
+    role: string;
+    item_files_tree?: ItemTreeArea[];
+    all_programs?: ProgramOption[];
+    filter_program_id?: number | null;
+}
 
 /* ── Constants ── */
 const statusTabs = [
@@ -57,11 +80,20 @@ const SUBMISSION_STATUS: Record<string, { bg: string; color: string; label: stri
 };
 
 /* ── Main Component ── */
-export default function DocumentsIndex({ documents, programs, filters = {}, role }: Props) {
+export default function DocumentsIndex({
+    documents,
+    programs,
+    filters = {},
+    role,
+    item_files_tree = [],
+    all_programs = [],
+    filter_program_id = null,
+}: Props) {
     const [viewMode, setViewMode]         = useState<'list' | 'folder'>(filters?.view === 'list' ? 'list' : 'folder');
     const [search, setSearch]             = useState(filters?.search || '');
-    const [activeStatus, setActiveStatus] = useState(filters?.status || 'all');
+    const [activeStatus, setActiveStatus] = useState('all');
     const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
 
     // Folder navigation state
     const [currentProgram, setCurrentProgram] = useState<FolderProgram | null>(null);
@@ -72,7 +104,14 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
     const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
     const [expandedPrograms, setExpandedPrograms] = useState<number[]>([]);
     const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
+    const [expandedTreeAreas, setExpandedTreeAreas] = useState<number[]>([]);
+    const [expandedTreeSubAreas, setExpandedTreeSubAreas] = useState<number[]>([]);
+    const [expandedTreeItems, setExpandedTreeItems] = useState<number[]>([]);
     const filterMenuRef = useRef<HTMLDivElement>(null);
+    const programOptions = all_programs.length
+        ? all_programs
+        : programs.map((p) => ({ id: p.id, name: p.name, code: p.code }));
+    const selectedProgram = programOptions.find((p) => p.id === filter_program_id) ?? null;
 
     // Client-side filtering for Folder View
     const filteredPrograms = useMemo(() => {
@@ -128,6 +167,13 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
         return () => document.removeEventListener('mousedown', onClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (!filter_program_id) return;
+        // Reset to collapsed state when entering a new program folder
+        setExpandedTreeAreas([]);
+        setExpandedTreeSubAreas([]);
+    }, [filter_program_id]);
+
     function formatBytes(bytes: number) {
         if (!bytes) return '—';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -135,9 +181,33 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
     }
 
     const goBack = () => {
+        if (filter_program_id) {
+            router.get('/documents', { view: viewMode, search: search || undefined }, { preserveState: true, replace: true });
+            return;
+        }
         if (currentSubArea) setCurrentSubArea(null);
         else if (currentArea) setCurrentArea(null);
         else if (currentProgram) setCurrentProgram(null);
+    };
+
+    const openProgramTree = (programId: number) => {
+        router.get('/documents', {
+            program_id: programId,
+            view: 'folder',
+            search: search || undefined,
+        }, { preserveState: true, replace: true });
+    };
+
+    const toggleTreeArea = (areaId: number) => {
+        setExpandedTreeAreas((prev) => prev.includes(areaId) ? prev.filter((id) => id !== areaId) : [...prev, areaId]);
+    };
+
+    const toggleTreeSubArea = (subAreaId: number) => {
+        setExpandedTreeSubAreas((prev) => prev.includes(subAreaId) ? prev.filter((id) => id !== subAreaId) : [...prev, subAreaId]);
+    };
+
+    const toggleTreeItem = (itemId: number) => {
+        setExpandedTreeItems((prev) => prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]);
     };
 
     const toggleProgramRow = (programId: number) => {
@@ -153,28 +223,169 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
     const handleStatusFilter = (s: string) => {
         setActiveStatus(s);
-        router.get('/documents', { status: s === 'all' ? undefined : s, search: search || undefined, view: viewMode }, { preserveState: true, replace: true });
+        router.get('/documents', {
+            status: s === 'all' ? undefined : s,
+            search: search || undefined,
+            view: viewMode,
+            program_id: filter_program_id || undefined,
+        }, { preserveState: true, replace: true });
     };
 
     const handleSearch = (val: string) => {
         setSearch(val);
-        router.get('/documents', { status: activeStatus === 'all' ? undefined : activeStatus, search: val || undefined, view: viewMode }, { preserveState: true, replace: true });
+        router.get('/documents', {
+            search: val || undefined,
+            view: viewMode,
+            program_id: filter_program_id || undefined,
+        }, { preserveState: true, replace: true });
     };
 
     const clearFilters = () => {
         setFilterMenuOpen(false);
         setActiveStatus('all');
         setSearch('');
-        router.get('/documents', { view: viewMode }, { preserveState: true, replace: true });
+        router.get('/documents', { view: viewMode, program_id: filter_program_id || undefined }, { preserveState: true, replace: true });
     };
 
     /* ── Breadcrumbs for folder view ── */
-    const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [];
+    const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [
+        { label: 'Documents', onClick: () => router.get('/documents', { view: 'folder' }, { preserveState: true, replace: true }) },
+    ];
     if (viewMode === 'folder') {
+        if (selectedProgram) breadcrumbs.push({ label: `${selectedProgram.code} - ${selectedProgram.name}` });
         if (currentProgram) breadcrumbs.push({ label: currentProgram.code, onClick: () => { setCurrentArea(null); setCurrentSubArea(null); } });
         if (currentArea)    breadcrumbs.push({ label: currentArea.name,    onClick: () => { setCurrentSubArea(null); } });
         if (currentSubArea) breadcrumbs.push({ label: currentSubArea.name });
     }
+
+    const filteredItemTree = useMemo(() => {
+        if (!search.trim()) return item_files_tree ?? [];
+        const needle = search.toLowerCase();
+        const matchesItem = (item: ItemTreeItem): boolean =>
+            (item.label ?? '').toLowerCase().includes(needle) ||
+            (item.files ?? []).some((file) => (file.original_filename ?? '').toLowerCase().includes(needle)) ||
+            (item.children ?? []).some(matchesItem);
+
+        return (item_files_tree ?? [])
+            .map((area) => {
+                const areaMatches = (area.name ?? '').toLowerCase().includes(needle);
+                return {
+                    ...area,
+                    sub_areas: (area.sub_areas ?? [])
+                        .map((sa) => {
+                            // If the area OR sub-area name matches, keep ALL items — don't filter them out
+                            const saMatches = areaMatches || (sa.name ?? '').toLowerCase().includes(needle);
+                            return {
+                                ...sa,
+                                groups: {
+                                    input:   saMatches ? (sa.groups?.input ?? []) : (sa.groups?.input ?? []).filter(matchesItem),
+                                    process: saMatches ? (sa.groups?.process ?? []) : (sa.groups?.process ?? []).filter(matchesItem),
+                                    outcome: saMatches ? (sa.groups?.outcome ?? []) : (sa.groups?.outcome ?? []).filter(matchesItem),
+                                },
+                            };
+                        })
+                        .filter((sa) =>
+                            areaMatches ||
+                            (sa.name ?? '').toLowerCase().includes(needle) ||
+                            sa.groups.input.length > 0 ||
+                            sa.groups.process.length > 0 ||
+                            sa.groups.outcome.length > 0
+                        ),
+                };
+            })
+            .filter((area) => (area.name ?? '').toLowerCase().includes(needle) || area.sub_areas.length > 0);
+    }, [item_files_tree, search]);
+
+    const renderItemRow = (item: ItemTreeItem, depth = 0): ReactNode => {
+        const files    = item.files    ?? [];
+        const children = item.children ?? [];
+        const itemOpen  = expandedTreeItems.includes(item.id);
+        const hasChildren = children.length > 0;
+        const hasFiles    = files.length > 0;
+        const canExpand   = hasChildren || hasFiles;
+
+
+        return (
+            <Fragment key={item.id}>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(220px, 1fr) 110px 120px',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '9px 12px',
+                    borderTop: '1px solid #eef2f7',
+                    background: depth > 0 ? '#fbfcff' : '#fff',
+                }}>
+                    <button
+                        type="button"
+                        onClick={() => canExpand && toggleTreeItem(item.id)}
+                        style={{
+                            border: 'none',
+                            background: 'transparent',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: '#0f1f3d',
+                            fontSize: 12,
+                            fontWeight: depth > 0 ? 500 : 600,
+                            textAlign: 'left',
+                            cursor: canExpand ? 'pointer' : 'default',
+                            marginLeft: depth * 22,
+                        }}
+                    >
+                        {canExpand ? (
+                            <ChevronRight size={13} style={{ transform: itemOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+                        ) : (
+                            <span style={{ width: 13 }} />
+                        )}
+                        <span>{item.label}</span>
+                    </button>
+                    <span style={{ fontSize: 11, color: '#4a5470' }}>{depth > 0 ? 'Sub-item' : 'Item'}</span>
+                    <span style={{ fontSize: 11, color: hasFiles ? '#1a7a4a' : '#8892aa', fontWeight: 600 }}>
+                        {files.length} file{files.length === 1 ? '' : 's'}
+                    </span>
+                </div>
+
+                {itemOpen && hasFiles && (
+                    <div style={{ padding: '8px 12px 8px 48px', background: '#fafbfe', borderTop: '1px solid #eef2f7' }}>
+                    {files.map((file) => (
+                            <div key={file.id} style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'minmax(220px, 1fr) 150px 120px 86px',
+                                alignItems: 'center',
+                                gap: 12,
+                                padding: '7px 10px',
+                                border: '1px solid #eef2f7',
+                                borderRadius: 8,
+                                background: '#fff',
+                                marginBottom: 6,
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                    <FileText size={14} color="#185fa5" />
+                                    <span style={{ fontSize: 12, color: '#0f1f3d', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {file.original_filename}
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: 10.5, color: '#8892aa' }}>{file.uploader}</span>
+                                <span style={{ fontSize: 10.5, color: '#8892aa' }}>{file.uploaded_at} - {file.file_size}</span>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                                    <a href={file.preview_url} target="_blank" rel="noreferrer" title="Preview" style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #dde1ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b3fa0' }}>
+                                        <Eye size={12} />
+                                    </a>
+                                    <a href={file.download_url} title="Download" style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #dde1ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#185fa5' }}>
+                                        <Download size={12} />
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {itemOpen && hasChildren && children.map((child) => renderItemRow(child, depth + 1))}
+            </Fragment>
+        );
+    };
 
     /* ── SVG Folder Icon ── */
     const FolderIcon = ({ color, size = 56, label }: { color: string; size?: number; label?: string }) => (
@@ -193,9 +404,11 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
             {/* ── Unified Search & Filter bar ── */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'var(--color-panel-bg)', border: searchFocused ? '1px solid #c9a84c' : '1px solid var(--color-border)', borderRadius: 12, boxShadow: searchFocused ? '0 0 0 3px rgba(201,168,76,0.12)' : '0 2px 4px rgba(0,0,0,0.02)', transition: 'border-color 0.15s, box-shadow 0.15s' }}>
                     <Search size={16} color="var(--color-text-secondary)" />
                     <input type="text" placeholder="Search documents, areas, or programs..." value={search}
+                        onFocus={() => setSearchFocused(true)}
+                        onBlur={() => setSearchFocused(false)}
                         onChange={(e) => handleSearch(e.target.value)}
                         style={{ border: 'none', outline: 'none', fontSize: 14, flex: 1, fontFamily: "'Inter',sans-serif", color: 'var(--color-text)', background: 'transparent' }} />
                     {search && (
@@ -204,7 +417,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                         </button>
                     )}
                 </div>
-                <div ref={filterMenuRef} style={{ position: 'relative' }}>
+                <div ref={filterMenuRef} style={{ display: 'none' }}>
                     <button
                         type="button"
                         onClick={() => setFilterMenuOpen((prev) => !prev)}
@@ -290,7 +503,17 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
 
             {/* ── Header bar: tabs + view toggle ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ display: 'flex', gap: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, minWidth: 0, flexWrap: 'wrap' }}>
+                    {breadcrumbs.map((bc, i) => (
+                        <span key={`${bc.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {i > 0 && <ChevronRight size={12} color="var(--color-text-secondary)" />}
+                            {bc.onClick && i < breadcrumbs.length - 1
+                                ? <button type="button" onClick={bc.onClick} style={{ border: 'none', background: 'transparent', padding: 0, color: 'var(--color-text-secondary)', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>{bc.label}</button>
+                                : <span style={{ color: i === breadcrumbs.length - 1 ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: i === breadcrumbs.length - 1 ? 700 : 600 }}>{bc.label}</span>}
+                        </span>
+                    ))}
+                </div>
+                <div style={{ display: 'none', gap: 0 }}>
                     {statusTabs.map(tab => (
                         <button key={tab.key} onClick={() => handleStatusFilter(tab.key)} style={{
                             padding: '8px 16px', fontSize: 12, fontWeight: activeStatus === tab.key ? 600 : 400,
@@ -312,7 +535,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
             </div>
 
             {/* ── Breadcrumbs (folder view only) ── */}
-            {viewMode === 'folder' && (
+            {false && viewMode === 'folder' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 16, padding: '0 4px' }}>
                     {breadcrumbs.map((bc, i) => (
                         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -377,34 +600,119 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
             {/* ═══ FOLDER VIEW ═══ */}
             {viewMode === 'folder' && (
                 <>
-                    {folderLevel !== 'programs' && (
+                    {(selectedProgram || folderLevel !== 'programs') && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                             <button onClick={goBack} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-panel-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                 <ArrowLeft size={14} color="var(--color-text-secondary)" />
                             </button>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                                {currentSubArea?.name ?? currentArea?.name ?? currentProgram?.name}
+                                {selectedProgram ? `${selectedProgram.code} - ${selectedProgram.name}` : (currentSubArea?.name ?? currentArea?.name ?? currentProgram?.name)}
                             </div>
                         </div>
                     )}
 
+                    {selectedProgram && (
+                        <div style={{ display: 'grid', gap: 12 }}>
+                            {filteredItemTree.map((area, index) => {
+                                const areaOpen = expandedTreeAreas.includes(area.id);
+                                const color = areaColors[index % areaColors.length];
+                                return (
+                                    <div key={area.id} style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                                        <button type="button" onClick={() => toggleTreeArea(area.id)} style={{ width: '100%', border: 'none', background: '#fff', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                <div style={{ width: 4, height: 32, borderRadius: 999, background: color }} />
+                                                <ChevronRight size={15} style={{ transform: areaOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f1f3d' }}>{area.name}</div>
+                                                    <div style={{ fontSize: 11, color: '#8892aa', marginTop: 2 }}>{area.sub_areas.length} sub-areas</div>
+                                                </div>
+                                            </div>
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: area.total_files ? '#1a7a4a' : '#8892aa', background: area.total_files ? '#e8f5ee' : '#f0f2f8', padding: '3px 9px', borderRadius: 999 }}>
+                                                {area.total_files} files
+                                            </span>
+                                        </button>
+
+                                        {areaOpen && (
+                                            <div style={{ borderTop: '1px solid #eef2f7' }}>
+                                                {area.sub_areas.map((subArea, subIndex) => {
+                                                    const subAreaOpen = expandedTreeSubAreas.includes(subArea.id);
+                                                    return (
+                                                        <div key={subArea.id} style={{ borderTop: subIndex === 0 ? 'none' : '1px solid #f0f2f8', background: subIndex % 2 === 0 ? '#fff' : '#fafbfe' }}>
+                                                            <button type="button" onClick={() => toggleTreeSubArea(subArea.id)} style={{ width: '100%', border: 'none', background: 'transparent', padding: '12px 18px 12px 38px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <ChevronRight size={13} style={{ transform: subAreaOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+                                                                    <div>
+                                                                        <div style={{ fontSize: 12.5, fontWeight: 650, color: '#0f1f3d' }}>{subArea.name}</div>
+                                                                        <div style={{ display: 'flex', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
+                                                                            {(['input', 'process', 'outcome'] as const).map((type) => {
+                                                                                const slot = SLOT_LABELS[type];
+                                                                                return (
+                                                                                    <span key={type} style={{ fontSize: 10, fontWeight: 700, color: slot.color, background: `${slot.color}18`, borderRadius: 7, padding: '3px 8px' }}>
+                                                                                        {slot.label}: {subArea.groups[type].length}
+                                                                                    </span>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <span style={{ fontSize: 11, color: subArea.total_files ? '#1a7a4a' : '#8892aa', fontWeight: 700 }}>{subArea.total_files} files</span>
+                                                            </button>
+
+                                                            {subAreaOpen && (
+                                                                <div style={{ margin: '0 18px 14px 60px', border: '1px solid #eef2f7', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
+                                                                    {(['input', 'process', 'outcome'] as const).map((type) => {
+                                                                        const slot = SLOT_LABELS[type];
+                                                                        const items = subArea.groups[type];
+                                                                        return (
+                                                                            <div key={type} style={{ borderTop: type === 'input' ? 'none' : '1px solid #eef2f7' }}>
+                                                                                <div style={{ padding: '9px 12px', background: `${slot.color}10`, color: slot.color, fontSize: 11, fontWeight: 800, display: 'flex', justifyContent: 'space-between' }}>
+                                                                                    <span>{slot.label}</span>
+                                                                                    <span>{items.length} items</span>
+                                                                                </div>
+                                                                                {items.length === 0 ? (
+                                                                                    <div style={{ padding: '12px', fontSize: 11, color: '#b8bfd4', fontStyle: 'italic' }}>No items in this section.</div>
+                                                                                ) : (
+                                                                                    items.map((item) => renderItemRow(item))
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            {filteredItemTree.length === 0 && (
+                                <div style={{ padding: 42, textAlign: 'center', color: '#8892aa', background: '#fff', border: '1px solid #dde1ed', borderRadius: 12 }}>
+                                    No areas, items, or uploaded files found for this program.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Programs */}
-                    {folderLevel === 'programs' && (
+                    {!selectedProgram && folderLevel === 'programs' && (
                         <>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-                                {filteredPrograms.map((prog, i) => (
-                                    <div key={prog.id} onClick={() => setCurrentProgram(prog)}
+                                {programOptions.map((prog, i) => (
+                                    <div key={prog.id} onClick={() => openProgramTree(prog.id)}
                                         style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,31,61,0.07)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = folderColors[i % folderColors.length]; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-panel-border)'; }}>
                                         <FolderIcon color={folderColors[i % folderColors.length]} size={64} label={prog.code} />
                                         <div style={{ textAlign: 'center' }}>
                                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{prog.name}</div>
-                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{prog.areas.length} areas</div>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>Open evidence tree</div>
                                         </div>
                                     </div>
                                 ))}
-                                {filteredPrograms.length === 0 && (
+                                {programOptions.length === 0 && (
                                     <div style={{
                                         gridColumn: '1 / -1',
                                         padding: 60,
@@ -422,6 +730,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                 )}
                             </div>
 
+                            {false && (
                             <div
                                 style={{
                                     marginTop: 18,
@@ -610,6 +919,7 @@ export default function DocumentsIndex({ documents, programs, filters = {}, role
                                     </table>
                                 </div>
                             </div>
+                            )}
                         </>
                     )}
 
