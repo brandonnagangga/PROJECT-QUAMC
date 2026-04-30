@@ -408,7 +408,10 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     }, [isDashboard, isEditMode]);
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: 'var(--color-shell-bg)', color: 'var(--color-text)' }}>
+        <div
+            className="app-container app-container--client-zoom"
+            style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 400, background: 'var(--color-shell-bg)', color: 'var(--color-text)' }}
+        >
             <ThemeApplier />
             <SeasonalDecorations />
             <ThemeSidebar open={themeSidebarOpen} onClose={() => setThemeSidebarOpen(false)} />
@@ -492,6 +495,16 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                             </div>
                         )}
                         {!sidebarCollapsed && <ChevronRight size={14} className="app-user-trigger-chevron" />}
+                    </button>
+
+                    <button
+                        type="button"
+                        className="app-sidebar-logout"
+                        onClick={handleLogout}
+                        title="Log out"
+                    >
+                        <LogOut size={15} />
+                        {!sidebarCollapsed && <span>Log out</span>}
                     </button>
 
                     {isUserMenuOpen && (

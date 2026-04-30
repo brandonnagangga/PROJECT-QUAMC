@@ -7,249 +7,290 @@
 body {
     font-family: 'DejaVu Sans', Arial, sans-serif;
     font-size: 9pt;
-    color: #1a1a2e;
-    padding: 14mm 18mm 18mm 18mm;
+    color: #000;
+    padding: 14mm 16mm 18mm;
     background: #fff;
 }
-.page-header {
-    border-bottom: 2px solid #0f1f3d;
-    padding-bottom: 8px;
-    margin-bottom: 14px;
-}
-.area-label  { font-size: 7.5pt; color: #8892aa; text-transform: uppercase; letter-spacing: 0.5px; }
-.subarea-title { font-size: 11pt; font-weight: bold; color: #0f1f3d; margin-top: 3px; }
-
-/* IPO section */
-.ipo-section { margin-bottom: 14px; }
-.ipo-header {
-    padding: 4px 10px;
-    margin-bottom: 10px;
-    border-left: 4px solid #000;
-    font-size: 9pt;
+.survey-title {
+    text-align: center;
+    font-size: 12.5pt;
     font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    background: #f8f9fc;
+    margin-bottom: 10px;
 }
-.ipo-input   { border-color: #185fa5; color: #0c447c; background: #e6f1fb; }
-.ipo-process { border-color: #ba7517; color: #633806; background: #faeeda; }
-.ipo-outcome { border-color: #1d9e75; color: #085041; background: #e1f5ee; }
-
-/* Item */
-.item-block { margin-bottom: 14px; }
-/* Header row: label left, rating right */
-.item-header-tbl { width: 100%; border-collapse: collapse; }
-.item-num  { font-weight: bold; font-size: 9pt; white-space: nowrap; vertical-align: middle; padding-right: 6px; width: 56px; }
-.item-rating-inline { font-size: 7.5pt; font-weight: bold; color: #185fa5; text-align: right; vertical-align: middle; white-space: nowrap; }
-/* Narrative sits below the header, indented to align with text */
-.item-narrative { font-size: 9pt; line-height: 1.6; word-wrap: break-word; margin-left: 56px; margin-top: 3px; text-align: justify; }
-
-/* Evidence block */
-.evidence-block { margin-left: 56px; margin-top: 5px; }
-.evidence-label { font-size: 7.5pt; font-weight: bold; color: #854f0b; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
-.extracted-text { font-size: 8.5pt; color: '#2c2c2c'; margin-left: 10px; line-height: 1.6; word-wrap: break-word; }
-.extracted-text p { margin: 0 0 6px 0; }
-.not-extractable { font-size: 8pt; color: #aaa; font-style: italic; margin-left: 10px; }
-.pdf-page-wrap { margin-left: 10px; margin-top: 8px; page-break-inside: avoid; }
-.pdf-page-label { font-size: 7.5pt; color: #4a5470; margin-bottom: 3px; }
-.pdf-page-wrap img { width: 100%; height: auto; display: block; border: 1px solid #d8deeb; border-radius: 3px; }
-
-.img-wrap { margin-left: 10px; margin-top: 8px; page-break-inside: avoid; }
-.img-wrap img { width: 100%; height: auto; display: block; border: 1px solid #e0e4ef; border-radius: 3px; }
-
-/* Sub-item */
-.subitem-block { margin-left: 30px; margin-top: 7px; }
-.subitem-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.subitem-num { font-weight: bold; font-size: 8.5pt; white-space: nowrap; width: 72px; vertical-align: top; color: #4a5470; padding-right: 4px; }
-.subitem-narrative { font-size: 8.5pt; vertical-align: top; line-height: 1.45; word-wrap: break-word; }
-.subitem-evidence { margin-left: 72px; margin-top: 4px; }
-
-/* Dividers & totals */
-.ipo-mean {
-    text-align: right;
-    font-size: 8.5pt;
+.section-wrap {
+    margin-bottom: 12px;
+}
+.survey-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+.survey-table th,
+.survey-table td {
+    border: 0.8px solid #000;
+    vertical-align: top;
+}
+.survey-table th:nth-child(1),
+.survey-table td:nth-child(1) { width: 7%; }
+.survey-table th:nth-child(2),
+.survey-table td:nth-child(2) { width: 67%; }
+.survey-table th:nth-child(3),
+.survey-table td:nth-child(3) { width: 13%; }
+.survey-table th:nth-child(4),
+.survey-table td:nth-child(4) { width: 13%; }
+.blank-head {
+    height: 18px;
+    background: #fff;
+}
+.table-head {
+    padding: 5px;
+    text-align: center;
+    font-size: 7.5pt;
     font-weight: bold;
-    color: #0f1f3d;
-    border-top: 1px solid #c9a84c;
-    padding-top: 4px;
-    margin-top: 8px;
+    line-height: 1.05;
 }
-.subarea-rating-box {
-    border: 2px solid #0f1f3d;
-    border-radius: 4px;
-    padding: 8px 14px;
-    margin-top: 14px;
+.subarea-head {
+    text-transform: uppercase;
+}
+.ipo-band td {
+    background: #d9d9d9;
     text-align: center;
     font-size: 9.5pt;
     font-weight: bold;
-    color: #0f1f3d;
+    padding: 6px 5px;
+    text-transform: uppercase;
 }
-.rating-formula { font-size: 8pt; font-weight: normal; color: #4a5470; margin-top: 3px; }
-
+.item-number {
+    text-align: center;
+    padding: 6px 3px;
+}
+.item-text {
+    padding: 6px 8px;
+    line-height: 1.42;
+}
+.item-rating,
+.item-mean {
+    text-align: center;
+    padding: 6px 3px;
+    font-size: 8pt;
+}
+.subitem {
+    margin-top: 5px;
+    padding-left: 12px;
+    font-size: 8.5pt;
+    line-height: 1.35;
+}
+.evidence-panel {
+    padding: 0 0 12px;
+    margin: 8px 0 12px 0;
+    page-break-before: always;
+    page-break-inside: auto;
+}
+.evidence-label {
+    border: 0.8px solid #000;
+    background: #f3f4f6;
+    font-size: 9pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #000;
+    padding: 6px 8px;
+    margin-bottom: 7px;
+    line-height: 1.2;
+}
+.file-label {
+    font-size: 7.5pt;
+    font-weight: bold;
+    color: #000;
+    margin: 5px 0 5px 8px;
+    padding-left: 6px;
+    border-left: 2px solid #ffc400;
+}
+.pdf-page-wrap,
+.img-wrap {
+    margin: 3px 0 5px;
+    text-align: center;
+}
+.pdf-page-wrap {
+    page-break-before: always;
+    page-break-inside: avoid;
+}
+.pdf-page-wrap.first-pdf-page {
+    page-break-before: auto;
+}
+.img-wrap {
+    page-break-inside: avoid;
+}
+.img-wrap + .img-wrap {
+    page-break-before: always;
+}
+.pdf-page-label {
+    font-size: 7pt;
+    color: #333;
+    text-align: left;
+    margin-bottom: 2px;
+}
+.pdf-page-wrap img {
+    width: 168mm;
+    max-width: 168mm;
+    max-height: 235mm;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    border: none;
+}
+.img-wrap img {
+    max-width: 150mm;
+    max-height: 175mm;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    border: none;
+}
+.not-extractable {
+    font-size: 7.5pt;
+    color: #777;
+    font-style: italic;
+}
+.mean-row td {
+    font-weight: bold;
+    text-align: right;
+    padding: 4px 6px;
+    line-height: 1.15;
+}
+.final-rating {
+    margin-top: 10px;
+    border: 0.8px solid #000;
+    padding: 6px 8px;
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-align: center;
+}
 .page-num {
     position: fixed;
     bottom: 8mm;
-    right: 18mm;
+    right: 15mm;
     font-size: 8pt;
-    color: #c9a84c;
-    font-weight: bold;
+    color: #000;
 }
 </style>
 </head>
 <body>
 
-<div class="page-header">
-    <div class="area-label">{{ $area_name }}</div>
-    <div class="subarea-title">Sub Area {{ $sub_area_index }}: {{ $sub_area_name }}</div>
-</div>
+<div class="survey-title">{{ $area_name }}</div>
 
 @php
 $ipoCfg = [
-    'input'   => ['label' => 'Inputs',    'css' => 'ipo-input',   'weight' => 20],
-    'process' => ['label' => 'Processes', 'css' => 'ipo-process', 'weight' => 30],
-    'outcome' => ['label' => 'Outcomes',  'css' => 'ipo-outcome', 'weight' => 50],
+    'input' => ['label' => 'Inputs', 'weight' => 20],
+    'process' => ['label' => 'Processes', 'weight' => 30],
+    'outcome' => ['label' => 'Outcomes', 'weight' => 50],
 ];
+
 $ipoMeans = [];
-foreach (['input','process','outcome'] as $ipo) {
+foreach (['input', 'process', 'outcome'] as $ipo) {
     $ratings = collect($ipo_groups[$ipo] ?? [])->pluck('rating')->filter()->values();
     $ipoMeans[$ipo] = $ratings->count() > 0 ? round($ratings->avg(), 2) : null;
 }
+
+$subAreaLetter = chr(64 + $sub_area_index);
+$displaySubAreaName = trim(preg_replace('/^sub\s*area\s*\d+\s*:\s*/i', '', $sub_area_name));
 @endphp
 
 @foreach($ipoCfg as $ipo => $cfg)
-@if(!empty($ipo_groups[$ipo]))
-<div class="ipo-section">
-    <div class="ipo-header {{ $cfg['css'] }}">{{ $cfg['label'] }}</div>
-
-    @foreach($ipo_groups[$ipo] as $idx => $item)
-    <div class="item-block">
-        {{-- Header: Item N label (left) + Rating/Mean (right) --}}
-        <table class="item-header-tbl"><tr>
-            <td class="item-num">Item {{ $idx + 1 }}:</td>
-            <td class="item-rating-inline">
-                @if($item['rating'] !== null)
-                    Rating: {{ $item['rating'] }}
-                    @if($ipoMeans[$ipo] !== null) &nbsp;|&nbsp; Mean: {{ $ipoMeans[$ipo] }} @endif
-                @else
-                    <span style="color:#ccc;">Not rated</span>
-                @endif
-            </td>
-        </tr></table>
-
-        {{-- Narrative: full-width, indented to label width --}}
-        @if($item['narrative'])
-        <div class="item-narrative">{{ $item['narrative'] }}</div>
-        @endif
-        {{-- Evidence files --}}
-        @if(!empty($item['files']))
-        <div class="evidence-block">
-            <div class="evidence-label">Supportive Evidence:</div>
-            @foreach($item['files'] as $file)
-                {{-- Always show filename as a clear anchor --}}
-                <div style="font-size:8.5pt; font-weight:bold; color:#0f1f3d; margin-top:6px; margin-left:10px; border-left:2px solid #c9a84c; padding-left:6px;">
-                    FILE: {{ $file['original_filename'] }}
-                </div>
-                @if($file['is_pdf'])
-                    @if(!empty($file['pdf_pages']))
-                        @foreach($file['pdf_pages'] as $page)
-                            <div class="pdf-page-wrap">
-                                @if(count($file['pdf_pages']) > 1)
-                                    <div class="pdf-page-label">Page {{ $page['page'] }}</div>
+    @if(!empty($ipo_groups[$ipo]))
+        <div class="section-wrap">
+            <table class="survey-table">
+                <thead>
+                    <tr>
+                        <th class="blank-head"></th>
+                        <th class="table-head subarea-head">{{ $subAreaLetter }}. {{ strtoupper($displaySubAreaName) }}</th>
+                        <th class="table-head">IPO<br>RATING</th>
+                        <th class="table-head">IPO<br>MEAN</th>
+                    </tr>
+                    <tr class="ipo-band">
+                        <td></td>
+                        <td>{{ strtoupper($cfg['label']) }}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($ipo_groups[$ipo] as $idx => $item)
+                        @php
+                            $itemText = trim((string)($item['label'] ?? ''));
+                            if ($itemText === '') {
+                                $itemText = trim((string)($item['narrative'] ?? ''));
+                            }
+                        @endphp
+                        <tr>
+                            <td class="item-number">{{ $idx + 1 }}.</td>
+                            <td class="item-text">
+                                {{ $itemText }}
+                                @if(!empty($item['narrative']) && trim((string)$item['narrative']) !== $itemText)
+                                    <div class="subitem">{{ $item['narrative'] }}</div>
                                 @endif
-                                <img src="{{ $page['image_data'] }}" />
-                            </div>
+                                @foreach($item['children'] ?? [] as $cidx => $child)
+                                    <div class="subitem">
+                                        {{ chr(97 + $cidx) }}. {{ $child['label'] ?? $child['narrative'] ?? '' }}
+                                        @if(!empty($child['narrative']) && ($child['label'] ?? '') !== $child['narrative'])
+                                            <br>{{ $child['narrative'] }}
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </td>
+                            <td class="item-rating">
+                                @if($item['rating'] !== null)
+                                    {{ $item['rating'] }}
+                                @endif
+                            </td>
+                            <td class="item-mean"></td>
+                        </tr>
+                    @endforeach
+
+                    <tr class="mean-row">
+                        <td colspan="3">{{ strtoupper($cfg['label']) }} MEAN<br>({{ $cfg['weight'] }}%)</td>
+                        <td>{{ $ipoMeans[$ipo] !== null ? $ipoMeans[$ipo] : '' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            @foreach($ipo_groups[$ipo] as $idx => $item)
+                @if(!empty($item['files']))
+                    <div class="evidence-panel">
+                        <div class="evidence-label">Supportive Evidence for {{ strtoupper($cfg['label']) }} Item {{ $idx + 1 }}</div>
+                        @foreach($item['files'] as $file)
+                            @include('pdf.partials.survey_file_preview', ['file' => $file])
                         @endforeach
-                    @else
-                        <div class="not-extractable" style="margin-left:10px;">[PDF preview unavailable]</div>
-                    @endif
-                @elseif($file['extracted_text'])
-                    <div class="extracted-text" style="white-space: pre-wrap; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9pt; color: #1a1a2e; line-height: 1.6; padding: 4px 0;">
-                        {{ $file['extracted_text'] }}
                     </div>
-                @elseif(!$file['is_image'])
-                    <div class="not-extractable" style="margin-left:10px;">[Text extraction unavailable for this file type]</div>
                 @endif
-                @if($file['is_image'] && !empty($file['image_data']))
-                    <div class="img-wrap"><img src="{{ $file['image_data'] }}" /></div>
-                @endif
-                @if(!$loop->last)
-                    <hr style="border:none; border-top:1px dashed #e0e0e0; margin: 6px 10px;" />
-                @endif
-            @endforeach
-        </div>
-        @endif
 
-
-        {{-- Sub-items --}}
-        @foreach($item['children'] as $cidx => $child)
-        <div class="subitem-block">
-            <table class="subitem-tbl"><tr>
-                <td class="subitem-num">Sub-item {{ chr(97 + $cidx) }}:</td>
-                <td class="subitem-narrative">{{ $child['narrative'] ?? '' }}</td>
-            </tr></table>
-            @if(!empty($child['files']))
-            <div class="subitem-evidence">
-                <div class="evidence-label">Supportive Evidence:</div>
-                @foreach($child['files'] as $file)
-                    <div style="font-size:8.5pt; font-weight:bold; color:#0f1f3d; margin-top:6px; margin-left:10px; border-left:2px solid #c9a84c; padding-left:6px;">
-                        FILE: {{ $file['original_filename'] }}
-                    </div>
-                    @if($file['is_pdf'])
-                        @if(!empty($file['pdf_pages']))
-                            @foreach($file['pdf_pages'] as $page)
-                                <div class="pdf-page-wrap">
-                                    @if(count($file['pdf_pages']) > 1)
-                                        <div class="pdf-page-label">Page {{ $page['page'] }}</div>
-                                    @endif
-                                    <img src="{{ $page['image_data'] }}" />
-                                </div>
+                @foreach($item['children'] ?? [] as $cidx => $child)
+                    @if(!empty($child['files']))
+                        <div class="evidence-panel">
+                            <div class="evidence-label">Supportive Evidence for {{ strtoupper($cfg['label']) }} Item {{ $idx + 1 }}.{{ chr(97 + $cidx) }}</div>
+                            @foreach($child['files'] as $file)
+                                @include('pdf.partials.survey_file_preview', ['file' => $file])
                             @endforeach
-                        @else
-                            <div class="not-extractable" style="margin-left:10px;">[PDF preview unavailable]</div>
-                        @endif
-                    @elseif($file['extracted_text'])
-                            <div class="extracted-text" style="white-space: pre-wrap; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9pt; color: #1a1a2e; line-height: 1.6; padding: 4px 0;">
-                                {{ $file['extracted_text'] }}
-                            </div>
-                    @elseif(!$file['is_image'])
-                        <div class="not-extractable" style="margin-left:10px;">[Text extraction unavailable for this file type]</div>
-                    @endif
-                    @if($file['is_image'] && !empty($file['image_data']))
-                        <div class="img-wrap"><img src="{{ $file['image_data'] }}" /></div>
-                    @endif
-                    @if(!$loop->last)
-                        <hr style="border:none; border-top:1px dashed #e0e0e0; margin: 6px 10px;" />
+                        </div>
                     @endif
                 @endforeach
-            </div>
-            @endif
+            @endforeach
         </div>
-        @endforeach
-    </div>
-    @endforeach
-
-    @if($ipoMeans[$ipo] !== null)
-    <div class="ipo-mean">&#9472;&#9472;&#9472; {{ $cfg['label'] }} Mean: {{ $ipoMeans[$ipo] }} &#9472;&#9472;&#9472;</div>
     @endif
-</div>
-@endif
 @endforeach
 
 @php
-$im = $ipoMeans['input']   ?? 0;
+$im = $ipoMeans['input'] ?? 0;
 $pm = $ipoMeans['process'] ?? 0;
 $om = $ipoMeans['outcome'] ?? 0;
 $sar = round(($im * 0.20) + ($pm * 0.30) + ($om * 0.50), 2);
 @endphp
 
-<div class="subarea-rating-box">
+<div class="final-rating">
     Sub-area Final Rating: {{ $sar }}
-    <div class="rating-formula">
-        (Inputs {{ $im }} &times; 20%) + (Processes {{ $pm }} &times; 30%) + (Outcomes {{ $om }} &times; 50%)
-    </div>
 </div>
 
-<div class="page-num">{{ $area_name }} &bull; Sub Area {{ $sub_area_index }}</div>
+<div class="page-num">Page | {{ $page_number }}</div>
 
 </body>
 </html>
