@@ -2,11 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\AccreditationCycle;
 use App\Models\Area;
 use App\Models\AreaItem;
 use App\Models\AreaItemResponse;
-use App\Models\Program;
 use App\Models\SubArea;
 use Illuminate\Database\Seeder;
 
@@ -14,16 +12,7 @@ class Area1And2FullSeeder extends Seeder
 {
     public function run(): void
     {
-        $program = Program::first();
-        if (!$program) {
-            $this->command->error('No program found. Run ProgramAndAreaSeeder first.');
-            return;
-        }
-
-        $cycle = AccreditationCycle::active();
-        $cycleId = $cycle?->id;
-
-        $this->command->info("Seeding responses for program: {$program->name}");
+        $this->command->info('Seeding Area 1 and 2 items.');
 
         $areasData = [
             'Governance and Administration' => $this->area1Data(),
@@ -65,47 +54,24 @@ class Area1And2FullSeeder extends Seeder
                     foreach ($items as $criterionText => $subItems) {
                         $parentOrder++;
 
-                        // Label = short identifier (Item 1, Item 2, ...)
                         $parent = AreaItem::create([
                             'sub_area_id'    => $subArea->id,
                             'ipo_type'       => $ipo,
                             'parent_item_id' => null,
-                            'label'          => "Item {$parentOrder}",
+                            'label'          => $criterionText,
                             'order_number'   => $parentOrder,
-                        ]);
-
-                        // Narrative = actual criterion text seeded as coordinator response
-                        AreaItemResponse::create([
-                            'area_item_id' => $parent->id,
-                            'program_id'   => $program->id,
-                            'cycle_id'     => $cycleId,
-                            'content_text' => $criterionText,
-                            'rating'       => null,
                         ]);
 
                         if (is_array($subItems) && !empty($subItems)) {
                             $childOrder = 0;
                             foreach ($subItems as $childText) {
                                 $childOrder++;
-                                // e.g., Sub-item a, Sub-item b
-                                // Use alphabetical character, but if it exceeds 'z', wrap around or just use numbers. Usually < 26.
-                                $childLabel = 'Sub-item ' . (ctype_alpha(chr(96 + $childOrder)) ? chr(96 + $childOrder) : $childOrder);
-                                
-                                $child = AreaItem::create([
+                                AreaItem::create([
                                     'sub_area_id'    => $subArea->id,
                                     'ipo_type'       => $ipo,
                                     'parent_item_id' => $parent->id,
-                                    'label'          => $childLabel,
+                                    'label'          => $childText,
                                     'order_number'   => $childOrder,
-                                ]);
-
-                                // Seed child narrative too
-                                AreaItemResponse::create([
-                                    'area_item_id' => $child->id,
-                                    'program_id'   => $program->id,
-                                    'cycle_id'     => $cycleId,
-                                    'content_text' => $childText,
-                                    'rating'       => null,
                                 ]);
                             }
                         }

@@ -2,22 +2,19 @@
 
 namespace Database\Seeders;
 
-use App\Models\AccreditationCycle;
 use App\Models\Area;
 use App\Models\AreaItem;
 use App\Models\AreaItemResponse;
-use App\Models\Program;
 use App\Models\SubArea;
 use Illuminate\Database\Seeder;
 
 /**
  * Seeds Area 1 (Governance and Administration) — Sub-Areas 1, 2, 3
- * with the actual PAASCU criterion text as coordinator narratives.
+ * with the actual PAASCU criterion text as item labels.
  *
- * - AreaItem.label         = "Item 1", "Item 2" ...  (short identifier shown in UI)
- * - AreaItemResponse.content_text = criterion text   (shown in PDF as narrative)
+ * - AreaItem.label = criterion text (managed in Area Management)
  *
- * Safe to run repeatedly: clears and re-seeds only Area 1 items/responses.
+ * Safe to run repeatedly: clears and re-seeds only Area 1 items.
  *
  * Usage:
  *   php artisan db:seed --class=Area1FullSeeder
@@ -32,17 +29,7 @@ class Area1FullSeeder extends Seeder
             return;
         }
 
-        // Use the first available program for seeding responses
-        $program = Program::first();
-        if (!$program) {
-            $this->command->error('No program found. Run ProgramAndAreaSeeder first.');
-            return;
-        }
-
-        $cycle   = AccreditationCycle::active();
-        $cycleId = $cycle?->id;
-
-        $this->command->info("Seeding responses for program: {$program->name} (ID {$program->id})");
+        $this->command->info('Seeding Area 1 items.');
 
         foreach ($this->data() as $subAreaName => $ipoData) {
             $subArea = SubArea::where('area_id', $area->id)
@@ -54,7 +41,7 @@ class Area1FullSeeder extends Seeder
                 continue;
             }
 
-            // Clear existing items AND responses for this sub-area
+            // Clear existing items for this sub-area.
             $itemIds = AreaItem::where('sub_area_id', $subArea->id)->pluck('id');
             AreaItemResponse::whereIn('area_item_id', $itemIds)->delete();
             AreaItem::where('sub_area_id', $subArea->id)->delete();
@@ -67,43 +54,24 @@ class Area1FullSeeder extends Seeder
                 foreach ($items as $criterionText => $subItems) {
                     $parentOrder++;
 
-                    // Label = short identifier (Item 1, Item 2, ...)
                     $parent = AreaItem::create([
                         'sub_area_id'    => $subArea->id,
                         'ipo_type'       => $ipo,
                         'parent_item_id' => null,
-                        'label'          => "Item {$parentOrder}",
+                        'label'          => $criterionText,
                         'order_number'   => $parentOrder,
-                    ]);
-
-                    // Narrative = actual criterion text seeded as coordinator response
-                    AreaItemResponse::create([
-                        'area_item_id' => $parent->id,
-                        'program_id'   => $program->id,
-                        'cycle_id'     => $cycleId,
-                        'content_text' => $criterionText,
-                        'rating'       => null,
                     ]);
 
                     if (is_array($subItems)) {
                         $childOrder = 0;
                         foreach ($subItems as $childText) {
                             $childOrder++;
-                            $child = AreaItem::create([
+                            AreaItem::create([
                                 'sub_area_id'    => $subArea->id,
                                 'ipo_type'       => $ipo,
                                 'parent_item_id' => $parent->id,
-                                'label'          => 'Sub-item ' . chr(96 + $childOrder), // a, b, c...
+                                'label'          => $childText,
                                 'order_number'   => $childOrder,
-                            ]);
-
-                            // Seed child narrative too
-                            AreaItemResponse::create([
-                                'area_item_id' => $child->id,
-                                'program_id'   => $program->id,
-                                'cycle_id'     => $cycleId,
-                                'content_text' => $childText,
-                                'rating'       => null,
                             ]);
                         }
                     }

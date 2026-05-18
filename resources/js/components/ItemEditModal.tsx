@@ -1,37 +1,23 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { X, Upload, Trash2, Download, Star, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 
-// Lexical imports
-import { LexicalComposer } from '@lexical/react/LexicalComposer';
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import { ContentEditable } from '@lexical/react/LexicalContentEditable';
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
-import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { ListPlugin } from '@lexical/react/LexicalListPlugin';
-import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
-import { TRANSFORMERS } from '@lexical/markdown';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { $setBlocksType } from '@lexical/selection';
+import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
+import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
 import { LinkNode } from '@lexical/link';
 import {
-    $getRoot, $createParagraphNode, $createTextNode,
-    EditorState, FORMAT_TEXT_COMMAND, UNDO_COMMAND, REDO_COMMAND,
+    $createParagraphNode,
+    $createTextNode,
+    $getRoot,
+    $getSelection,
+    $isRangeSelection,
+    FORMAT_TEXT_COMMAND,
+    REDO_COMMAND,
+    UNDO_COMMAND,
 } from 'lexical';
-import { $setBlocksType } from '@lexical/selection';
-import { $getSelection, $isRangeSelection } from 'lexical';
-import {
-    INSERT_ORDERED_LIST_COMMAND,
-    INSERT_UNORDERED_LIST_COMMAND,
-    REMOVE_LIST_COMMAND,
-} from '@lexical/list';
-import {
-    $createHeadingNode,
-    $createQuoteNode,
-} from '@lexical/rich-text';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +27,7 @@ interface FileRecord {
     file_size_bytes: number;
     size_formatted: string;
     mime_type: string;
+    caption?: string | null;
     scan_status: string;
 }
 
@@ -72,6 +59,23 @@ const getCsrf = (): string => {
 };
 
 // ── Toolbar Button ───────────────────────────────────────────────────────────
+const getXsrfCookie = (): string => {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+};
+
+const csrfHeaders = (): Record<string, string> => {
+    const token = getCsrf();
+    const xsrf = getXsrfCookie();
+
+    return {
+        ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+        ...(xsrf ? { 'X-XSRF-TOKEN': xsrf } : {}),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+    };
+};
+
 function ToolbarBtn({ active, onClick, title, children }: {
     active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
 }) {
@@ -227,13 +231,22 @@ function LoadInitialText({ text }: { text: string }) {
 
 // ── File item row ─────────────────────────────────────────────────────────────
 
-function FileRow({ file, onDelete }: { file: FileRecord; onDelete: (id: number) => void }) {
+function FileRow({
+    file,
+    onCaptionChange,
+    onDelete,
+}: {
+    file: FileRecord;
+    onCaptionChange: (id: number, caption: string) => void;
+    onDelete: (id: number) => void;
+}) {
     const ext = file.original_filename.split('.').pop()?.toUpperCase() ?? 'FILE';
     return (
         <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '8px 12px', borderBottom: '1px solid #f5f5f8',
+            display: 'grid', gridTemplateColumns: '32px minmax(0, 1fr) auto', gap: 10,
+            padding: '10px 12px', borderBottom: '1px solid #f5f5f8',
             background: '#fff',
+            alignItems: 'start',
         }}>
             <div style={{
                 width: 32, height: 32, borderRadius: 6, background: '#e6f1fb',
@@ -245,6 +258,19 @@ function FileRow({ file, onDelete }: { file: FileRecord; onDelete: (id: number) 
                     {file.original_filename}
                 </div>
                 <div style={{ fontSize: 10, color: '#8892aa' }}>{file.size_formatted}</div>
+                <textarea
+                    value={file.caption ?? ''}
+                    onChange={e => onCaptionChange(file.id, e.target.value)}
+                    placeholder="Caption for this supporting evidence"
+                    rows={2}
+                    style={{
+                        width: '100%', marginTop: 8, resize: 'vertical',
+                        border: '1px solid #dde1ed', borderRadius: 6,
+                        padding: '8px 10px', fontSize: 12.5, lineHeight: 1.45,
+                        color: '#1e2640', outline: 'none',
+                        fontFamily: "'Inter', sans-serif", background: '#fafbfe',
+                    }}
+                />
             </div>
             <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                 <a
@@ -289,102 +315,90 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
     const [rating, setRating]         = useState<number | null>(null);
     const [hoverRating, setHoverRating] = useState<number | null>(null);
     const [files, setFiles]           = useState<FileRecord[]>([]);
-    const [editorJson, setEditorJson] = useState<any>(null);
-    const [editorText, setEditorText] = useState('');
-    const [initialJson, setInitialJson] = useState<any>(null);
-    const [initialText, setInitialText] = useState<string>('');
     const [responseId, setResponseId] = useState<number | null>(null);
 
     const fileInputRef      = useRef<HTMLInputElement>(null);
     // Skip 2 OnChangePlugin fires before marking dirty:
     //   fire 1 → Lexical init (empty state), fire 2 → LoadInitialContent or LoadInitialText
-    const skipCountRef      = useRef(2);
     const ipoWeight = IPO_WEIGHT[item.ipo_type] ?? 0.20;
     const ipoLabel = item.ipo_type.charAt(0).toUpperCase() + item.ipo_type.slice(1);
 
     // Load existing response on mount
     useEffect(() => {
-        fetch(`/area-items/${item.id}/response`, {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        })
-            .then(r => r.json())
-            .then(data => {
-                setResponseId(data.id ?? null);
-                setInitialJson(data.content_json ?? null);
-                setInitialText(data.content_text ?? '');
-                setEditorJson(data.content_json ?? null);
-                setEditorText(data.content_text ?? '');
-                setRating(data.rating ?? null);
-                setFiles(data.files ?? []);
-            })
-            .finally(() => setLoading(false));
+        refreshState().finally(() => setLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id]);
 
-    const handleEditorChange = useCallback((state: EditorState) => {
-        state.read(() => {
-            // Skip the first 2 fires (init + LoadInitialContent/Text) before marking dirty.
-            if (skipCountRef.current > 0) {
-                skipCountRef.current--;
-                if (skipCountRef.current > 0) return; // still in warm-up, don't update state yet
-                // Last skip fire = LoadInitialText/Content: sync editorJson/Text but don't dirty
-                const root = $getRoot();
-                setEditorText(root.getTextContent());
-                setEditorJson(state.toJSON());
-                return;
-            }
-            const root = $getRoot();
-            setEditorText(root.getTextContent());
-            setEditorJson(state.toJSON());
-            setIsDirty(true);
-        });
-    }, []);
+    /**
+     * Re-fetch the current item response (incl. files) from the server.
+     * Used after upload/delete so the UI is always in sync with persisted state.
+     */
+    async function refreshState() {
+        try {
+            const r = await fetch(`/area-items/${item.id}/response`, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!r.ok) return;
+            const data = await r.json();
+            setResponseId(data.id ?? null);
+            setRating(prev => prev ?? data.rating ?? null);
+            setFiles(data.files ?? []);
+        } catch (e) {
+            console.error('[refreshState] failed:', e);
+        }
+    }
 
-
+    const handleCaptionChange = (fileId: number, caption: string) => {
+        setFiles(prev => prev.map(file => file.id === fileId ? { ...file, caption } : file));
+        setIsDirty(true);
+    };
 
     const handleSaveDraft = async (thenClose = false) => {
         setSaving(true);
         setSaveError('');
-        const token = getCsrf();
-        console.log('[SaveDraft] starting, thenClose=', thenClose, 'token=', token ? 'present' : 'MISSING', 'editorJson=', editorJson ? 'present' : 'null');
         try {
             const res = await fetch(`/area-items/${item.id}/response`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({
-                    content_json: editorJson,
-                    content_text: editorText,
                     rating,
                 }),
             });
 
-            console.log('[SaveDraft] response status:', res.status, res.ok);
-
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 const msg = data?.message ?? data?.errors?.program ?? `Save failed (HTTP ${res.status}).`;
-                console.error('[SaveDraft] error:', msg, data);
                 setSaveError(msg);
                 setSaving(false);
                 return;
             }
 
-            const result = await res.json();
-            console.log('[SaveDraft] success:', result);
+            await Promise.all(files.map(file => fetch(`/item-files/${file.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...csrfHeaders(),
+                },
+                body: JSON.stringify({ caption: file.caption ?? null }),
+            }).then(async captionRes => {
+                if (!captionRes.ok) {
+                    const data = await captionRes.json().catch(() => ({}));
+                    throw new Error(data.message ?? `Caption save failed (HTTP ${captionRes.status}).`);
+                }
+            })));
+
             setSaving(false);
             setIsDirty(false);
             setShowClosePrompt(false);
             if (thenClose) {
-                console.log('[SaveDraft] closing modal');
                 onClose();
             }
         } catch (err) {
             console.error('[SaveDraft] network error:', err);
-            setSaveError('Network error. Please check your connection.');
+            setSaveError(err instanceof Error ? err.message : 'Network error. Please check your connection.');
             setSaving(false);
         }
     };
@@ -413,6 +427,7 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
                 const xhr = new XMLHttpRequest();
                 const form = new FormData();
                 form.append('area_item_id', String(item.id));
+                form.append('_token', getCsrf());
                 form.append('files[]', file);
 
                 xhr.upload.onprogress = (e) => {
@@ -424,20 +439,24 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
                 };
 
                 xhr.onload = () => {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        if (xhr.status >= 200 && xhr.status < 300 && data.files) {
-                            setFiles(prev => [...prev, ...data.files]);
-                            setUploadQueue(q => q.map((r, ri) =>
-                                ri === i ? { ...r, status: 'done', progress: 100, transferred: file.size } : r
-                            ));
-                        } else {
-                            setUploadQueue(q => q.map((r, ri) =>
-                                ri === i ? { ...r, status: 'error' } : r
-                            ));
-                            setSaveError(data.message ?? `Upload failed (HTTP ${xhr.status})`);
-                        }
-                    } catch { setUploadQueue(q => q.map((r, ri) => ri === i ? { ...r, status: 'error' } : r)); }
+                    // Treat any 2xx HTTP status as success. Don't depend on response shape parsing
+                    // to determine file existence — we'll re-sync from the server below.
+                    const ok = xhr.status >= 200 && xhr.status < 300;
+                    if (ok) {
+                        setUploadQueue(q => q.map((r, ri) =>
+                            ri === i ? { ...r, status: 'done', progress: 100, transferred: file.size } : r
+                        ));
+                    } else {
+                        let msg = `Upload failed (HTTP ${xhr.status})`;
+                        try {
+                            const data = JSON.parse(xhr.responseText || '{}');
+                            if (data?.message) msg = data.message;
+                        } catch { /* response wasn't JSON */ }
+                        setUploadQueue(q => q.map((r, ri) =>
+                            ri === i ? { ...r, status: 'error' } : r
+                        ));
+                        setSaveError(msg);
+                    }
                     resolve();
                 };
                 xhr.onerror = () => {
@@ -446,14 +465,16 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
                 };
 
                 xhr.open('POST', '/item-files');
-                xhr.setRequestHeader('X-CSRF-TOKEN', getCsrf());
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                xhr.setRequestHeader('Accept', 'application/json');
+                Object.entries(csrfHeaders()).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+                xhr.withCredentials = true;
                 xhr.send(form);
             });
         }
 
         setUploading(false);
+        // Single source of truth: refresh the file list from the server after the queue drains.
+        // This fixes the "shows error but actually uploaded" mismatch.
+        await refreshState();
         // Clear the queue after 3 s so it doesn't linger
         setTimeout(() => setUploadQueue([]), 3000);
     };
@@ -461,17 +482,20 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
 
     const handleDeleteFile = async (fileId: number) => {
         try {
-            await fetch(`/item-files/${fileId}`, {
+            const r = await fetch(`/item-files/${fileId}`, {
                 method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': getCsrf(),   // meta tag token — correct header
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                },
+                headers: csrfHeaders(),
             });
-            setFiles(prev => prev.filter(f => f.id !== fileId));
+            if (!r.ok) {
+                const data = await r.json().catch(() => ({}));
+                setSaveError(data.message ?? `Delete failed (HTTP ${r.status}).`);
+                return;
+            }
+            // Re-sync from server so duplicate state is impossible
+            await refreshState();
         } catch (err) {
             console.error('[DeleteFile] error:', err);
+            setSaveError('Could not delete file. Please try again.');
         }
     };
 
@@ -491,6 +515,7 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
         },
         nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode],
         onError: (e: Error) => console.error(e),
+        editable: false,
     };
 
     const activeRating = hoverRating ?? rating ?? 0;
@@ -554,65 +579,8 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
                         </div>
                     ) : (
                         <>
-                            {/* ── Narrative Section ── */}
-                            <div style={{ padding: '16px 20px 0' }}>
-                                <div style={{
-                                    fontSize: 11, fontWeight: 700, color: '#4a5470',
-                                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                                    marginBottom: 8, fontFamily: "'Inter', sans-serif",
-                                }}>
-                                    Narrative / Evidence
-                                </div>
-
-                                {/* Lexical Editor */}
-                                <div style={{
-                                    border: '1.5px solid #dde1ed', borderRadius: 8,
-                                    overflow: 'hidden', background: '#fff',
-                                }}>
-                                    <LexicalComposer initialConfig={lexicalConfig}>
-                                        <EditorToolbar />
-                                        <div style={{ position: 'relative', minHeight: 260 }}>
-                                            <RichTextPlugin
-                                                contentEditable={
-                                             <ContentEditable
-                                                        style={{
-                                                            minHeight: 320, maxHeight: 480,
-                                                            padding: '16px 18px',
-                                                            outline: 'none', fontSize: 14,
-                                                            lineHeight: 1.7,
-                                                            fontFamily: "'Inter', sans-serif",
-                                                            color: '#1e2640',
-                                                            overflowY: 'auto',
-                                                        }}
-                                                    />
-                                                }
-                                                placeholder={
-                                                    <div style={{
-                                                        position: 'absolute', top: 14, left: 16,
-                                                        color: '#b8bfd4', fontSize: 13.5, pointerEvents: 'none',
-                                                        fontFamily: "'Inter', sans-serif",
-                                                    }}>
-                                                        Write your narrative, supporting evidence, or observations here…
-                                                    </div>
-                                                }
-                                                ErrorBoundary={LexicalErrorBoundary}
-                                            />
-                                            <HistoryPlugin />
-                                            <AutoFocusPlugin />
-                                            <ListPlugin />
-                                            <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-                                            <OnChangePlugin onChange={handleEditorChange} ignoreSelectionChange />
-                                            {initialJson
-                                                ? <LoadInitialContent initialJson={initialJson} />
-                                                : <LoadInitialText text={initialText} />
-                                            }
-                                        </div>
-                                    </LexicalComposer>
-                                </div>
-                            </div>
-
                             {/* ── Files Section ── */}
-                            <div style={{ padding: '14px 20px 0' }}>
+                            <div style={{ padding: '16px 20px 0' }}>
                                 <div style={{
                                     fontSize: 11, fontWeight: 700, color: '#4a5470',
                                     textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -630,7 +598,7 @@ export default function ItemEditModal({ item, subAreaName, areaName, programId, 
                                         overflow: 'hidden', marginBottom: 8,
                                     }}>
                                         {files.map(f => (
-                                            <FileRow key={f.id} file={f} onDelete={handleDeleteFile} />
+                                            <FileRow key={f.id} file={f} onCaptionChange={handleCaptionChange} onDelete={handleDeleteFile} />
                                         ))}
                                     </div>
                                 )}

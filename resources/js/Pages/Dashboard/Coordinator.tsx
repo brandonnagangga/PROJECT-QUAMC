@@ -6,7 +6,7 @@ import {
     ArrowRight, AlertCircle
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
-import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import { ChartPanel, MetricList, MinimalLineChart } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 import AnimatedValue from '@/components/dashboard/AnimatedValue';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';

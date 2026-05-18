@@ -238,11 +238,10 @@ class ProgramController extends Controller
                     }
 
                     return [
-                        'id'               => $sa->id,
-                        'name'             => $sa->name,
-                        'order_number'     => $sa->order_number,
-                        'submission_status'=> $sa->submission_status,
-                        'slots'            => $slots,
+                        'id'           => $sa->id,
+                        'name'         => $sa->name,
+                        'order_number' => $sa->order_number,
+                        'slots'        => $slots,
                     ];
                 })->values(),
             ];

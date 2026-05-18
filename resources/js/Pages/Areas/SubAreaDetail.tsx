@@ -34,17 +34,9 @@ interface ScoreData {
     weighted: number | null;
 }
 
-interface Submission {
-    id: number;
-    status: string;
-    submitted_at: string | null;
-    return_notes: string | null;
-}
-
 interface Props {
     subArea: { id: number; name: string; area_id: number; area: { id: number; name: string } };
     items: { input: AreaItemData[]; process: AreaItemData[]; outcome: AreaItemData[] };
-    submission: Submission | null;
     scores: ScoreData;
     cycle: { id: number; name: string } | null;
     authRole: string;
@@ -60,12 +52,8 @@ const IPO_CONFIG = {
 } as const;
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-    draft:            { label: 'Draft',     color: '#6b7280', bg: '#f3f4f6', icon: <FileText size={10} /> },
-    submitted_to_dean:{ label: 'Submitted', color: '#d97706', bg: '#fffbeb', icon: <Clock size={10} /> },
-    submitted:        { label: 'Submitted to Dean', color: '#d97706', bg: '#fffbeb', icon: <Clock size={10} /> },
-    submitted_to_director:{ label: 'Submitted to Director', color: '#2563eb', bg: '#eff6ff', icon: <Clock size={10} /> },
-    returned:         { label: 'Returned',  color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={10} /> },
-    approved:         { label: 'Approved',  color: '#059669', bg: '#ecfdf5', icon: <CheckCircle2 size={10} /> },
+    draft:    { label: 'Draft',    color: '#6b7280', bg: '#f3f4f6', icon: <FileText size={10} /> },
+    returned: { label: 'Returned', color: '#dc2626', bg: '#fef2f2', icon: <AlertCircle size={10} /> },
 };
 
 // ── Stars ───────────────────────────────────────────────────────────────────
@@ -290,34 +278,14 @@ function IpoSection({
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SubAreaDetail({
-    subArea, items, submission, scores, cycle, authRole, programId,
+    subArea, items, scores, cycle, authRole, programId,
 }: Props) {
     const [editItem, setEditItem] = useState<AreaItemData | null>(null);
     const [viewItem, setViewItem] = useState<AreaItemData | null>(null);
-    const [showReturn, setShowReturn] = useState(false);
-    const [returnNotes, setReturnNotes] = useState('');
 
-    const isLocked = submission?.status === 'submitted' || submission?.status === 'submitted_to_director' || submission?.status === 'approved';
-    const canSubmit = authRole === 'area-coordinator' || authRole === 'program-coordinator' || authRole === 'dean';
-    const canReturn = authRole === 'dean' && submission?.status === 'submitted';
-    const canApprove = authRole === 'dean' && submission?.status === 'submitted';
-
-    const handleSubmitArea = () => {
-        router.post(`/areas/${subArea.area_id}/submit-to-dean`, {}, { preserveScroll: true });
-    };
-
-    const handleReturn = () => {
-        if (!submission) return;
-        router.post(`/area-submissions/${submission.id}/return`, { notes: returnNotes }, {
-            preserveScroll: true,
-            onSuccess: () => { setShowReturn(false); setReturnNotes(''); },
-        });
-    };
-
-    const handleApprove = () => {
-        if (!submission) return;
-        router.post(`/area-submissions/${submission.id}/approve`, {}, { preserveScroll: true });
-    };
+    // Items are always editable now — submission/approval workflow has been removed.
+    // Returns are tracked at the area level (see /areas page).
+    const isLocked = false;
 
     return (
         <AppLayout
@@ -343,62 +311,11 @@ export default function SubAreaDetail({
 
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {/* Submission status badge */}
-                    {submission && (
-                        <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                            color: STATUS_BADGE[submission.status]?.color,
-                            background: STATUS_BADGE[submission.status]?.bg,
-                            border: '1px solid currentColor',
-                        }}>
-                            {STATUS_BADGE[submission.status]?.icon}
-                            {STATUS_BADGE[submission.status]?.label ?? submission.status.replace(/_/g, ' ')}
-                        </span>
-                    )}
-
-                    {canReturn && (
-                        <button onClick={() => setShowReturn(true)} style={{
-                            display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px',
-                            borderRadius: 8, border: '1.5px solid #fca5a5', background: '#fef2f2',
-                            cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#dc2626',
-                        }}>
-                            <RotateCcw size={13} /> Return
-                        </button>
-                    )}
-                    {canApprove && (
-                        <button onClick={handleApprove} style={{
-                            display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px',
-                            borderRadius: 8, border: 'none', background: '#1a7a4a',
-                            cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#fff',
-                        }}>
-                            <CheckCircle2 size={13} /> Approve Area
-                        </button>
-                    )}
+                    {/* Returns are managed from the /areas page header */}
                 </div>
             </div>
 
-            {/* Return notes banner */}
-            {submission?.return_notes && (
-                <div style={{
-                    background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: 10,
-                    padding: '12px 16px', marginBottom: 16, fontSize: 12.5, color: '#7f1d1d',
-                }}>
-                    <strong>Return Notes:</strong> {submission.return_notes}
-                </div>
-            )}
-
-            {/* Locked banner */}
-            {isLocked && (
-                <div style={{
-                    background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 10,
-                    padding: '10px 16px', marginBottom: 16, fontSize: 12, color: '#92400e',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                    <AlertCircle size={14} color="#f59e0b" />
-                    This area has been submitted for review. Items are read-only until returned or approved.
-                </div>
-            )}
+            {/* IPO Sections continue below */}
 
             {/* ── IPO Sections ─────────────────────────────────────────── */}
             {(['input', 'process', 'outcome'] as const).map(type => (
@@ -433,51 +350,6 @@ export default function SubAreaDetail({
                     programId={programId}
                     onClose={() => setViewItem(null)}
                 />
-            )}
-
-            {/* ── Return Notes Modal ─────────────────────────────────── */}
-            {showReturn && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.5)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
-                }} onClick={() => setShowReturn(false)}>
-                    <div onClick={e => e.stopPropagation()} style={{
-                        background: '#fff', borderRadius: 16, padding: 28, width: 480,
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
-                    }}>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: '#0f1f3d', marginBottom: 8 }}>
-                            Return Area for Revision
-                        </div>
-                        <div style={{ fontSize: 12, color: '#8892aa', marginBottom: 14 }}>
-                            Describe what needs to be corrected. The coordinator will see this.
-                        </div>
-                        <textarea
-                            value={returnNotes}
-                            onChange={e => setReturnNotes(e.target.value)}
-                            rows={4}
-                            placeholder="e.g. Please upload supporting evidence for Item 3..."
-                            style={{
-                                width: '100%', padding: '10px 12px', borderRadius: 8,
-                                border: '1.5px solid #dde1ed', fontSize: 13,
-                                fontFamily: "'Inter', sans-serif", outline: 'none', resize: 'vertical',
-                                boxSizing: 'border-box',
-                            }}
-                        />
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
-                            <button onClick={() => setShowReturn(false)} style={{
-                                padding: '10px 18px', borderRadius: 8, border: '1px solid #dde1ed',
-                                background: '#fff', cursor: 'pointer', fontSize: 12, color: '#4a5470',
-                            }}>Cancel</button>
-                            <button onClick={handleReturn} disabled={!returnNotes.trim()} style={{
-                                padding: '10px 20px', borderRadius: 8, border: 'none',
-                                background: returnNotes.trim() ? '#dc2626' : '#f3f4f6',
-                                cursor: returnNotes.trim() ? 'pointer' : 'not-allowed',
-                                fontSize: 12, fontWeight: 700,
-                                color: returnNotes.trim() ? '#fff' : '#9ca3af',
-                            }}>Return Area</button>
-                        </div>
-                    </div>
-                </div>
             )}
         </AppLayout>
     );

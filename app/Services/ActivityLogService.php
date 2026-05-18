@@ -42,8 +42,17 @@ class ActivityLogService
         $area     = $meta['area_name']    ?? 'an area';
         $program  = $meta['program_name'] ?? '';
         $subArea  = $meta['sub_area_name'] ?? '';
+        $document = $meta['document_title'] ?? 'a document';
+        $filename = $meta['filename'] ?? 'a file';
+        $version  = $meta['version_number'] ?? null;
 
         return match ($event) {
+            'document.downloaded'
+                => "{$name} downloaded \"{$filename}\" from document \"{$document}\"." . ($program ? " (Program: {$program})" : ''),
+            'document.version_downloaded'
+                => "{$name} downloaded version {$version} of \"{$document}\" as \"{$filename}\"." . ($program ? " (Program: {$program})" : ''),
+            'document.item_file_downloaded'
+                => "{$name} downloaded supporting evidence \"{$filename}\"." . ($area !== 'an area' ? " (Area: {$area}" . ($subArea ? " / {$subArea}" : '') . ")" : ''),
             'area.submitted_to_dean'
                 => "Area coordinator {$name} submitted \"{$area}\" to the Dean for review." . ($program ? " (Program: {$program})" : ''),
             'area.returned_by_dean'

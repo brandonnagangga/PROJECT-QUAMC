@@ -6,7 +6,7 @@ import {
     TrendingUp, ArrowRight
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
-import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import { ChartPanel, MetricList, MinimalLineChart } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 import AnimatedValue from '@/components/dashboard/AnimatedValue';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
@@ -75,13 +75,6 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                         </div>
                     </div>
                 ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
-                <SoftStatCard title="My Programs" value={stats.programs} delta="+1.8%" tint="#f3f4ff" />
-                <SoftStatCard title="Completion" value={stats.readiness} delta="+4.9%" tint="#eef5ff" />
-                <SoftStatCard title="Forwarded" value={stats.approved} delta="+9.6%" tint="#eefbf3" />
-                <SoftStatCard title="Pending" value={stats.pending} delta="-2.1%" tint="#f8f5ff" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>

@@ -5,14 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AccreditationCycle;
 use App\Models\Area;
-use App\Models\AreaChecklist;
+use App\Models\AreaItem;
 use App\Models\AreaNote;
-use App\Models\AreaSubmission;
-use App\Models\Document;
 use App\Models\Program;
+use App\Models\RevisionReturn;
 use App\Models\SubArea;
-use App\Models\SubAreaNote;
-use App\Models\SubAreaNoteReply;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -20,20 +17,20 @@ class AreaController extends Controller
 {
     public function index(Request $request)
     {
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-        $isCoord = in_array($role, ['area-coordinator', 'program-coordinator']);
+        $user       = $request->user()->load('roles');
+        $role       = $user->roles->first()?->slug ?? '';
+        $isCoord    = in_array($role, ['area-coordinator', 'program-coordinator']);
         $isDirector = $role === 'director';
-        $isDean = $role === 'dean';
-        // All 3 roles (dean + both coord types) can upload/edit/view/download
-        $canAct = $isDean || $isCoord;
+        $isDean     = $role === 'dean';
+        $canAct     = $isDean || $isCoord || $isDirector; // ALL roles can edit/upload now
 
-        // For coordinators + dean — only their assigned areas
         $assignedAreaIds = ($isCoord || $isDean)
             ? $user->areaAssignments()->pluck('area_id')->toArray()
             : [];
 
-        // Only fetch programs this user is allowed to see
+        // Program visibility:
+        //  - Director: ALL active programs
+        //  - Dean / Coordinator: only their own program
         $visibleProgramIds = null;
         if (in_array($role, ['dean', 'area-coordinator', 'program-coordinator'])) {
             $visibleProgramIds = $user->program_id ? [$user->program_id] : [];
@@ -41,154 +38,129 @@ class AreaController extends Controller
 
         $programs = Program::where('is_active', true)
             ->when($visibleProgramIds !== null, fn($q) => $q->whereIn('id', $visibleProgramIds))
+            ->orderBy('name')
             ->get();
-        // Determine which cycle to show documents from (session-based)
-        $activeCycle = AccreditationCycle::active();
+
+        $activeCycle    = AccreditationCycle::active();
         $viewingCycleId = $request->session()->get('viewing_cycle_id', $activeCycle?->id);
 
-        // Load all non-archived areas with sub_areas + documents per slot
         $areas = Area::where('is_archived', false)
             ->with([
                 'subAreas' => fn($q) => $q->where('is_archived', false)->orderBy('order_number'),
                 'subAreas.documents' => fn($q) => $q
                     ->with('uploader')
                     ->when($viewingCycleId, fn($q2) => $q2->where('cycle_id', $viewingCycleId)),
-                'subAreas.notes',
+                'subAreas.items' => fn($q) => $q->where('is_archived', false)->orderBy('order_number'),
                 'assignments.user',
-                'checklists',   // evidence requirement checklist
+                'checklists',
             ])
             ->orderBy('order_number')
             ->get();
 
-        // Pre-load AreaSubmissions and AreaNotes for all areas (per program + active cycle)
-        $activeCycleId = $activeCycle?->id;
-        $myProgramId = $user->program_id;
-
-        $submissionProgramIds = $visibleProgramIds ?? $programs->pluck('id')->all();
-        $submissionsByArea = AreaSubmission::whereIn('area_id', $areas->pluck('id'))
-            ->when(!empty($submissionProgramIds), fn($q) => $q->whereIn('program_id', $submissionProgramIds))
-            ->when($activeCycleId, fn($q) => $q->where('cycle_id', $activeCycleId))
-            ->get()
-            ->groupBy('area_id');
-
-        $notesMap = $myProgramId
-            ? AreaNote::whereIn('area_id', $areas->pluck('id'))
-                ->where('program_id', $myProgramId)
-                ->with(['user.roles', 'replies.user.roles'])
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->groupBy('area_id')
-            : collect();
-
-        // Scope to assigned areas for coordinators
+        // Coordinators see only their assigned areas
         if ($isCoord) {
             $areas = $areas->filter(fn($a) => in_array($a->id, $assignedAreaIds))->values();
         }
 
-        // Director visibility: see ALL statuses
-        // Dean: see ALL statuses — can act on submitted_to_dean
-        // Director: can see ALL but typically focuses on submitted_to_director
+        // ── Active returns lookup ────────────────────────────────────
+        $returnsByProgramAndKey = $this->loadActiveReturns(
+            $areas->pluck('subAreas')->flatten()->pluck('id')->all(),
+            $visibleProgramIds ?? $programs->pluck('id')->all(),
+        );
 
-        $mappedAreas = $areas->map(function ($area) use ($isDirector, $isCoord, $isDean, $canAct, $user, $myProgramId, $submissionsByArea, $notesMap) {
-            $areaSubmissions = $submissionsByArea->get($area->id) ?? collect();
-            $submission = $myProgramId
-                ? $areaSubmissions->firstWhere('program_id', $myProgramId)
-                : null;
-            $areaNotes = ($notesMap->get($area->id) ?? collect())->map(fn($n) => [
-                'id' => $n->id,
-                'type' => $n->type,
-                'user_name' => $n->user?->name ?? 'Unknown',
-                'user_role' => $this->formatRoleLabel($n->user?->roles?->first()?->slug),
-                'content' => $n->content,
+        // ── Area notes (Dean comments + replies) ─────────────────────
+        // Dean/coordinators see notes for their own program only.
+        // Director sees notes for all visible programs.
+        $notesScopeProgramIds = $visibleProgramIds ?? $programs->pluck('id')->all();
+        $myProgramId = $user->program_id;
+        $notesByArea = AreaNote::whereIn('area_id', $areas->pluck('id'))
+            ->when(!empty($notesScopeProgramIds), fn($q) => $q->whereIn('program_id', $notesScopeProgramIds))
+            ->with(['user.roles', 'replies.user.roles'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('area_id');
+
+        $mappedAreas = $areas->map(function ($area) use ($returnsByProgramAndKey, $isDirector, $notesByArea) {
+            $areaNotes = ($notesByArea->get($area->id) ?? collect())->map(fn($n) => [
+                'id'         => $n->id,
+                'type'       => $n->type,
+                'program_id' => $n->program_id,
+                'user_name'  => $n->user?->name ?? 'Unknown',
+                'user_role'  => $this->formatRoleLabel($n->user?->roles?->first()?->slug),
+                'content'    => $n->content,
                 'created_at' => $n->created_at->format('M j, Y H:i'),
-                'replies' => $n->replies->map(fn($r) => [
-                    'id' => $r->id,
-                    'user_name' => $r->user?->name ?? 'Unknown',
-                    'user_role' => $this->formatRoleLabel($r->user?->roles?->first()?->slug),
-                    'message' => $r->message,
+                'replies'    => $n->replies->map(fn($r) => [
+                    'id'         => $r->id,
+                    'user_name'  => $r->user?->name ?? 'Unknown',
+                    'user_role'  => $this->formatRoleLabel($r->user?->roles?->first()?->slug),
+                    'message'    => $r->message,
                     'created_at' => $r->created_at->format('M j, Y H:i'),
                 ])->values(),
             ])->values();
 
             return [
-                'id' => $area->id,
-                'name' => $area->name,
+                'id'           => $area->id,
+                'name'         => $area->name,
                 'order_number' => $area->order_number,
-                'deadline_at' => $area->deadline_at?->format('Y-m-d'),
-                'submission' => $submission ? [
-                    'id' => $submission->id,
-                    'status' => $submission->status,
-                    'return_notes' => $submission->return_notes,
-                    'submitted_at' => $submission->submitted_at?->format('M j, Y'),
-                ] : null,
-                'submissions' => $areaSubmissions->mapWithKeys(fn($s) => [
-                    $s->program_id => [
-                        'id' => $s->id,
-                        'status' => $s->status,
-                        'return_notes' => $s->return_notes,
-                        'submitted_at' => $s->submitted_at?->format('M j, Y'),
-                    ],
-                ]),
-                'notes' => $areaNotes,
+                'deadline_at'  => $area->deadline_at?->format('Y-m-d'),
+                'notes'        => $areaNotes,
                 'coordinators' => $area->assignments->map(fn($a) => [
-                    'name' => $a->user?->name,
+                    'name'      => $a->user?->name,
                     'role_type' => $a->role_type,
                 ])->values(),
-                'checklist' => $area->checklists->map(fn($c) => [
-                    'id' => $c->id,
+                'checklist'    => $area->checklists->map(fn($c) => [
+                    'id'            => $c->id,
                     'evidence_type' => $c->evidence_type,
-                    'description' => $c->description,
-                    'is_required' => $c->is_required,
-                    'is_completed' => $c->is_completed,
-                    'order_number' => $c->order_number,
+                    'description'   => $c->description,
+                    'is_required'   => $c->is_required,
+                    'is_completed'  => $c->is_completed,
+                    'order_number'  => $c->order_number,
                 ])->values(),
-                'sub_areas' => $area->subAreas->map(function ($sa) use ($isCoord, $isDean, $canAct, $user) {
+                'sub_areas'    => $area->subAreas->map(function (SubArea $sa) use ($returnsByProgramAndKey) {
                     $docs = $sa->documents->keyBy('doc_type');
 
-                    // Return note for this user's program
-                    $programId = $user->program_id;
-                    $returnNote = $programId
-                        ? $sa->notes->firstWhere('program_id', $programId)?->notes
-                        : null;
-
-                    // Note replies for this sub-area + program
-                    $noteReplies = $programId
-                        ? SubAreaNoteReply::where('sub_area_id', $sa->id)
-                            ->where('program_id', $programId)
-                            ->with('user')
-                            ->orderBy('created_at')
-                            ->get()
-                            ->map(fn($r) => [
-                                'id' => $r->id,
-                                'message' => $r->message,
-                                'user_name' => $r->user?->name ?? 'Unknown',
-                                'created_at' => $r->created_at->format('M j, Y H:i'),
-                            ])->values()
-                        : collect();
+                    // Build per-program return summary so the UI can paint red badges per program tab
+                    $perProgramReturns = [];
+                    foreach ($returnsByProgramAndKey as $programId => $byKey) {
+                        $saKey   = "sub_area:{$sa->id}";
+                        $itemIds = $sa->items->pluck('id')->all();
+                        $itemReturns = [];
+                        foreach ($itemIds as $iid) {
+                            $key = "item:{$iid}";
+                            if (isset($byKey[$key])) $itemReturns[$iid] = $byKey[$key];
+                        }
+                        $saReturn = $byKey[$saKey] ?? null;
+                        if ($saReturn || !empty($itemReturns)) {
+                            $perProgramReturns[$programId] = [
+                                'sub_area_return' => $saReturn,
+                                'item_returns'    => $itemReturns,
+                            ];
+                        }
+                    }
 
                     $slotMap = fn($type) => $docs->has($type) ? [
-                        'id' => $docs[$type]->id,
-                        'title' => $docs[$type]->title,
-                        'status' => $docs[$type]->status,
-                        'approval_status' => $docs[$type]->approval_status ?? 'pending',
-                        'rejection_reason' => $docs[$type]->rejection_reason,
-                        'version' => 'v' . $docs[$type]->current_version,
+                        'id'       => $docs[$type]->id,
+                        'title'    => $docs[$type]->title,
+                        'status'   => $docs[$type]->status,
+                        'version'  => 'v' . $docs[$type]->current_version,
                         'uploader' => $docs[$type]->uploader?->name,
-                        'can_edit' => $canAct,
-                        'can_approve' => $isDean,
-                        'doc_id' => $docs[$type]->id,
+                        'doc_id'   => $docs[$type]->id,
                     ] : null;
 
                     return [
-                        'id' => $sa->id,
-                        'name' => $sa->name,
+                        'id'           => $sa->id,
+                        'name'         => $sa->name,
                         'order_number' => $sa->order_number,
-                        'submission_status' => $sa->submission_status,
-                        'submitted_by_dean_at' => $sa->submitted_by_dean_at?->format('M j, Y'),
-                        'return_notes' => $returnNote,
-                        'note_replies' => $noteReplies,
-                        'slots' => [
-                            'input' => $slotMap('input'),
+                        'returns'      => $perProgramReturns,
+                        'items'        => $sa->items->map(fn(AreaItem $i) => [
+                            'id'             => $i->id,
+                            'label'          => $i->label,
+                            'ipo_type'       => $i->ipo_type,
+                            'order_number'   => $i->order_number,
+                            'parent_item_id' => $i->parent_item_id,
+                        ])->values(),
+                        'slots'        => [
+                            'input'   => $slotMap('input'),
                             'process' => $slotMap('process'),
                             'outcome' => $slotMap('outcome'),
                         ],
@@ -198,18 +170,61 @@ class AreaController extends Controller
         });
 
         return Inertia::render('Areas/Index', [
-            'areas' => $mappedAreas,
-            'programs' => $programs->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code]),
-            'role' => $role,
-            'can_act' => $canAct,
-            'my_program_id' => $user->program_id ?? null,
+            'areas'             => $mappedAreas,
+            'programs'          => $programs->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code]),
+            'role'              => $role,
+            'can_act'           => $canAct,
+            'my_program_id'     => $user->program_id ?? null,
             'assigned_area_ids' => $assignedAreaIds,
-            // Locked = no active cycle OR active cycle's end_date has passed
-            'cycle_locked' => !$activeCycle || $activeCycle->end_date->isPast(),
-            'is_viewing_past' => $viewingCycleId && $viewingCycleId !== ($activeCycle?->id),
+            'cycle_locked'      => !$activeCycle || $activeCycle->end_date->isPast(),
+            'is_viewing_past'   => $viewingCycleId && $viewingCycleId !== ($activeCycle?->id),
         ]);
     }
 
+    /**
+     * Load active RevisionReturns for the given sub-areas (and items inside them),
+     * grouped by program_id then by morph-key ("sub_area:{id}" or "item:{id}").
+     */
+    private function loadActiveReturns(array $subAreaIds, array $programIds): array
+    {
+        if (empty($subAreaIds) || empty($programIds)) return [];
+
+        $itemIds = AreaItem::whereIn('sub_area_id', $subAreaIds)
+            ->where('is_archived', false)
+            ->pluck('id')
+            ->all();
+
+        $rows = RevisionReturn::active()
+            ->whereIn('program_id', $programIds)
+            ->where(function ($q) use ($subAreaIds, $itemIds) {
+                $q->where(function ($q2) use ($subAreaIds) {
+                    $q2->where('returnable_type', (new SubArea)->getMorphClass())
+                       ->whereIn('returnable_id', $subAreaIds);
+                });
+                if (!empty($itemIds)) {
+                    $q->orWhere(function ($q2) use ($itemIds) {
+                        $q2->where('returnable_type', (new AreaItem)->getMorphClass())
+                           ->whereIn('returnable_id', $itemIds);
+                    });
+                }
+            })
+            ->with('returner:id,name')
+            ->get();
+
+        $grouped = [];
+        foreach ($rows as $r) {
+            $type = $r->returnable_type === (new SubArea)->getMorphClass() ? 'sub_area' : 'item';
+            $key  = "{$type}:{$r->returnable_id}";
+            $grouped[$r->program_id][$key] = [
+                'id'              => $r->id,
+                'comment'         => $r->comment,
+                'returned_by'     => $r->returner?->name,
+                'returned_by_role'=> $r->returned_by_role,
+                'returned_at'     => $r->created_at->format('M j, Y g:i A'),
+            ];
+        }
+        return $grouped;
+    }
 
     /**
      * Director-only: Area & Sub-area structure management page.
@@ -228,63 +243,64 @@ class AreaController extends Controller
                 'subAreas' => fn($q) => $q->where('is_archived', false)->orderBy('order_number'),
                 'checklists',
             ])
+            ->withCount(['subAreas as sub_areas_count' => fn($q) => $q->where('is_archived', false)])
             ->orderBy('order_number')
             ->get()
             ->map(fn($area) => [
-                'id' => $area->id,
-                'name' => $area->name,
-                'order_number' => $area->order_number,
-                'deadline_at' => $area->deadline_at?->format('Y-m-d'),
-                'is_archived' => $area->is_archived,
-                'checklist' => $area->checklists->map(fn($c) => [
-                    'id' => $c->id,
+                'id'              => $area->id,
+                'name'            => $area->name,
+                'order_number'    => $area->order_number,
+                'deadline_at'     => $area->deadline_at?->format('Y-m-d'),
+                'is_archived'     => $area->is_archived,
+                'sub_areas_count' => $area->sub_areas_count,
+                'checklist'       => $area->checklists->map(fn($c) => [
+                    'id'            => $c->id,
                     'evidence_type' => $c->evidence_type,
-                    'description' => $c->description,
-                    'is_required' => $c->is_required,
-                    'is_completed' => $c->is_completed,
-                    'order_number' => $c->order_number,
+                    'description'   => $c->description,
+                    'is_required'   => $c->is_required,
+                    'is_completed'  => $c->is_completed,
+                    'order_number'  => $c->order_number,
                 ])->values(),
-                'sub_areas' => $area->subAreas->map(fn($sa) => [
-                    'id' => $sa->id,
-                    'name' => $sa->name,
+                'sub_areas'       => $area->subAreas->map(fn($sa) => [
+                    'id'           => $sa->id,
+                    'name'         => $sa->name,
                     'order_number' => $sa->order_number,
-                    'submission_status' => $sa->submission_status,
-                    'is_archived' => $sa->is_archived,
+                    'is_archived'  => $sa->is_archived,
+                    'item_count'   => AreaItem::where('sub_area_id', $sa->id)
+                        ->whereNull('parent_item_id')
+                        ->where('is_archived', false)
+                        ->count(),
                 ])->values(),
             ]);
 
-        return Inertia::render('Areas/Management', [
-            'areas' => $areas,
-        ]);
+        return Inertia::render('Areas/Management', ['areas' => $areas]);
     }
 
     /**
-     * Director: create a new area.
+     * Director: create a new area (optionally with bulk sub-areas).
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:200',
+            'name'         => 'required|string|max:200',
             'order_number' => 'nullable|integer|min:0',
-            'sub_areas' => 'nullable|array',
-            'sub_areas.*' => 'string|max:200',
+            'sub_areas'    => 'nullable|array',
+            'sub_areas.*'  => 'string|max:200',
         ]);
 
         $area = Area::create([
-            'name' => $data['name'],
+            'name'         => $data['name'],
             'order_number' => $data['order_number'] ?? 0,
-            'created_by' => $request->user()->id,
+            'created_by'   => $request->user()->id,
         ]);
 
-        // Bulk-create optional sub-areas
         foreach ($data['sub_areas'] ?? [] as $idx => $subName) {
             if (trim($subName) !== '') {
                 SubArea::create([
-                    'area_id' => $area->id,
-                    'name' => trim($subName),
+                    'area_id'      => $area->id,
+                    'name'         => trim($subName),
                     'order_number' => $idx + 1,
-                    'submission_status' => 'draft',
-                    'created_by' => $request->user()->id,
+                    'created_by'   => $request->user()->id,
                 ]);
             }
         }
@@ -292,15 +308,12 @@ class AreaController extends Controller
         return back()->with('success', "Area \"{$data['name']}\" created.");
     }
 
-    /**
-     * Director: update area.
-     */
     public function update(Area $area, Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:200',
+            'name'         => 'required|string|max:200',
             'order_number' => 'nullable|integer|min:0',
-            'deadline_at' => 'nullable|date',
+            'deadline_at'  => 'nullable|date',
         ]);
 
         $area->update($data);
@@ -308,19 +321,12 @@ class AreaController extends Controller
         return back()->with('success', "Area updated.");
     }
 
-    /**
-     * Director: archive area.
-     */
     public function archive(Area $area)
     {
         $area->update(['is_archived' => true]);
-
         return back()->with('success', "\"{$area->name}\" archived.");
     }
 
-    /**
-     * Dean or Director: set or clear the deadline for an area.
-     */
     public function setDeadline(Area $area, Request $request)
     {
         $request->validate(['deadline_at' => 'nullable|date']);
@@ -341,17 +347,15 @@ class AreaController extends Controller
         return back()->with('success', $msg);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private function formatRoleLabel(?string $slug): string
     {
         return match ($slug) {
-            'dean' => 'Dean',
-            'director' => 'Director',
-            'area-coordinator' => 'Area Coordinator',
+            'dean'                => 'Dean',
+            'director'            => 'Director',
+            'area-coordinator'    => 'Area Coordinator',
             'program-coordinator' => 'Program Coordinator',
-            'admin' => 'Admin',
-            default => ucwords(str_replace('-', ' ', $slug ?? 'User')),
+            'admin'               => 'Admin',
+            default               => ucwords(str_replace('-', ' ', $slug ?? 'User')),
         };
     }
 }

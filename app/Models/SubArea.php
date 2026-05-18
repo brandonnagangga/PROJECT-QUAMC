@@ -5,9 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-
-// Models referenced in relationships
-use App\Models\SubAreaNote;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class SubArea extends Model
 {
@@ -16,8 +14,6 @@ class SubArea extends Model
         'name',
         'order_number',
         'is_archived',
-        'submission_status',
-        'submitted_by_dean_at',
         'created_by',
     ];
 
@@ -25,9 +21,10 @@ class SubArea extends Model
     {
         return [
             'is_archived' => 'boolean',
-            'submitted_by_dean_at' => 'datetime',
         ];
     }
+
+    // ── Relationships ──────────────────────────────────────────
 
     public function area(): BelongsTo
     {
@@ -37,6 +34,11 @@ class SubArea extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(AreaItem::class);
     }
 
     public function standards(): HasMany
@@ -59,9 +61,20 @@ class SubArea extends Model
         return $this->hasMany(SubAreaNote::class);
     }
 
+    /** All revision returns directly on the sub-area itself. */
+    public function revisionReturns(): MorphMany
+    {
+        return $this->morphMany(RevisionReturn::class, 'returnable');
+    }
+
+    /** All revision returns within this sub-area (sub-area + items + sub-items). */
+    public function allRevisionReturns(): HasMany
+    {
+        return $this->hasMany(RevisionReturn::class);
+    }
+
     /**
      * Get all 3 document slots for a specific program.
-     * Returns: ['input' => Document|null, 'process' => Document|null, 'outcome' => Document|null]
      */
     public function slotsForProgram(int $programId): array
     {

@@ -6,6 +6,7 @@ use App\Events\DocumentStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScanUploadedFile;
 use App\Models\AccreditationCycle;
+use App\Models\ActivityLog;
 use App\Models\Area;
 use App\Models\AreaItem;
 use App\Models\AreaItemFile;
@@ -16,6 +17,7 @@ use App\Models\Program;
 use App\Models\SubArea;
 use App\Models\User;
 use App\Models\WorkflowAction;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -111,8 +113,6 @@ class DocumentController extends Controller
                                 'id'              => $docs[$type]->id,
                                 'title'           => $docs[$type]->title,
                                 'status'          => $docs[$type]->status,
-                                'approval_status' => $docs[$type]->approval_status ?? 'pending',
-                                'rejection_reason'=> $docs[$type]->rejection_reason,
                                 'version'         => 'v' . $docs[$type]->current_version,
                                 'uploader'        => $docs[$type]->uploader?->name,
                                 'can_edit'        => $canEditThisSlot,
@@ -133,7 +133,6 @@ class DocumentController extends Controller
                             return [
                                 'id'                => $sa->id,
                                 'name'              => $sa->name,
-                                'submission_status' => $sa->submission_status,
                                 'slots' => [
                                     'input'   => $slot('input'),
                                     'process' => $slot('process'),
@@ -192,6 +191,34 @@ class DocumentController extends Controller
             ->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code])
             ->values();
 
+        $downloadLogs = ActivityLog::with('user')
+            ->whereIn('event', [
+                'document.downloaded',
+                'document.version_downloaded',
+                'document.item_file_downloaded',
+            ])
+            ->orderByDesc('created_at')
+            ->limit(25)
+            ->get()
+            ->map(function ($log) {
+                $changes = is_array($log->changes) ? $log->changes : json_decode($log->changes ?? '{}', true);
+
+                return [
+                    'id'             => $log->id,
+                    'user_name'      => $log->user?->name ?? 'System',
+                    'event'          => $log->event,
+                    'description'    => $changes['description'] ?? null,
+                    'filename'       => $changes['filename'] ?? null,
+                    'document_title' => $changes['document_title'] ?? null,
+                    'area_name'      => $changes['area_name'] ?? null,
+                    'sub_area_name'  => $changes['sub_area_name'] ?? null,
+                    'ip_address'     => $log->ip_address,
+                    'created_at'     => $log->created_at->format('M j, Y H:i'),
+                    'time_ago'       => $log->created_at->diffForHumans(),
+                ];
+            })
+            ->values();
+
         return Inertia::render('Documents/Index', [
             'documents'          => $documents,
             'programs'           => $programs,
@@ -205,6 +232,7 @@ class DocumentController extends Controller
             'all_cycles'         => $allCycles,
             'all_programs'       => $allPrograms,
             'filter_program_id'  => $filterProgramId,
+            'download_logs'      => $downloadLogs,
         ]);
     }
 
@@ -304,6 +332,16 @@ class DocumentController extends Controller
             $path = storage_path('app/' . $file->file_path);
         }
         if (!file_exists($path)) abort(404);
+
+        $file->loadMissing('item.subArea.area');
+        ActivityLogService::log(request()->user(), 'document.item_file_downloaded', $file, [
+            'filename'      => $file->original_filename,
+            'file_id'       => $file->id,
+            'item_label'    => $file->item?->label,
+            'area_name'     => $file->item?->subArea?->area?->name,
+            'sub_area_name' => $file->item?->subArea?->name,
+        ]);
+
         return response()->download($path, $file->original_filename);
     }
 
@@ -480,7 +518,6 @@ class DocumentController extends Controller
             'uploaded_by'     => $user->id,
             'title'           => $request->title,
             'status'          => 'draft',
-            'approval_status' => 'pending',
             'current_version' => 1,
         ]);
 
@@ -524,120 +561,17 @@ class DocumentController extends Controller
             'scan_status'       => 'pending',
         ]);
 
-        // Re-set approval. If previously rejected, set to needs_resubmit
-        // so coordinator must explicitly click "Submit for Review" again.
-        $wasRejected = in_array($document->approval_status, ['rejected']);
-        $newApprovalStatus = $wasRejected ? 'needs_resubmit' : 'pending';
-
         $document->update([
             'current_version' => $newVersion,
             'status'          => 'draft',
-            'approval_status' => $newApprovalStatus,
         ]);
 
         ScanUploadedFile::dispatch($version);
         event(new DocumentStatusChanged($document, $request->user(), 'uploaded new version'));
 
-        $msg = $wasRejected
-            ? "Version {$newVersion} uploaded. Click 'Submit for Review' to notify the Dean."
-            : "Version {$newVersion} uploaded. Document is now pending review.";
+        $msg = "Version {$newVersion} uploaded.";
 
         return back()->with('success', $msg);
-    }
-
-    /**
-     * Dean: Approve a document slot.
-     */
-    public function approve(Document $document, Request $request)
-    {
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-
-        if ($role !== 'dean') {
-            return back()->with('error', 'Only Deans can approve documents.');
-        }
-
-        if ($user->program_id !== $document->program_id) {
-            return back()->with('error', 'You can only approve documents for your assigned program.');
-        }
-
-        $document->update([
-            'approval_status' => 'approved',
-            'rejection_reason' => null,
-            'approved_by'     => $user->id,
-            'approved_at'     => now(),
-        ]);
-
-        event(new DocumentStatusChanged($document, $user, 'approved'));
-
-        return back()->with('success', "\"{$document->title}\" approved.");
-    }
-
-    /**
-     * Dean: Reject a document slot.
-     */
-    public function reject(Document $document, Request $request)
-    {
-        $request->validate(['reason' => 'nullable|string|max:500']);
-
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-
-        if ($role !== 'dean') {
-            return back()->with('error', 'Only Deans can reject documents.');
-        }
-
-        if ($user->program_id !== $document->program_id) {
-            return back()->with('error', 'You can only reject documents for your assigned program.');
-        }
-
-        $document->update([
-            'approval_status'  => 'rejected',
-            'rejection_reason' => $request->reason,
-            'approved_by'      => $user->id,
-            'approved_at'      => now(),
-        ]);
-
-        event(new DocumentStatusChanged($document, $user, 'rejected'));
-
-        return back()->with('success', "\"{$document->title}\" rejected.");
-    }
-
-    /**
-     * Coordinator: formally re-submit a previously-rejected document for Dean review.
-     * Sets approval_status back to 'pending' and notifies the Dean(s) of the program.
-     */
-    public function resubmit(Document $document, Request $request)
-    {
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-
-        if (!in_array($role, ['area-coordinator', 'program-coordinator', 'dean'])) {
-            return back()->with('error', 'Not authorized.');
-        }
-
-        if ($document->approval_status !== 'needs_resubmit') {
-            return back()->with('error', 'This document does not need resubmission.');
-        }
-
-        $document->update(['approval_status' => 'pending']);
-
-        // Notify all Dean users in this program
-        $deans = User::whereHas('roles', fn ($q) => $q->where('slug', 'dean'))
-            ->where('program_id', $document->program_id)
-            ->get();
-
-        foreach ($deans as $dean) {
-            Notification::create([
-                'user_id'     => $dean->id,
-                'document_id' => $document->id,
-                'type'        => 'resubmitted',
-                'message'     => "{$user->name} resubmitted \"{$document->title}\" for your review.",
-                'is_read'     => false,
-            ]);
-        }
-
-        return back()->with('success', "\"{$document->title}\" resubmitted for Dean review.");
     }
 
     /**
@@ -682,13 +616,24 @@ class DocumentController extends Controller
         }
         if (!$path) abort(404);
 
+        $document->loadMissing(['program', 'subArea.area']);
+        ActivityLogService::log($request->user(), 'document.downloaded', $document, [
+            'document_title' => $document->title,
+            'document_id'    => $document->id,
+            'filename'       => $version->original_filename,
+            'version_number' => $version->version_number,
+            'program_name'   => $document->program?->name,
+            'area_name'      => $document->subArea?->area?->name,
+            'sub_area_name'  => $document->subArea?->name,
+        ]);
+
         return response()->download($path, $version->original_filename);
     }
 
     /**
      * Download a specific version of a document.
      */
-    public function downloadVersion(Document $document, int $versionNumber)
+    public function downloadVersion(Document $document, int $versionNumber, Request $request)
     {
         $version = $document->versions()->where('version_number', $versionNumber)->first();
         if (!$version) abort(404);
@@ -698,6 +643,17 @@ class DocumentController extends Controller
             $path = $this->resolveFallbackPdfPath();
         }
         if (!$path) abort(404);
+
+        $document->loadMissing(['program', 'subArea.area']);
+        ActivityLogService::log($request->user(), 'document.version_downloaded', $version, [
+            'document_title' => $document->title,
+            'document_id'    => $document->id,
+            'filename'       => $version->original_filename,
+            'version_number' => $version->version_number,
+            'program_name'   => $document->program?->name,
+            'area_name'      => $document->subArea?->area?->name,
+            'sub_area_name'  => $document->subArea?->name,
+        ]);
 
         return response()->download($path, $version->original_filename);
     }
@@ -716,8 +672,6 @@ class DocumentController extends Controller
                 'title'            => $document->title,
                 'doc_type'         => $document->doc_type,
                 'status'           => $document->status,
-                'approval_status'  => $document->approval_status ?? 'pending',
-                'rejection_reason' => $document->rejection_reason,
                 'version'          => 'v' . ((int) $document->current_version),
                 'current_version'  => (int) $document->current_version,
                 'sub_area'         => $document->subArea?->name,
@@ -763,133 +717,5 @@ class DocumentController extends Controller
             'availableStandards' => [],
             'latestEvaluation' => null,
         ]);
-    }
-
-    /**
-     * Coordinator submits a document for Dean review.
-     * Transitions: draft|returned → pending_review.
-     */
-    public function submitDocument(Document $document, Request $request)
-    {
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-
-        if (!in_array($role, ['area-coordinator', 'program-coordinator', 'dean'])) {
-            return back()->with('error', 'Not authorized to submit documents.');
-        }
-
-        if (!in_array($document->status, ['draft', 'returned'])) {
-            return back()->with('error', 'Only draft or returned documents can be submitted for review.');
-        }
-
-        $fromStatus = $document->status;
-
-        $document->update([
-            'status'          => 'pending_review',
-            'approval_status' => 'pending',
-            'submitted_at'    => now(),
-        ]);
-
-        WorkflowAction::create([
-            'document_id' => $document->id,
-            'actor_id'    => $user->id,
-            'action'      => 'submitted',
-            'from_status' => $fromStatus,
-            'to_status'   => 'pending_review',
-            'comment'     => $request->comment,
-            'acted_at'    => now(),
-        ]);
-
-        // Notify all Deans of the program
-        $deans = User::whereHas('roles', fn ($q) => $q->where('slug', 'dean'))
-            ->where('program_id', $document->program_id)
-            ->get();
-
-        foreach ($deans as $dean) {
-            Notification::create([
-                'user_id'     => $dean->id,
-                'document_id' => $document->id,
-                'type'        => 'document.submitted',
-                'message'     => "{$user->name} submitted \"{$document->title}\" for your review.",
-                'is_read'     => false,
-            ]);
-        }
-
-        event(new DocumentStatusChanged($document, $user, 'submitted'));
-
-        return back()->with('success', "\"{$document->title}\" submitted for Dean review.");
-    }
-
-    /**
-     * Dean workflow actions on Documents/Show page: approve, return, forward.
-     */
-    public function workflow(Document $document, Request $request)
-    {
-        $request->validate([
-            'action'  => 'required|in:approve,return,forward',
-            'comment' => 'nullable|string|max:500',
-        ]);
-
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first()?->slug ?? '';
-
-        if ($role !== 'dean') {
-            return back()->with('error', 'Only Deans can take workflow actions on documents.');
-        }
-
-        if ($user->program_id !== $document->program_id) {
-            return back()->with('error', 'You can only act on documents for your assigned program.');
-        }
-
-        $action     = $request->action;
-        $fromStatus = $document->approval_status ?? 'pending';
-
-        if ($action === 'approve' || $action === 'forward') {
-            $document->update([
-                'approval_status'  => 'approved',
-                'rejection_reason' => null,
-                'approved_by'      => $user->id,
-                'approved_at'      => now(),
-            ]);
-            $toStatus  = 'approved';
-            $notifType = 'document.approved';
-            $notifMsg  = "{$user->name} " . ($action === 'forward' ? 'forwarded & approved' : 'approved') . " \"{$document->title}\".'";
-            $flash     = "\"{$document->title}\" approved successfully.";
-        } else { // return
-            $document->update([
-                'approval_status'  => 'needs_resubmit',
-                'rejection_reason' => $request->comment,
-            ]);
-            $toStatus  = 'needs_resubmit';
-            $notifType = 'document.returned';
-            $notifMsg  = "{$user->name} returned \"{$document->title}\" for revision."
-                . ($request->comment ? " Reason: {$request->comment}" : '');
-            $flash     = "\"{$document->title}\" returned for revision.";
-        }
-
-        WorkflowAction::create([
-            'document_id' => $document->id,
-            'actor_id'    => $user->id,
-            'action'      => $action,
-            'from_status' => $fromStatus,
-            'to_status'   => $toStatus,
-            'comment'     => $request->comment,
-            'acted_at'    => now(),
-        ]);
-
-        // Notify the uploader
-        if ($document->uploaded_by) {
-            Notification::create([
-                'user_id'     => $document->uploaded_by,
-                'document_id' => $document->id,
-                'type'        => $notifType,
-                'message'     => $notifMsg,
-                'is_read'     => false,
-            ]);
-        }
-
-        event(new DocumentStatusChanged($document, $user, $action));
-
-        return back()->with('success', $flash);
     }
 }

@@ -9,7 +9,8 @@ use App\Http\Controllers\AreaNoteController;
 use App\Http\Controllers\AreaItemController;
 use App\Http\Controllers\AreaItemResponseController;
 use App\Http\Controllers\AreaItemFileController;
-use App\Http\Controllers\User\SubAreaSubmissionController;
+use App\Http\Controllers\SubAreaController;
+use App\Http\Controllers\RevisionReturnController;
 use App\Http\Controllers\SubAreaNoteReplyController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\UserController;
@@ -21,9 +22,7 @@ use App\Http\Controllers\User\ReadinessController;
 use App\Http\Controllers\Admin\CycleController;
 use App\Http\Controllers\User\ExportController;
 
-
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // Auth
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -37,66 +36,52 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
     Route::post('/dashboard/preferences', [DashboardPreferencesController::class, 'update'])->name('dashboard.preferences.update');
 
-    // ── Areas (global — Director manages structure) ──
+    // ── Areas (global structure) ──
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
     Route::get('/areas/management', [AreaController::class, 'management'])->name('areas.management');
     Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
     Route::put('/areas/{area}', [AreaController::class, 'update'])->name('areas.update');
     Route::post('/areas/{area}/archive', [AreaController::class, 'archive'])->name('areas.archive');
     Route::post('/areas/{area}/deadline', [AreaController::class, 'setDeadline'])->name('areas.setDeadline');
-    Route::post('/areas/{area}/submit-all', [SubAreaSubmissionController::class, 'submitArea'])->name('areas.submitAll');
 
+    // ── Sub-areas (Director CRUD only — no submission workflow) ──
+    Route::post('/areas/{area}/sub-areas', [SubAreaController::class, 'store'])->name('sub-areas.store');
+    Route::put('/sub-areas/{subArea}', [SubAreaController::class, 'update'])->name('sub-areas.update');
+    Route::post('/sub-areas/{subArea}/archive', [SubAreaController::class, 'archive'])->name('sub-areas.archive');
 
-    // ── Sub-areas (Director CRUD, workflow for submission) ──
-    Route::post('/areas/{area}/sub-areas', [SubAreaSubmissionController::class, 'store'])->name('sub-areas.store');
-    Route::put('/sub-areas/{subArea}', [SubAreaSubmissionController::class, 'update'])->name('sub-areas.update');
-    Route::post('/sub-areas/{subArea}/archive', [SubAreaSubmissionController::class, 'archive'])->name('sub-areas.archive');
-
-    // Sub-area workflow (submission flow)
-    Route::post('/sub-areas/{subArea}/submit', [SubAreaSubmissionController::class, 'submit'])->name('sub-areas.submit');
-    Route::post('/sub-areas/{subArea}/forward', [SubAreaSubmissionController::class, 'forwardToDirector'])->name('sub-areas.forward');
-    Route::post('/sub-areas/{subArea}/approve', [SubAreaSubmissionController::class, 'approveDirector'])->name('sub-areas.approve');
-    Route::post('/sub-areas/{subArea}/return', [SubAreaSubmissionController::class, 'returnSubArea'])->name('sub-areas.return');
-    Route::post('/sub-areas/{subArea}/note', [SubAreaSubmissionController::class, 'updateNote'])->name('sub-areas.note');
-    Route::post('/sub-areas/{subArea}/note/reply', [SubAreaNoteReplyController::class, 'store'])->name('sub-areas.note.reply');
+    // ── Revision Returns (replaces submit/approve/return workflow) ──
+    Route::post('/returns', [RevisionReturnController::class, 'store'])->name('returns.store');
+    Route::post('/returns/{return}/resolve', [RevisionReturnController::class, 'resolve'])->name('returns.resolve');
 
     // ── Exports ──
     Route::get('/export/sub-area/{subArea}', [ExportController::class, 'subArea'])->name('export.subArea');
     Route::get('/export/area/{area}', [ExportController::class, 'area'])->name('export.area');
 
-    // ── IPO Item System ──────────────────────────────────────────────────────
-
-    // Sub-area detail page (shows items grouped by IPO)
+    // ── IPO Item System ──
     Route::get('/sub-areas/{subArea}/items', [AreaItemResponseController::class, 'subAreaItems'])->name('sub-areas.items');
-
-    // Save draft narrative + rating for one item
     Route::post('/area-items/{item}/response', [AreaItemResponseController::class, 'saveDraft'])->name('item-responses.saveDraft');
-
-    // Get response JSON for modal (AJAX)
     Route::get('/area-items/{item}/response', [AreaItemResponseController::class, 'getResponse'])->name('item-responses.get');
 
-    // Area-level submit / return / approve
-    Route::post('/areas/{area}/submit-to-dean', [AreaItemResponseController::class, 'submitArea'])->name('areas.submitToDean');
-    Route::post('/areas/{area}/submit-to-director', [AreaItemResponseController::class, 'submitAreaToDirector'])->name('areas.submitToDirector');
-    Route::post('/area-submissions/{submission}/return', [AreaItemResponseController::class, 'returnArea'])->name('areas.return');
-    Route::post('/area-submissions/{submission}/approve', [AreaItemResponseController::class, 'approveArea'])->name('areas.approve');
-
-    // Area-level notes (dean writes, coordinators reply)
+    // Area-level notes (general comments — NOT the return workflow)
     Route::post('/areas/{area}/notes', [AreaNoteController::class, 'store'])->name('areas.notes.store');
     Route::post('/area-notes/{note}/reply', [AreaNoteController::class, 'storeReply'])->name('area-notes.reply');
 
-    // Supporting evidence file upload (multi), delete, download
+    // Sub-area note replies (legacy)
+    Route::post('/sub-areas/{subArea}/note/reply', [SubAreaNoteReplyController::class, 'store'])->name('sub-areas.note.reply');
+
+    // Supporting evidence files
     Route::post('/item-files', [AreaItemFileController::class, 'store'])->name('item-files.store');
+    Route::put('/item-files/{file}', [AreaItemFileController::class, 'update'])->name('item-files.update');
     Route::delete('/item-files/{file}', [AreaItemFileController::class, 'destroy'])->name('item-files.destroy');
     Route::get('/item-files/{file}/download', [AreaItemFileController::class, 'download'])->name('item-files.download');
     Route::get('/item-files/{file}/preview', [AreaItemFileController::class, 'preview'])->name('item-files.preview');
 
-    // Area item CRUD (Director/Admin only)
+    // Area item CRUD (Director-only)
     Route::post('/area-items', [AreaItemController::class, 'store'])->name('area-items.store');
     Route::put('/area-items/{item}', [AreaItemController::class, 'update'])->name('area-items.update');
     Route::delete('/area-items/{item}', [AreaItemController::class, 'destroy'])->name('area-items.destroy');
 
-    // ── Documents ──
+    // ── Documents (no approve/reject/submit/resubmit/workflow anymore) ──
     Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/upload-data', [DocumentController::class, 'uploadModalData'])->name('documents.upload-data');
     Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
@@ -105,13 +90,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
     Route::get('/documents/{document}/versions/{version}/download', [DocumentController::class, 'downloadVersion'])->name('documents.downloadVersion');
-    Route::post('/documents/{document}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
-    Route::post('/documents/{document}/reject', [DocumentController::class, 'reject'])->name('documents.reject');
-    Route::post('/documents/{document}/submit', [DocumentController::class, 'submitDocument'])->name('documents.submit');
-    Route::post('/documents/{document}/workflow', [DocumentController::class, 'workflow'])->name('documents.workflow');
-    Route::post('/documents/{document}/resubmit', [DocumentController::class, 'resubmit'])->name('documents.resubmit');
     Route::get('/documents/item-file/{file}/download', [DocumentController::class, 'downloadItemFile'])->name('documents.item-file.download');
-
 
     // ── Programs ──
     Route::get('/programs', [ProgramController::class, 'index'])->name('programs.index');
@@ -159,15 +138,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/cycles/{cycle}/activate', [CycleController::class, 'activate'])->name('cycles.activate');
     Route::post('/cycles/{cycle}/deactivate', [CycleController::class, 'deactivate'])->name('cycles.deactivate');
     Route::delete('/cycles/{cycle}', [CycleController::class, 'destroy'])->name('cycles.destroy');
-
-    // ── Cycle Switcher (session-based viewing context) ──
     Route::post('/cycles/{cycle}/switch', [CycleController::class, 'switchViewing'])->name('cycles.switch');
 
-    // ── Area Evidence Checklist (Director manages, Coordinators view & toggle) ──
+    // ── Area Evidence Checklist ──
     Route::get('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'index'])->name('checklist.index');
     Route::post('/areas/{area}/checklist', [\App\Http\Controllers\User\ChecklistController::class, 'store'])->name('checklist.store');
     Route::put('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'update'])->name('checklist.update');
     Route::post('/checklist/{checklist}/toggle', [\App\Http\Controllers\User\ChecklistController::class, 'toggleComplete'])->name('checklist.toggle');
     Route::delete('/checklist/{checklist}', [\App\Http\Controllers\User\ChecklistController::class, 'destroy'])->name('checklist.destroy');
 });
-

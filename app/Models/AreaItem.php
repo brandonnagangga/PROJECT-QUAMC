@@ -53,6 +53,12 @@ class AreaItem extends Model
         return $this->hasMany(AreaItemFile::class);
     }
 
+    /** Revision returns targeting this item (or sub-item). */
+    public function revisionReturns()
+    {
+        return $this->morphMany(RevisionReturn::class, 'returnable');
+    }
+
     // ── Helpers ────────────────────────────────────────────────
 
     public function isSubItem(): bool

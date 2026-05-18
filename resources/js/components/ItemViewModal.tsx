@@ -25,6 +25,7 @@ interface FileRecord {
     original_filename: string;
     size_formatted: string;
     mime_type: string;
+    caption?: string | null;
     scan_status: string;
 }
 
@@ -179,46 +180,16 @@ export default function ItemViewModal({ item, subAreaName, areaName, onClose }: 
                             <div style={{
                                 fontSize: 11, fontWeight: 700, color: '#4a5470',
                                 textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
-                            }}>Narrative</div>
+                            }}>Instrument Narrative</div>
 
-                            {contentJson ? (
-                                <div style={{
-                                    border: '1.5px solid #dde1ed', borderRadius: 8,
-                                    padding: '14px 16px', background: '#fafbfe', marginBottom: 16,
-                                }}>
-                                    <LexicalComposer initialConfig={lexicalConfig}>
-                                        <RichTextPlugin
-                                            contentEditable={
-                                                <ContentEditable style={{
-                                                    fontSize: 13.5, lineHeight: 1.65,
-                                                    fontFamily: "'Inter', sans-serif",
-                                                    color: '#1e2640', outline: 'none',
-                                                }} />
-                                            }
-                                            placeholder={<></>}
-                                            ErrorBoundary={LexicalErrorBoundary}
-                                        />
-                                        <LoadContent json={contentJson} />
-                                    </LexicalComposer>
-                                </div>
-                            ) : contentText ? (
-                                <div style={{
-                                    border: '1.5px solid #dde1ed', borderRadius: 8,
-                                    padding: '14px 16px', background: '#fafbfe', marginBottom: 16,
-                                    fontSize: 13.5, lineHeight: 1.65, color: '#1e2640',
-                                    fontFamily: "'Inter', sans-serif", whiteSpace: 'pre-wrap',
-                                }}>
-                                    {contentText}
-                                </div>
-                            ) : (
-                                <div style={{
-                                    border: '1.5px dashed #dde1ed', borderRadius: 8,
-                                    padding: '20px', color: '#b8bfd4', fontSize: 13,
-                                    textAlign: 'center', marginBottom: 16,
-                                }}>
-                                    No narrative written yet.
-                                </div>
-                            )}
+                            <div style={{
+                                border: '1.5px solid #dde1ed', borderRadius: 8,
+                                padding: '14px 16px', background: '#fafbfe', marginBottom: 16,
+                                fontSize: 13.5, lineHeight: 1.65, color: '#1e2640',
+                                fontFamily: "'Inter', sans-serif", whiteSpace: 'pre-wrap',
+                            }}>
+                                {item.label}
+                            </div>
 
                             {/* Files */}
                             <div style={{
@@ -249,6 +220,14 @@ export default function ItemViewModal({ item, subAreaName, areaName, onClose }: 
                                                         {f.original_filename}
                                                     </div>
                                                     <div style={{ fontSize: 10, color: '#8892aa' }}>{f.size_formatted}</div>
+                                                    {f.caption && (
+                                                        <div style={{
+                                                            marginTop: 6, fontSize: 12, lineHeight: 1.45,
+                                                            color: '#4a5470', whiteSpace: 'pre-wrap',
+                                                        }}>
+                                                            {f.caption}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <a href={`/item-files/${f.id}/download`} style={{
                                                     display: 'flex', alignItems: 'center', padding: '4px 8px',

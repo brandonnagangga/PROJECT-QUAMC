@@ -6,6 +6,7 @@ use App\Models\AreaItem;
 use App\Models\AreaItemFile;
 use App\Models\AreaItemResponse;
 use App\Models\AccreditationCycle;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -72,6 +73,7 @@ class AreaItemFileController extends Controller
                 'file_size_bytes'   => $record->file_size_bytes,
                 'size_formatted'    => $record->fileSizeFormatted(),
                 'mime_type'         => $record->mime_type,
+                'caption'           => $record->caption,
                 'scan_status'       => $record->scan_status,
             ];
         }
@@ -79,6 +81,37 @@ class AreaItemFileController extends Controller
         return response()->json([
             'message' => count($created) . ' file(s) uploaded.',
             'files'   => $created,
+        ]);
+    }
+
+    /**
+     * Update a supporting evidence file caption.
+     */
+    public function update(Request $request, AreaItemFile $file)
+    {
+        $user = $request->user();
+        $role = $user->roles->first()?->slug;
+        $canUpdateProgramFile = $file->program_id === $user->program_id
+            && in_array($role, ['area-coordinator', 'program-coordinator']);
+
+        if ($file->uploaded_by !== $user->id && !in_array($role, ['admin', 'dean', 'director']) && !$canUpdateProgramFile) {
+            abort(403, 'You cannot update this file.');
+        }
+
+        $validated = $request->validate([
+            'caption' => 'nullable|string|max:2000',
+        ]);
+
+        $file->update([
+            'caption' => $validated['caption'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Caption saved.',
+            'file' => [
+                'id'      => $file->id,
+                'caption' => $file->caption,
+            ],
         ]);
     }
 
@@ -108,6 +141,15 @@ class AreaItemFileController extends Controller
         if (!Storage::disk('local')->exists($file->file_path)) {
             abort(404, 'File not found.');
         }
+
+        $file->loadMissing('item.subArea.area');
+        ActivityLogService::log(request()->user(), 'document.item_file_downloaded', $file, [
+            'filename'      => $file->original_filename,
+            'file_id'       => $file->id,
+            'item_label'    => $file->item?->label,
+            'area_name'     => $file->item?->subArea?->area?->name,
+            'sub_area_name' => $file->item?->subArea?->name,
+        ]);
 
         return Storage::disk('local')->download($file->file_path, $file->original_filename);
     }

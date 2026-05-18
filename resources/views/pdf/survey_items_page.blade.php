@@ -253,28 +253,6 @@ $displaySubAreaName = trim(preg_replace('/^sub\s*area\s*\d+\s*:\s*/i', '', $sub_
                     </tr>
                 </tbody>
             </table>
-
-            @foreach($ipo_groups[$ipo] as $idx => $item)
-                @if(!empty($item['files']))
-                    <div class="evidence-panel">
-                        <div class="evidence-label">Supportive Evidence for {{ strtoupper($cfg['label']) }} Item {{ $idx + 1 }}</div>
-                        @foreach($item['files'] as $file)
-                            @include('pdf.partials.survey_file_preview', ['file' => $file])
-                        @endforeach
-                    </div>
-                @endif
-
-                @foreach($item['children'] ?? [] as $cidx => $child)
-                    @if(!empty($child['files']))
-                        <div class="evidence-panel">
-                            <div class="evidence-label">Supportive Evidence for {{ strtoupper($cfg['label']) }} Item {{ $idx + 1 }}.{{ chr(97 + $cidx) }}</div>
-                            @foreach($child['files'] as $file)
-                                @include('pdf.partials.survey_file_preview', ['file' => $file])
-                            @endforeach
-                        </div>
-                    @endif
-                @endforeach
-            @endforeach
         </div>
     @endif
 @endforeach

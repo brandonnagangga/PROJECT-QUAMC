@@ -19,10 +19,6 @@ class Document extends Model
         'uploaded_by',
         'title',
         'status',
-        'approval_status',
-        'rejection_reason',
-        'approved_by',
-        'approved_at',
         'current_version',
         'submitted_at',
     ];
@@ -31,7 +27,6 @@ class Document extends Model
     {
         return [
             'submitted_at' => 'datetime',
-            'approved_at' => 'datetime',
         ];
     }
 

@@ -5,9 +5,9 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\AccreditationCycle;
-use App\Models\AreaSubmission;
 use App\Models\Document;
 use App\Models\Program;
+use App\Models\RevisionReturn;
 use App\Models\SubArea;
 use App\Models\ActivityLog;
 use App\Models\User;
@@ -16,14 +16,15 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
-
 {
     public function index(Request $request)
     {
-        $user = $request->user()->load('roles');
-        $role = $user->roles->first();
+        $user           = $request->user()->load('roles');
+        $role           = $user->roles->first();
+        $activeCycle    = AccreditationCycle::active();
+        $viewingCycleId = $request->session()->get('viewing_cycle_id', $activeCycle?->id);
 
-        $stats = $this->getStatsForRole($user, $role?->slug);
+        $stats          = $this->getStatsForRole($user, $role?->slug, $viewingCycleId);
         $readinessTrend = $this->buildReadinessTrend($user, $role?->slug, 365);
 
         // ── Programs with area completion (based on doc slots: 3 per sub-area) ──
@@ -31,7 +32,7 @@ class DashboardController extends Controller
             ->map(function ($program) {
                 $areas = Area::orderBy('order_number')->get()->map(function ($area) use ($program) {
                     $subAreaIds = $area->subAreas()->pluck('id');
-                    $totalSlots    = $subAreaIds->count() * 3; // always 3 slots
+                    $totalSlots    = $subAreaIds->count() * 3;
                     $approvedSlots = $totalSlots > 0
                         ? Document::whereIn('sub_area_id', $subAreaIds)
                             ->where('program_id', $program->id)
@@ -55,8 +56,19 @@ class DashboardController extends Controller
                 ];
             });
 
-        // ── Recent documents (new schema: sub_area + program + doc_type) ──
-        $recentDocs = Document::with(['subArea.area', 'program', 'uploader'])
+        $recentDocsQuery = Document::with(['subArea.area', 'program', 'uploader'])
+            ->when($viewingCycleId, fn($q) => $q->where('cycle_id', $viewingCycleId));
+
+        if (in_array($role?->slug, ['dean', 'program-coordinator', 'area-coordinator'], true) && $user->program_id) {
+            $recentDocsQuery->where('program_id', $user->program_id);
+        }
+
+        if (in_array($role?->slug, ['area-coordinator', 'program-coordinator'], true)) {
+            $assignedAreaIds = $user->areaAssignments()->pluck('area_id')->unique()->values();
+            $recentDocsQuery->whereHas('subArea', fn($q) => $q->whereIn('area_id', $assignedAreaIds));
+        }
+
+        $recentDocs = $recentDocsQuery
             ->orderByDesc('updated_at')
             ->take(8)
             ->get()
@@ -84,13 +96,29 @@ class DashboardController extends Controller
                 'time'  => $a->created_at->diffForHumans(),
             ]);
 
-        // ── Area progress summary for sidebar (global areas) ──
-        $areaItems = Area::orderBy('order_number')->get()->map(function ($area) {
+        // ── Area progress summary ──
+        $areaItemsQuery = Area::where('is_archived', false)->orderBy('order_number');
+        if (in_array($role?->slug, ['area-coordinator', 'program-coordinator'], true)) {
+            $assignedAreaIds = $user->areaAssignments()->pluck('area_id')->unique()->values();
+            $areaItemsQuery->whereIn('id', $assignedAreaIds);
+        }
+
+        $areaItems = $areaItemsQuery->get()->map(function ($area) use ($user, $role, $viewingCycleId) {
             $subAreaIds    = $area->subAreas()->pluck('id');
             $totalSlots    = $subAreaIds->count() * 3;
-            $approvedSlots = $totalSlots > 0
-                ? Document::whereIn('sub_area_id', $subAreaIds)->where('status', 'approved')->count()
-                : 0;
+            $approvedSlots = 0;
+
+            if ($totalSlots > 0) {
+                $approvedQuery = Document::whereIn('sub_area_id', $subAreaIds)
+                    ->when($viewingCycleId, fn($q) => $q->where('cycle_id', $viewingCycleId))
+                    ->where('status', 'approved');
+
+                if (in_array($role?->slug, ['dean', 'program-coordinator', 'area-coordinator'], true) && $user->program_id) {
+                    $approvedQuery->where('program_id', $user->program_id);
+                }
+
+                $approvedSlots = $approvedQuery->count();
+            }
             $pct = $totalSlots > 0 ? round(($approvedSlots / $totalSlots) * 100) : 0;
             return [
                 'name'        => $area->name,
@@ -100,7 +128,7 @@ class DashboardController extends Controller
             ];
         });
 
-        // ── Upcoming & overdue deadlines for coordinator dashboard ──
+        // ── Deadlines ──
         $upcomingDeadlines = Area::whereNotNull('deadline_at')
             ->where('deadline_at', '>=', now()->subDays(1))
             ->orderBy('deadline_at')
@@ -125,6 +153,9 @@ class DashboardController extends Controller
                 'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
             ]);
 
+        // ── Open returns (replaces the old pending-submission lists) ──
+        $openReturns = $this->buildOpenReturns($user, $role?->slug);
+
         $page = match ($role?->slug) {
             'admin'               => 'Dashboard/Admin',
             'director'            => 'Dashboard/Director',
@@ -134,86 +165,121 @@ class DashboardController extends Controller
             default               => 'Dashboard/Director',
         };
 
-        // ── Pending area submissions for Dean (sub-areas submitted to dean, awaiting action) ──
-        $pendingDeanSubmissions = [];
-        if ($role?->slug === 'dean' && $user->program_id) {
-            $pendingDeanSubmissions = SubArea::where('submission_status', 'submitted_to_dean')
-                ->with('area')
-                ->get()
-                ->map(fn ($sa) => [
-                    'id'          => $sa->id,
-                    'name'        => $sa->name,
-                    'area_name'   => $sa->area?->name,
-                    'submitted_at'=> $sa->submitted_by_dean_at?->format('M j, Y') ?? '—',
-                ])->values()->toArray();
-        }
-
-        // ── Pending area reviews for Director (sub-areas forwarded to director) ──
-        $pendingDirectorReviews = [];
-        if ($role?->slug === 'director') {
-            $pendingDirectorReviews = SubArea::whereIn('submission_status', ['submitted_to_director', 'submitted'])
-                ->with('area')
-                ->get()
-                ->map(fn ($sa) => [
-                    'id'        => $sa->id,
-                    'name'      => $sa->name,
-                    'area_name' => $sa->area?->name,
-                    'status'    => $sa->submission_status,
-                ])->values()->toArray();
-        }
-
         return Inertia::render($page, [
-            'stats'                   => $stats,
-            'programs'                => $programs,
-            'readinessTrend'          => $readinessTrend,
-            'recentDocs'              => $recentDocs,
-            'activities'              => $activities,
-            'areaItems'               => $areaItems,
-            'upcomingDeadlines'       => $upcomingDeadlines,
-            'overdueDeadlines'        => $overdueDeadlines,
-            'currentRole'             => $role?->slug ?? 'director',
-            'userCount'               => User::count(),
-            'logCount'                => ActivityLog::count(),
-            'pendingDeanSubmissions'  => $pendingDeanSubmissions,
-            'pendingDirectorReviews'  => $pendingDirectorReviews,
+            'stats'             => $stats,
+            'programs'          => $programs,
+            'readinessTrend'    => $readinessTrend,
+            'recentDocs'        => $recentDocs,
+            'activities'        => $activities,
+            'areaItems'         => $areaItems,
+            'upcomingDeadlines' => $upcomingDeadlines,
+            'overdueDeadlines'  => $overdueDeadlines,
+            'currentRole'       => $role?->slug ?? 'director',
+            'userCount'         => User::count(),
+            'logCount'          => ActivityLog::count(),
+            'openReturns'       => $openReturns,
         ]);
     }
 
-    private function getStatsForRole($user, ?string $roleSlug): array
+    /**
+     * Open (unresolved) returns visible to the current role.
+     *  - Director: all open returns across all programs
+     *  - Dean: open returns within their own program
+     *  - Coordinators: open returns affecting their assigned areas + program
+     */
+    private function buildOpenReturns($user, ?string $roleSlug): array
     {
-        $totalDocs = Document::count();
-        $approved  = Document::where('status', 'approved')->count();
-        $pending   = Document::where('status', 'pending_review')->count();
-        $programs  = Program::where('is_active', true)->count();
+        $q = RevisionReturn::active()
+            ->with(['program:id,name,code', 'subArea:id,name,area_id', 'subArea.area:id,name', 'returner:id,name']);
+
+        if (in_array($roleSlug, ['dean', 'program-coordinator', 'area-coordinator'], true) && $user->program_id) {
+            $q->where('program_id', $user->program_id);
+        }
+
+        if (in_array($roleSlug, ['area-coordinator', 'program-coordinator'], true)) {
+            $assignedAreaIds = $user->areaAssignments()->pluck('area_id')->unique()->values();
+            $q->whereHas('subArea', fn($s) => $s->whereIn('area_id', $assignedAreaIds));
+        }
+
+        return $q->orderByDesc('created_at')->take(10)->get()
+            ->map(fn (RevisionReturn $r) => [
+                'id'               => $r->id,
+                'target_type'      => str_ends_with($r->returnable_type, 'AreaItem') ? 'item' : 'sub_area',
+                'sub_area_name'    => $r->subArea?->name,
+                'area_name'        => $r->subArea?->area?->name,
+                'program_name'     => $r->program?->name,
+                'program_code'     => $r->program?->code,
+                'returned_by'      => $r->returner?->name,
+                'returned_by_role' => $r->returned_by_role,
+                'comment'          => $r->comment,
+                'returned_at'      => $r->created_at->diffForHumans(),
+            ])->toArray();
+    }
+
+    private function getStatsForRole($user, ?string $roleSlug, ?int $cycleId = null): array
+    {
+        $documentQuery = Document::query()
+            ->when($cycleId, fn($q) => $q->where('cycle_id', $cycleId));
+
+        $assignedAreaIds = collect();
+        if (in_array($roleSlug, ['area-coordinator', 'program-coordinator'], true)) {
+            $assignedAreaIds = $user->areaAssignments()->pluck('area_id')->unique()->values();
+            $documentQuery->whereHas('subArea', fn($q) => $q->whereIn('area_id', $assignedAreaIds));
+        }
+
+        if (in_array($roleSlug, ['dean', 'program-coordinator', 'area-coordinator'], true) && $user->program_id) {
+            $documentQuery->where('program_id', $user->program_id);
+        }
+
+        $totalDocs = (clone $documentQuery)->count();
+        $approved  = (clone $documentQuery)->where('status', 'approved')->count();
+        $pending   = (clone $documentQuery)->where('status', 'pending_review')->count();
+
+        // Open returns within the same scope (used for the "Open Returns" stat card)
+        $returnsQuery = RevisionReturn::active();
+        if (in_array($roleSlug, ['dean', 'program-coordinator', 'area-coordinator'], true) && $user->program_id) {
+            $returnsQuery->where('program_id', $user->program_id);
+        }
+        if (in_array($roleSlug, ['area-coordinator', 'program-coordinator'], true)) {
+            $returnsQuery->whereHas('subArea', fn($q) => $q->whereIn('area_id', $assignedAreaIds));
+        }
+        $openReturnsCount = (clone $returnsQuery)->count();
+
+        $programs = Program::where('is_active', true)->count();
+        if ($roleSlug === 'program-coordinator') {
+            $programs = Area::where('is_archived', false)->whereIn('id', $assignedAreaIds)->count();
+        } elseif ($roleSlug === 'area-coordinator') {
+            $programs = (string) $totalDocs;
+        }
+
         $readiness = $totalDocs > 0 ? round(($approved / $totalDocs) * 100) : 0;
 
         return [
-            'programs'    => (string) $programs,
-            'readiness'   => $readiness . '%',
-            'readinessSub'=> 'Across all programs',
-            'approved'    => (string) $approved,
-            'approvedSub' => 'Of ' . $totalDocs . ' total',
-            'pending'     => (string) $pending,
-            'pendingSub'  => 'Awaiting action',
+            'programs'      => (string) $programs,
+            'readiness'     => $readiness . '%',
+            'readinessSub'  => in_array($roleSlug, ['area-coordinator', 'program-coordinator'], true) ? 'Current scope' : 'Across all programs',
+            'approved'      => (string) $approved,
+            'approvedSub'   => 'Of ' . $totalDocs . ' total',
+            'pending'       => (string) $pending,
+            'pendingSub'    => 'Awaiting action',
+            'openReturns'   => (string) $openReturnsCount,
+            'openReturnsSub'=> $openReturnsCount === 1 ? '1 needs revision' : 'need revision',
         ];
     }
 
     private function buildReadinessTrend($user, ?string $roleSlug, int $days = 365): array
     {
-        $days = max(30, $days);
+        $days  = max(30, $days);
         $start = now()->subDays($days - 1)->startOfDay();
 
         $query = Document::query()->select([
             'program_id',
             'sub_area_id',
             'status',
-            'approval_status',
             'created_at',
             'updated_at',
-            'approved_at',
         ]);
 
-        // Scope trend data to the current role visibility.
         if (in_array($roleSlug, ['dean', 'program-coordinator'], true) && $user->program_id) {
             $query->where('program_id', $user->program_id);
         } elseif ($roleSlug === 'area-coordinator') {
@@ -223,9 +289,9 @@ class DashboardController extends Controller
 
         $documents = $query->get();
 
-        $totalDailyAdds = array_fill(0, $days, 0);
+        $totalDailyAdds    = array_fill(0, $days, 0);
         $approvedDailyAdds = array_fill(0, $days, 0);
-        $baseTotal = 0;
+        $baseTotal    = 0;
         $baseApproved = 0;
 
         foreach ($documents as $document) {
@@ -241,23 +307,12 @@ class DashboardController extends Controller
             }
 
             $approvedMoment = null;
-            if ($document->approved_at) {
-                $approvedMoment = $document->approved_at instanceof Carbon
-                    ? $document->approved_at
-                    : Carbon::parse($document->approved_at);
-            } elseif (
-                in_array($document->status, ['approved'], true)
-                || in_array($document->approval_status, ['approved'], true)
-            ) {
-                // Fallback for legacy rows with no approved_at.
+            if ($document->status === 'approved') {
                 $approvedMoment = $document->updated_at instanceof Carbon
                     ? $document->updated_at
                     : Carbon::parse($document->updated_at);
             }
-
-            if (!$approvedMoment) {
-                continue;
-            }
+            if (!$approvedMoment) continue;
 
             if ($approvedMoment->lt($start)) {
                 $baseApproved++;
@@ -268,18 +323,17 @@ class DashboardController extends Controller
         }
 
         $trend = [];
-        $runningTotal = $baseTotal;
+        $runningTotal    = $baseTotal;
         $runningApproved = $baseApproved;
 
         for ($i = 0; $i < $days; $i++) {
-            $runningTotal += $totalDailyAdds[$i];
+            $runningTotal    += $totalDailyAdds[$i];
             $runningApproved += $approvedDailyAdds[$i];
-
-            $date = $start->copy()->addDays($i);
+            $date  = $start->copy()->addDays($i);
             $value = $runningTotal > 0 ? round(($runningApproved / $runningTotal) * 100, 1) : 0.0;
 
             $trend[] = [
-                'date' => $date->toDateString(),
+                'date'  => $date->toDateString(),
                 'label' => $date->format('M j'),
                 'value' => $value,
             ];
@@ -291,9 +345,8 @@ class DashboardController extends Controller
     private function getEventIcon(string $event): string
     {
         return match (true) {
-            str_contains($event, 'approved')  => '✓',
             str_contains($event, 'returned')  => '↩',
-            str_contains($event, 'submitted') => '↑',
+            str_contains($event, 'resolved')  => '✓',
             str_contains($event, 'uploaded')  => '↑',
             default => '•',
         };
@@ -302,7 +355,7 @@ class DashboardController extends Controller
     private function getEventBg(string $event): string
     {
         return match (true) {
-            str_contains($event, 'approved'), str_contains($event, 'submitted') => 'var(--success-light)',
+            str_contains($event, 'resolved') => 'var(--success-light)',
             str_contains($event, 'returned') => 'var(--danger-light)',
             str_contains($event, 'uploaded') => 'var(--info-light)',
             default => 'var(--gold-pale)',
@@ -312,7 +365,7 @@ class DashboardController extends Controller
     private function getEventColor(string $event): string
     {
         return match (true) {
-            str_contains($event, 'approved'), str_contains($event, 'submitted') => 'var(--success)',
+            str_contains($event, 'resolved') => 'var(--success)',
             str_contains($event, 'returned') => 'var(--danger)',
             str_contains($event, 'uploaded') => 'var(--info)',
             default => 'var(--warning)',

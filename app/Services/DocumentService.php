@@ -70,7 +70,6 @@ class DocumentService
             'uploaded_by'     => $user->id,
             'title'           => $data['title'],
             'status'          => 'draft',
-            'approval_status' => 'pending',
             'current_version' => 1,
         ]);
 
@@ -119,11 +118,10 @@ class DocumentService
 
         $version = $this->createDocumentVersion($document, $file, $path, $user, $newVersion, $notes);
 
-        // Reset approval status since a new version was uploaded
+        // New version uploaded → revert to draft (no separate approval state)
         $document->update([
             'current_version' => $newVersion,
             'status'          => 'draft',
-            'approval_status' => 'pending',
         ]);
 
         ScanUploadedFile::dispatch($version);
@@ -155,57 +153,6 @@ class DocumentService
             'notes'             => $notes,
             'scan_status'       => 'pending',
         ]);
-    }
-
-    /**
-     * Approve a document.
-     */
-    public function approveDocument(Document $document, User $user): Document
-    {
-        $document->update([
-            'approval_status'  => 'approved',
-            'rejection_reason' => null,
-            'approved_by'      => $user->id,
-            'approved_at'      => now(),
-        ]);
-
-        // Log sensitive action
-        $this->logSensitiveAction('document_approved', $document, [
-            'document_title' => $document->title,
-            'document_type' => $document->doc_type,
-            'program_id' => $document->program_id,
-            'sub_area_id' => $document->sub_area_id,
-        ]);
-
-        event(new DocumentStatusChanged($document, $user, 'approved'));
-
-        return $document;
-    }
-
-    /**
-     * Reject a document.
-     */
-    public function rejectDocument(Document $document, User $user, ?string $reason = null): Document
-    {
-        $document->update([
-            'approval_status'  => 'rejected',
-            'rejection_reason' => $reason,
-            'approved_by'      => $user->id,
-            'approved_at'      => now(),
-        ]);
-
-        // Log sensitive action
-        $this->logSensitiveAction('document_rejected', $document, [
-            'document_title' => $document->title,
-            'document_type' => $document->doc_type,
-            'rejection_reason' => $reason,
-            'program_id' => $document->program_id,
-            'sub_area_id' => $document->sub_area_id,
-        ]);
-
-        event(new DocumentStatusChanged($document, $user, 'rejected'));
-
-        return $document;
     }
 
     /**

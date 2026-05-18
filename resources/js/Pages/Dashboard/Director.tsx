@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
-import { ChartPanel, MetricList, MinimalLineChart, SoftStatCard } from '@/components/dashboard/charts';
+import { ChartPanel, MetricList, MinimalLineChart } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 import AnimatedValue from '@/components/dashboard/AnimatedValue';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
@@ -81,13 +81,6 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                         </div>
                     );
                 })}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
-                <SoftStatCard title="Programs" value={stats.programs} delta="+2.4%" tint="#f3f4ff" />
-                <SoftStatCard title="Readiness" value={stats.readiness} delta="+5.2%" tint="#eef5ff" />
-                <SoftStatCard title="Approved" value={stats.approved} delta="+11.0%" tint="#eefbf3" />
-                <SoftStatCard title="Pending" value={stats.pending} delta="-3.1%" tint="#f8f5ff" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>

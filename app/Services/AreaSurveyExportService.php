@@ -40,6 +40,7 @@ class AreaSurveyExportService
         $pdfPaths   = [];
         $tempFiles  = [];
         $pageNumber = 1;
+        $subAreaEvidenceGroups = [];
 
         // ── Fast pass: compute sub-area ratings for summary table ────────────
         $subAreaRatings = [];
@@ -71,6 +72,12 @@ class AreaSurveyExportService
         foreach ($area->subAreas as $saIndex => $subArea) {
             // 3a. Divider card
             $groups = $this->buildIpoGroups($subArea, $programId, $cycleId, $extractor);
+            $subAreaEvidenceGroups[] = [
+                'area_name'      => $area->name,
+                'sub_area_name'  => $subArea->name,
+                'sub_area_index' => $saIndex + 1,
+                'groups'         => $groups,
+            ];
 
             $dividerPath = $this->makeSubAreaDivider(
                 $area->name, $subArea->name, $saIndex + 1,
@@ -91,6 +98,23 @@ class AreaSurveyExportService
         }
 
         // ── 4. Merge all into one PDF ─────────────────────────────────────────
+        foreach ($subAreaEvidenceGroups as $evidenceGroup) {
+            if (!$this->groupsHaveFiles($evidenceGroup['groups'])) {
+                continue;
+            }
+
+            $evidencePath = $this->makeEvidencePage(
+                $evidenceGroup['area_name'],
+                $evidenceGroup['sub_area_name'],
+                $evidenceGroup['sub_area_index'],
+                $evidenceGroup['groups'],
+                $pageNumber
+            );
+            $pdfPaths[]  = $evidencePath;
+            $tempFiles[] = $evidencePath;
+            $pageNumber++;
+        }
+
         $finalPath = $this->mergePdfs($pdfPaths);
 
         // ── 5. Clean up temp files ────────────────────────────────────────────
@@ -172,11 +196,6 @@ class AreaSurveyExportService
                 // Sub-items
                 $children = [];
                 foreach ($item->children as $child) {
-                    $childResponse = AreaItemResponse::where('area_item_id', $child->id)
-                        ->where('program_id', $programId)
-                        ->when($cycleId, fn($q) => $q->where('cycle_id', $cycleId))
-                        ->first();
-
                     $childFiles = AreaItemFile::where('area_item_id', $child->id)
                         ->where('program_id', $programId)
                         ->when($cycleId, fn($q) => $q->where('cycle_id', $cycleId))
@@ -184,14 +203,14 @@ class AreaSurveyExportService
 
                     $children[] = [
                         'label'     => $child->label,
-                        'narrative' => $childResponse?->content_text,
+                        'narrative' => $child->label,
                         'files'     => $this->buildFileData($childFiles, $extractor),
                     ];
                 }
 
                 $groups[$ipo][] = [
                     'label'     => $item->label,
-                    'narrative' => $response?->content_text,
+                    'narrative' => $item->label,
                     'rating'    => $response?->rating,
                     'files'     => $fileData,
                     'children'  => $children,
@@ -235,6 +254,7 @@ class AreaSurveyExportService
             $result[] = [
                 'original_filename' => $file->original_filename,
                 'mime_type'         => $mime,
+                'caption'           => $file->caption,
                 'is_image'          => $isImage,
                 'is_pdf'            => $isPdf,
                 'pdf_pages'         => $pdfPages,
@@ -243,6 +263,25 @@ class AreaSurveyExportService
             ];
         }
         return $result;
+    }
+
+    private function groupsHaveFiles(array $ipoGroups): bool
+    {
+        foreach ($ipoGroups as $items) {
+            foreach ($items as $item) {
+                if (!empty($item['files'])) {
+                    return true;
+                }
+
+                foreach ($item['children'] ?? [] as $child) {
+                    if (!empty($child['files'])) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private function makeItemsContentPage(
@@ -258,6 +297,21 @@ class AreaSurveyExportService
         ])->render();
 
         return $this->renderToPdf($html, 'items');
+    }
+
+    private function makeEvidencePage(
+        string $areaName, string $subAreaName, int $subAreaIndex,
+        array $ipoGroups, int $pageNum
+    ): string {
+        $html = view('pdf.survey_evidence_page', [
+            'area_name'      => $areaName,
+            'sub_area_name'  => $subAreaName,
+            'sub_area_index' => $subAreaIndex,
+            'ipo_groups'     => $ipoGroups,
+            'page_number'    => $pageNum,
+        ])->render();
+
+        return $this->renderToPdf($html, 'evidence');
     }
 
     private function makeCoverPage(Area $area, ?Program $program, string $institution, int $pageNum): string

@@ -20,7 +20,7 @@ class AreaItemController extends Controller
             'sub_area_id'    => 'required|exists:sub_areas,id',
             'ipo_type'       => 'required|in:input,process,outcome',
             'parent_item_id' => 'nullable|exists:area_items,id',
-            'label'          => 'required|string|max:255',
+            'label'          => 'required|string',
         ]);
 
         // Auto order: put it after the last sibling
@@ -45,7 +45,7 @@ class AreaItemController extends Controller
         $this->authorizeDirector($request);
 
         $validated = $request->validate([
-            'label'        => 'sometimes|string|max:255',
+            'label'        => 'sometimes|string',
             'order_number' => 'sometimes|integer|min:0',
         ]);
 

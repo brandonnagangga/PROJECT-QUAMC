@@ -40,7 +40,7 @@ const allNavItems = [
     ]},
     { label: 'Administration', items: [
         { name: 'Users', icon: User, href: '/users', screen: 'users', roles: ['admin', 'dean'] },
-        { name: 'Acc. Cycles', icon: Calendar, href: '/cycles', screen: 'cycles', roles: ['admin'] },
+        { name: 'Acc. Cycles', icon: Calendar, href: '/cycles', screen: 'cycles', roles: ['admin', 'director'] },
         { name: 'Activity Logs', icon: List, href: '/logs', screen: 'logs', roles: ['admin', 'director'] },
     ]},
 ];
@@ -65,6 +65,19 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     const currentPath = page.url.split('?')[0];
     const isDashboard = currentPath === '/' || currentPath === '/dashboard';
     const userRoleSlug = user?.roles?.[0]?.slug ?? '';
+    const viewingCycle = (page.props as any).viewing_cycle as
+        | { id: number; name: string; academic_year?: string; is_active?: boolean; start_date?: string; end_date?: string }
+        | null
+        | undefined;
+    const activeCycle = (page.props as any).active_cycle as
+        | { id: number; name: string; academic_year?: string }
+        | null
+        | undefined;
+    const cycleLabel = viewingCycle?.name ?? activeCycle?.name ?? 'No active cycle';
+    const cycleMeta = viewingCycle?.start_date && viewingCycle?.end_date
+        ? `${viewingCycle.start_date} - ${viewingCycle.end_date}`
+        : viewingCycle?.academic_year ?? activeCycle?.academic_year ?? 'Uploads locked';
+    const canManageCycles = userRoleSlug === 'admin' || userRoleSlug === 'director';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [themeSidebarOpen, setThemeSidebarOpen] = useState(false);
     const [now, setNow] = useState(new Date());
@@ -648,6 +661,41 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                         </div>
 
                         <div className="app-connected-topbar-right">
+                            {canManageCycles ? (
+                                <Link
+                                    href="/cycles"
+                                    className={`app-cycle-pill ${viewingCycle?.is_active ? 'active' : 'viewing'}`}
+                                    title="Manage accreditation cycles"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        void attemptNavigate('/cycles');
+                                    }}
+                                >
+                                    <Calendar size={14} />
+                                    <span className="app-cycle-pill-text">
+                                        <span className="app-cycle-pill-label">{cycleLabel}</span>
+                                        <span className="app-cycle-pill-meta">{cycleMeta}</span>
+                                    </span>
+                                    <span className="app-cycle-pill-badge">
+                                        {viewingCycle?.is_active ? 'Active' : 'Viewing'}
+                                    </span>
+                                </Link>
+                            ) : (
+                                <div
+                                    className={`app-cycle-pill ${viewingCycle?.is_active ? 'active' : 'viewing'}`}
+                                    title="Current accreditation cycle"
+                                >
+                                    <Calendar size={14} />
+                                    <span className="app-cycle-pill-text">
+                                        <span className="app-cycle-pill-label">{cycleLabel}</span>
+                                        <span className="app-cycle-pill-meta">{cycleMeta}</span>
+                                    </span>
+                                    <span className="app-cycle-pill-badge">
+                                        {viewingCycle?.is_active ? 'Active' : 'Viewing'}
+                                    </span>
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, marginRight: 4 }}>
                                 <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)' }}>
                                     {new Intl.DateTimeFormat(undefined, {

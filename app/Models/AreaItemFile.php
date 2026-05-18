@@ -17,6 +17,7 @@ class AreaItemFile extends Model
         'file_path',
         'file_size_bytes',
         'mime_type',
+        'caption',
         'scan_status',
     ];
 

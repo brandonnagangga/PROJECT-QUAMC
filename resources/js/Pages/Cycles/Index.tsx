@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { useState } from 'react';
 import {
-    Calendar, Plus, CheckCircle, Trash2, Edit3, FileText, Star, X
+    Calendar, Plus, CheckCircle, Trash2, Edit3, FileText, Star, X, Archive
 } from 'lucide-react';
 import { confirmAction, showSuccess } from '@/utils/toast';
 
@@ -58,6 +58,15 @@ export default function CyclesIndex({ cycles }: Props) {
             text: `This will set "${c.name}" as the active accreditation cycle. All other cycles will be deactivated.`,
         });
         if (ok) router.post(`/cycles/${c.id}/activate`);
+    };
+
+    const handleArchive = async (c: Cycle) => {
+        const ok = await confirmAction({
+            title: 'Archive Cycle?',
+            text: `This will lock "${c.name}" and disable uploads until another cycle is activated.`,
+            isDanger: true,
+        });
+        if (ok) router.post(`/cycles/${c.id}/deactivate`);
     };
 
     const handleDelete = async (c: Cycle) => {
@@ -249,6 +258,16 @@ export default function CyclesIndex({ cycles }: Props) {
                                         fontWeight: 500,
                                     }}>
                                         <CheckCircle size={12} /> Set Active
+                                    </button>
+                                )}
+                                {cycle.is_active && (
+                                    <button onClick={() => handleArchive(cycle)} style={{
+                                        display: 'flex', alignItems: 'center', gap: 4,
+                                        padding: '6px 12px', borderRadius: 6, border: '1px solid #fed7aa',
+                                        background: '#fff7ed', cursor: 'pointer', fontSize: 11, color: '#c2410c',
+                                        fontWeight: 500,
+                                    }}>
+                                        <Archive size={12} /> Archive
                                     </button>
                                 )}
                                 <button onClick={() => openEdit(cycle)} style={{

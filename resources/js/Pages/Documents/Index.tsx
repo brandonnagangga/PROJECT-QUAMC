@@ -35,6 +35,19 @@ interface ItemTreeSubArea {
     groups: Record<'input' | 'process' | 'outcome', ItemTreeItem[]>;
 }
 interface ItemTreeArea { id: number; name: string; total_files: number; sub_areas: ItemTreeSubArea[]; }
+interface DownloadLog {
+    id: string;
+    user_name: string;
+    event: string;
+    description: string | null;
+    filename: string | null;
+    document_title: string | null;
+    area_name: string | null;
+    sub_area_name: string | null;
+    ip_address: string | null;
+    created_at: string;
+    time_ago: string;
+}
 interface Props {
     documents: DocInfo[];
     programs: FolderProgram[];
@@ -43,6 +56,7 @@ interface Props {
     item_files_tree?: ItemTreeArea[];
     all_programs?: ProgramOption[];
     filter_program_id?: number | null;
+    download_logs?: DownloadLog[];
 }
 
 /* ── Constants ── */
@@ -79,6 +93,12 @@ const SUBMISSION_STATUS: Record<string, { bg: string; color: string; label: stri
     returned:              { bg: '#fef2f2', color: '#9b1c1c', label: 'Returned' },
 };
 
+const downloadEventLabel = (event: string) => {
+    if (event === 'document.version_downloaded') return 'Version download';
+    if (event === 'document.item_file_downloaded') return 'Evidence download';
+    return 'Document download';
+};
+
 /* ── Main Component ── */
 export default function DocumentsIndex({
     documents,
@@ -88,6 +108,7 @@ export default function DocumentsIndex({
     item_files_tree = [],
     all_programs = [],
     filter_program_id = null,
+    download_logs = [],
 }: Props) {
     const [viewMode, setViewMode]         = useState<'list' | 'folder'>(filters?.view === 'list' ? 'list' : 'folder');
     const [search, setSearch]             = useState(filters?.search || '');
@@ -1044,6 +1065,99 @@ export default function DocumentsIndex({
                     )}
                 </>
             )}
+
+            <section style={{ marginTop: 24 }}>
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12, marginBottom: 12, flexWrap: 'wrap',
+                }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
+                            <Download size={16} /> Recent Download Activity
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                            Latest document and evidence file downloads recorded in Activity Logs.
+                        </div>
+                    </div>
+                    <Link
+                        href="/logs?search=download"
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            minHeight: 34, padding: '7px 12px', borderRadius: 8,
+                            border: '1px solid var(--color-border)', background: 'var(--color-panel-bg)',
+                            color: 'var(--color-text-secondary)', textDecoration: 'none',
+                            fontSize: 11.5, fontWeight: 700,
+                        }}
+                    >
+                        <History size={13} /> View Activity Logs
+                    </Link>
+                </div>
+
+                <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
+                                {['Downloaded File', 'Downloaded By', 'Context', 'IP Address', 'When'].map((header) => (
+                                    <th key={header} style={{
+                                        textAlign: 'left', padding: '10px 14px', fontSize: 10,
+                                        fontWeight: 700, color: 'var(--color-text-secondary)',
+                                        textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                                    }}>
+                                        {header}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {download_logs.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} style={{ padding: 28, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                        <Download size={24} style={{ opacity: 0.35, marginBottom: 8 }} />
+                                        <div style={{ fontSize: 12 }}>No downloads recorded yet.</div>
+                                    </td>
+                                </tr>
+                            )}
+                            {download_logs.map((log) => (
+                                <tr
+                                    key={log.id}
+                                    style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.12s' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-background)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    <td style={{ padding: '11px 14px', color: 'var(--color-text)' }}>
+                                        <div style={{ fontWeight: 700, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.filename ?? undefined}>
+                                            {log.filename ?? 'File download'}
+                                        </div>
+                                        <div style={{ fontSize: 10.5, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                                            {downloadEventLabel(log.event)}
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--color-text)' }}>
+                                        {log.user_name}
+                                    </td>
+                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
+                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.description ?? undefined}>
+                                            {log.document_title ?? log.description ?? 'Supporting evidence'}
+                                        </div>
+                                        {(log.area_name || log.sub_area_name) && (
+                                            <div style={{ fontSize: 10.5, marginTop: 3 }}>
+                                                {[log.area_name, log.sub_area_name].filter(Boolean).join(' / ')}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>
+                                        {log.ip_address ?? '-'}
+                                    </td>
+                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>
+                                        <div style={{ fontSize: 11.5 }}>{log.time_ago}</div>
+                                        <div style={{ fontSize: 10, marginTop: 2 }}>{log.created_at}</div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </AppLayout>
     );
 }
