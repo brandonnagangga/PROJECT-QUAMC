@@ -75,13 +75,13 @@ export default function SettingsModal({ open, saving, settings, onClose, onSave,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: 20,
+                padding: 24,
             }}
         >
             <div
                 style={{
-                    width: 'min(980px, calc(100vw - 120px))',
-                    height: 'min(760px, calc(100vh - 140px))',
+                    width: 'min(720px, calc(100vw - 220px))',
+                    height: 'min(600px, calc(100vh - 200px))',
                     borderRadius: 16,
                     background: 'var(--color-panel-bg)',
                     border: '1px solid var(--color-panel-border)',

@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import AuthLayout from '@/Layouts/AuthLayout';
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 type LoginPhase = 'idle' | 'slideOutGreeting' | 'greeting' | 'slideOutPreloader' | 'preloader';
@@ -34,9 +34,20 @@ export default function Login() {
     const [phase, setPhase] = useState<LoginPhase>('idle');
     const [selectedMessage, setSelectedMessage] = useState(greetingMessages[0]);
     const [isAnimatingSubmit, setIsAnimatingSubmit] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const timersRef = useRef<number[]>([]);
 
     const accountName = useMemo(() => formatAccountName(data.email), [data.email]);
+    const passwordRules = useMemo(
+        () => [
+            { label: 'At least 8 characters', met: data.password.length >= 8 },
+            { label: 'At least 1 number', met: /\d/.test(data.password) },
+            { label: 'At least 1 lowercase letter', met: /[a-z]/.test(data.password) },
+            { label: 'At least 1 uppercase letter', met: /[A-Z]/.test(data.password) },
+            { label: 'At least 1 special characters', met: /[^A-Za-z0-9]/.test(data.password) },
+        ],
+        [data.password]
+    );
 
     useEffect(() => {
         setMounted(true);
@@ -56,29 +67,35 @@ export default function Login() {
         e.preventDefault();
         if (processing || isAnimatingSubmit) return;
 
-        setIsAnimatingSubmit(true);
         setSelectedMessage(greetingMessages[Math.floor(Math.random() * greetingMessages.length)]);
-        setPhase('slideOutGreeting');
+        timersRef.current.forEach((id) => window.clearTimeout(id));
+        timersRef.current = [];
 
-        addTimer(() => {
-            setPhase('greeting');
-        }, 420);
+        post('/login', {
+            onSuccess: () => {
+                setIsAnimatingSubmit(true);
+                setPhase('slideOutGreeting');
 
-        addTimer(() => {
-            setPhase('slideOutPreloader');
-        }, 3420);
+                addTimer(() => {
+                    setPhase('greeting');
+                }, 420);
 
-        addTimer(() => {
-            setPhase('preloader');
-            post('/login', {
-                onError: () => {
-                    setPhase('idle');
-                },
-                onFinish: () => {
-                    setIsAnimatingSubmit(false);
-                },
-            });
-        }, 3860);
+                addTimer(() => {
+                    setPhase('slideOutPreloader');
+                }, 3420);
+
+                addTimer(() => {
+                    setPhase('preloader');
+                }, 3860);
+            },
+            onError: () => {
+                setIsAnimatingSubmit(false);
+                setPhase('idle');
+            },
+            onFinish: () => {
+                setIsAnimatingSubmit(false);
+            },
+        });
     };
 
     const viewClass =
@@ -114,16 +131,41 @@ export default function Login() {
 
                                 <div className="auth-field">
                                     <label htmlFor="password">Password</label>
-                                    <input
-                                        id="password"
-                                        type="password"
-                                        value={data.password}
-                                        onChange={(e) => setData('password', e.target.value)}
-                                        className="auth-input"
-                                        placeholder="Enter your password"
-                                        autoComplete="off"
-                                    />
+                                    <div className="auth-password-field">
+                                        <input
+                                            id="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={data.password}
+                                            onChange={(e) => setData('password', e.target.value)}
+                                            className="auth-input auth-input--password"
+                                            placeholder="Enter your password"
+                                            autoComplete="off"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="auth-password-toggle"
+                                            onClick={() => setShowPassword((current) => !current)}
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            aria-pressed={showPassword}
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
                                     {errors.password && <p className="auth-error">{errors.password}</p>}
+                                    <div className="auth-password-rules">
+                                        <div className="auth-password-rules__head">
+                                            <span>Must contain:</span>
+                                            <span>{data.password ? 'Password requirements' : 'Enter a password'}</span>
+                                        </div>
+                                        <ul className="auth-password-rules__list">
+                                            {passwordRules.map((rule) => (
+                                                <li key={rule.label} className={`auth-password-rules__item ${rule.met ? 'is-met' : ''}`}>
+                                                    <span className="auth-password-rules__icon">{rule.met ? '✓' : '×'}</span>
+                                                    <span>{rule.label}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
 
                                 <label className="auth-remember">

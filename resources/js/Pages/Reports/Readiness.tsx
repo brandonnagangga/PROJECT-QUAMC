@@ -29,14 +29,6 @@ export default function Readiness({ programs, summary }: Props) {
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
-                        Accreditation Readiness Report
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                        Overall status of document completion across all programs
-                    </div>
-                </div>
                 <a href="/reports/readiness/export" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
