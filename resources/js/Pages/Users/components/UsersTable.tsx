@@ -50,7 +50,7 @@ export function UsersTable({
     onAssignArea: (userId: string) => void;
 }) {
     return (
-        <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
+        <div data-tour="users-table" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, overflow: 'visible', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
             <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--color-text-secondary)' }}>
                     <Users size={16} color="#4f46e5" />
@@ -105,7 +105,7 @@ export function UsersTable({
                         const isCurrentUser = user.id === currentUserId;
 
                         return (
-                            <tr key={user.id} style={{ borderBottom: '1px solid var(--color-border)', background: isSelected ? 'var(--color-hover)' : 'var(--color-panel-bg)', transition: 'background 0.15s ease' }}>
+                            <tr key={user.id} style={{ borderBottom: '1px solid var(--color-border)', background: isSelected ? 'var(--color-hover)' : 'var(--color-panel-bg)', transition: 'background 0.15s ease', position: 'relative', zIndex: openMenuId === user.id ? 30 : 1 }}>
                                 <td style={tdStyle}><button onClick={() => toggleUserSelection(user.id)} style={checkboxButtonStyle}>{isSelected ? <CheckSquare size={15} color="#4f46e5" /> : <Square size={15} color="#d5dbe7" />}</button></td>
                                 <td style={tdStyle}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -142,7 +142,7 @@ export function UsersTable({
                                             <MoreHorizontal size={15} color="var(--color-text-secondary)" />
                                         </button>
                                         {openMenuId === user.id && (
-                                            <div style={{ position: 'absolute', right: 16, top: 'calc(100% - 4px)', width: 210, background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 16, boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)', padding: 8, zIndex: 20 }}>
+                                            <div style={{ position: 'absolute', right: 16, top: 'calc(100% - 4px)', width: 210, background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 16, boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)', padding: 8, zIndex: 40 }}>
                                                 <button style={menuItemStyle}><Eye size={14} /> View Profile</button>
                                                 <button style={menuItemStyle}><Pencil size={14} /> Edit Details</button>
                                                 <button style={menuItemStyle} onClick={() => { setOpenMenuId(null); onToggleStatus(user); }}>

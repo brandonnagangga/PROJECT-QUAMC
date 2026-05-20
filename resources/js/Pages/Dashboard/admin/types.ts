@@ -13,6 +13,7 @@ export interface AdminDashboardProps {
     readinessTrend?: ReadinessTrendPoint[];
     programs?: ProgramReadiness[];
     recentDocs?: RecentDoc[];
+    deadlineEvents?: DeadlineEvent[];
     graphData: {
         nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
         links: { source: string; target: string }[];
@@ -42,6 +43,16 @@ export interface ProgramReadiness {
     code: string;
     pct: number;
     areas: { name: string; pct: number; cls: string }[];
+}
+
+export interface DeadlineEvent {
+    id: number;
+    name: string;
+    deadline_at: string;
+    days_left: number;
+    program_codes?: string[];
+    program_count?: number;
+    assigned_user_ids?: string[];
 }
 
 export interface RecentDoc {

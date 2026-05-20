@@ -15,7 +15,7 @@ export default function DashboardWidgetWrapper({ id, children }: DashboardWidget
     }
 
     return (
-        <div style={{ position: 'relative' }} className={isEditMode ? 'dashboard-edit-shaking' : ''}>
+        <div style={{ position: 'relative' }} className={isEditMode ? 'dashboard-edit-shaking' : ''} data-tour={id}>
             {isEditMode && (
                 <button
                     onClick={(e) => {

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+SANDBOX_HOME="$SCRIPT_DIR/.codex-local/home"
+SANDBOX_WORKSPACE="$SCRIPT_DIR/.codex-local/workspace"
+ALLOWED_LIST="$SCRIPT_DIR/.codex-local/allowed-files.txt"
+SECURITY_LOG="$SCRIPT_DIR/security-codex.txt"
+mkdir -p "$SANDBOX_HOME"
+
+for arg in "$@"; do
+  case "$arg" in
+    --add-dir|--cd|--dangerously-bypass-approvals-and-sandbox)
+      echo "Blocked option in strict mode: $arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "git is required for strict filtered workspace mode" >&2
+  exit 3
+fi
+
+if ! command -v rsync >/dev/null 2>&1; then
+  echo "rsync is required for strict filtered workspace mode" >&2
+  exit 3
+fi
+
+mkdir -p "$SANDBOX_WORKSPACE"
+git -C "$SCRIPT_DIR" ls-files -co --exclude-standard | grep -v '^\.codex/' > "$ALLOWED_LIST"
+rsync -a --ignore-missing-args --delete --prune-empty-dirs --files-from="$ALLOWED_LIST" "$SCRIPT_DIR"/ "$SANDBOX_WORKSPACE"/
+
+if [ "${1:-}" = "exec" ]; then
+  shift
+  CODEX_CMD=(codex --cd "$SCRIPT_DIR" --sandbox workspace-write --ask-for-approval never exec --skip-git-repo-check "$@")
+else
+  CODEX_CMD=(codex --cd "$SCRIPT_DIR" --sandbox workspace-write --ask-for-approval never "$@")
+fi
+
+timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+args_joined="$(printf "%q " "$@")"
+args_hash="$(printf "%s" "$args_joined" | sha256sum | awk '{print $1}')"
+{
+  echo "[$timestamp_utc] EVENT=provider_call_attempt"
+  echo "cwd=$SCRIPT_DIR"
+  echo "provider=freemodel"
+  echo "base_url=https://api.freemodel.dev"
+  echo "args_hash=$args_hash"
+  echo "args=$args_joined"
+  echo "---"
+} >> "$SECURITY_LOG"
+
+set +e
+bwrap \
+  --unshare-all \
+  --share-net \
+  --new-session \
+  --die-with-parent \
+  --proc /proc \
+  --dev /dev \
+  --tmpfs /tmp \
+  --ro-bind /usr /usr \
+  --ro-bind /bin /bin \
+  --ro-bind /sbin /sbin \
+  --ro-bind /lib /lib \
+  --ro-bind /lib64 /lib64 \
+  --ro-bind /etc /etc \
+  --ro-bind "$NVM_DIR" "$NVM_DIR" \
+  --bind "$SANDBOX_WORKSPACE" "$SCRIPT_DIR" \
+  --bind "$SCRIPT_DIR/.codex-local" "$SCRIPT_DIR/.codex-local" \
+  --chdir "$SCRIPT_DIR" \
+  --setenv HOME "$SANDBOX_HOME" \
+  --setenv CODEX_HOME "$SCRIPT_DIR/.codex-local" \
+  --setenv PATH "$NVM_DIR/versions/node/v22.22.1/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  "${CODEX_CMD[@]}"
+status=$?
+set -e
+
+timestamp_done="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+{
+  echo "[$timestamp_done] EVENT=provider_call_result"
+  echo "exit_code=$status"
+  echo "args_hash=$args_hash"
+  echo "---"
+} >> "$SECURITY_LOG"
+
+exit $status
+
+# Sync edits back to real project after the run.
+rsync -a "$SANDBOX_WORKSPACE"/ "$SCRIPT_DIR"/

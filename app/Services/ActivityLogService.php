@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ActivityLogService
 {
@@ -23,14 +25,22 @@ class ActivityLogService
         array  $meta   = [],
         ?string $ip    = null
     ): void {
-        ActivityLog::create([
-            'user_id'    => $user?->id,
-            'event'      => $event,
-            'model_type' => $target ? get_class($target) : null,
-            'model_id'   => $target?->getKey(),
-            'changes'    => array_merge($meta, ['description' => static::describe($event, $user, $meta)]),
-            'ip_address' => $ip ?? request()?->ip(),
-        ]);
+        try {
+            ActivityLog::create([
+                'user_id'    => $user?->id,
+                'event'      => $event,
+                'model_type' => $target ? get_class($target) : null,
+                'model_id'   => $target?->getKey(),
+                'changes'    => array_merge($meta, ['description' => static::describe($event, $user, $meta)]),
+                'ip_address' => $ip ?? request()?->ip(),
+            ]);
+        } catch (Throwable $exception) {
+            Log::warning('Activity log write failed', [
+                'event' => $event,
+                'user_id' => $user?->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -45,8 +55,23 @@ class ActivityLogService
         $document = $meta['document_title'] ?? 'a document';
         $filename = $meta['filename'] ?? 'a file';
         $version  = $meta['version_number'] ?? null;
+        $label    = $meta['target_label'] ?? 'a control';
+        $path     = $meta['path'] ?? 'the app';
+        $href     = $meta['href'] ?? null;
 
         return match ($event) {
+            'auth.login'
+                => "{$name} signed in.",
+            'auth.logout'
+                => "{$name} signed out.",
+            'ui.page_viewed'
+                => "{$name} viewed {$path}.",
+            'ui.menu_navigated'
+                => "{$name} navigated to {$label}" . ($href ? " ({$href})" : '') . ".",
+            'ui.button_clicked'
+                => "{$name} clicked {$label}" . ($path ? " on {$path}" : '') . ".",
+            'ui.link_clicked'
+                => "{$name} opened {$label}" . ($href ? " ({$href})" : '') . ".",
             'document.downloaded'
                 => "{$name} downloaded \"{$filename}\" from document \"{$document}\"." . ($program ? " (Program: {$program})" : ''),
             'document.version_downloaded'

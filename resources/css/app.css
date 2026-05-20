@@ -25,7 +25,7 @@
      * Body    → Inter             14px  weight 400
      */
     --font-sans: 'Inter', sans-serif;
-    --font-serif: 'Playfair Display', serif;
+    --font-serif: inherit;
     --font-mono: 'DM Mono', monospace;
 
     /* Font-size tokens */
@@ -54,7 +54,7 @@ body {
 
 /* Page-level headers (h1) use Playfair Display at 38px/800 */
 h1.page-header {
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     font-size: var(--fs-header);
     font-weight: var(--fw-header);
     color: #0f1f3d;
@@ -73,7 +73,7 @@ h1.page-header {
   --color-accent: #c9a84c; /* Default accent, only visible in themed mode */
 
   /* Fonts - will be overridden by ThemeContext */
-  --font-heading: 'Playfair Display', serif;
+  --font-heading: inherit;
   --font-body: 'Inter', sans-serif;
 }
 
@@ -144,7 +144,7 @@ body {
     background: #8f2b4a;
     padding: 10px 24px;
     box-shadow: 0 8px 14px rgba(79, 20, 40, 0.22);
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     z-index: 1;
     padding-left: 34px;
     border-top-right-radius: 10px;
@@ -226,7 +226,7 @@ body {
 }
 
 .auth-brand__title {
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     font-size: clamp(42px, 4.8vw, 62px);
     line-height: 0.9;
     margin: 0;
@@ -337,7 +337,7 @@ body {
     font-size: 39px;
     margin: 0;
     color: #202532;
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     line-height: 1;
 }
 
@@ -367,7 +367,7 @@ body {
     line-height: 1.1;
     margin: 0;
     color: #111017;
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     letter-spacing: -0.02em;
 }
 
@@ -428,7 +428,7 @@ body {
 }
 
 .auth-greeting h2 {
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     font-size: clamp(40px, 4.5vw, 56px);
     line-height: 1;
     color: #111017;
@@ -447,7 +447,7 @@ body {
     font-size: 30px;
     line-height: 1.2;
     color: #22141b;
-    font-family: 'Playfair Display', serif;
+    font-family: inherit;
     margin: 2px 0 0;
 }
 
@@ -556,56 +556,6 @@ body {
     outline: none;
     color: #7e1735;
     box-shadow: 0 0 0 3px rgba(143, 43, 74, 0.18);
-}
-
-.auth-password-rules {
-    margin-top: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: #f6f8fb;
-    border: 1px solid #e1e7ef;
-}
-
-.auth-password-rules__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #3a4455;
-    margin-bottom: 8px;
-}
-
-.auth-password-rules__list {
-    list-style: none;
-    display: grid;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-}
-
-.auth-password-rules__item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #627089;
-    line-height: 1.2;
-}
-
-.auth-password-rules__icon {
-    width: 14px;
-    text-align: center;
-    font-weight: 700;
-    color: #7a879d;
-}
-
-.auth-password-rules__item.is-met {
-    color: #1f5b34;
-}
-
-.auth-password-rules__item.is-met .auth-password-rules__icon {
-    color: #1f5b34;
 }
 
 .auth-error {
@@ -843,4 +793,60 @@ body {
 
 .dashboard-calendar .react-calendar__month-view__days__day--weekend {
     color: #9b1c1c;
+}
+
+/* Responsive Stacked Table Utility */
+@media (max-width: 1024px) {
+    .table-responsive-stack-wrapper {
+        overflow-x: visible !important;
+    }
+    .table-responsive-stack thead {
+        display: none !important;
+    }
+    .table-responsive-stack, 
+    .table-responsive-stack tbody, 
+    .table-responsive-stack tr, 
+    .table-responsive-stack td {
+        display: block !important;
+        width: 100% !important;
+    }
+    .table-responsive-stack tr {
+        padding: 8px 0 !important;
+        border-bottom: 12px solid var(--color-background, #f9fafb) !important;
+        background: var(--color-panel-bg, #fff) !important;
+    }
+    .table-responsive-stack tr:last-child {
+        border-bottom: none !important;
+    }
+    .table-responsive-stack td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 16px !important;
+        border-bottom: 1px solid var(--color-border, #e5e7eb) !important;
+        min-height: 44px !important;
+    }
+    .table-responsive-stack td:last-child {
+        border-bottom: none !important;
+    }
+    .table-responsive-stack td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--color-text-secondary, #6b7280);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+        margin-right: 16px;
+    }
+    /* Specific handling for long text columns */
+    .table-responsive-stack td.stack-vertical {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        min-height: auto !important;
+    }
+    .table-responsive-stack td.stack-vertical::before {
+        margin-bottom: 2px;
+    }
 }

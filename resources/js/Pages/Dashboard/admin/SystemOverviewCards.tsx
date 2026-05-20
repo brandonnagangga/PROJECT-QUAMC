@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import type { MetricCard } from './types';
 import PixelCard from '@/components/PixelCard';
@@ -6,10 +6,19 @@ import { useCountUp } from '@/hooks/useCountUp';
 
 function OverviewMetricCard({ metric }: { metric: MetricCard }) {
     const [isHovered, setIsHovered] = useState(false);
+    const [isMobile, setIsMobile] = useState<boolean>(() =>
+        typeof window === 'undefined' ? false : window.innerWidth < 900
+    );
     
     // Parse the numeric value from the metric.value string (e.g., "1,234" -> 1234)
     const numericValue = parseInt(metric.value.replace(/,/g, ''), 10) || 0;
     const animatedValue = useCountUp(numericValue, 1500);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 900);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     return (
         <Link href={metric.href} style={{ textDecoration: 'none' }}>
@@ -19,6 +28,7 @@ function OverviewMetricCard({ metric }: { metric: MetricCard }) {
                 speed={25}
             >
                 <div
+                    className="overview-metric-card"
                     style={{
                         background: 'var(--color-panel-bg)',
                         border: '1px solid var(--color-panel-border)',
@@ -28,16 +38,19 @@ function OverviewMetricCard({ metric }: { metric: MetricCard }) {
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 10,
+                        gap: isMobile ? 8 : 10,
+                        justifyContent: isMobile ? 'space-between' : 'flex-start',
                         boxShadow: isHovered ? '0 4px 12px rgba(15,31,61,0.08)' : '0 1px 0 rgba(15,31,61,0.02)',
                         transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
-                        height: '100%',
+                        height: isMobile ? 178 : '100%',
+                        minHeight: isMobile ? 178 : undefined,
                         position: 'relative',
                     }}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                 >
                     <div
+                        className="overview-metric-head"
                         style={{
                             position: 'absolute',
                             inset: 0,
@@ -68,8 +81,8 @@ function OverviewMetricCard({ metric }: { metric: MetricCard }) {
                             Click to view
                         </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{metric.label}</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, minHeight: isMobile ? 44 : undefined }}>
+                        <div className="overview-metric-label" style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{metric.label}</div>
                         <div
                             style={{
                                 width: 18,
@@ -88,25 +101,31 @@ function OverviewMetricCard({ metric }: { metric: MetricCard }) {
                     </div>
 
                     <div
+                        className="overview-metric-value-row"
                         style={{
                             border: '1px solid var(--color-border)',
                             borderRadius: 10,
                             padding: '10px 12px',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between',
+                            justifyContent: isMobile ? 'flex-start' : 'space-between',
                             gap: 10,
+                            minHeight: isMobile ? 58 : undefined,
                         }}
                     >
-                        <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
+                        <div className="overview-metric-value" style={{ fontSize: 30, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
                             {animatedValue.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: metric.accent, whiteSpace: 'nowrap' }}>
-                            ↗ {metric.delta}
-                        </div>
+                        {!isMobile && (
+                            <div className="overview-metric-delta" style={{ fontSize: 14, fontWeight: 600, color: metric.accent, whiteSpace: 'nowrap' }}>
+                                ↗ {metric.delta}
+                            </div>
+                        )}
                     </div>
 
-                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: -2 }}>Live system metric</div>
+                    {!isMobile && (
+                        <div className="overview-metric-footnote" style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: -2 }}>Live system metric</div>
+                    )}
                 </div>
             </PixelCard>
         </Link>
@@ -116,7 +135,7 @@ function OverviewMetricCard({ metric }: { metric: MetricCard }) {
 export function SystemOverviewCards({ metrics }: { metrics: MetricCard[] }) {
     return (
         <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {metrics.map((metric) => (
                     <OverviewMetricCard key={metric.label} metric={metric} />
                 ))}

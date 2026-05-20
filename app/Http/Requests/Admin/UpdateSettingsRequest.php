@@ -15,6 +15,13 @@ class UpdateSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'appName' => 'nullable|string|max:120',
+            'appDetails' => 'nullable|string|max:1000',
+            'appLogo' => 'nullable|file|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'socialWebsite' => 'nullable|url|max:500',
+            'socialFacebook' => 'nullable|url|max:500',
+            'socialLinkedIn' => 'nullable|url|max:500',
+            'socialX' => 'nullable|url|max:500',
             'institution' => 'nullable|string|max:255',
             'academicYear' => 'nullable|string|max:20',
             'accreditationBody' => 'nullable|string|max:120',

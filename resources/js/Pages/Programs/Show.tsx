@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Folder, FolderOpen, FileText, ChevronRight,
     ArrowLeft, Download, CheckCircle, Clock, RotateCcw,
@@ -51,8 +51,18 @@ export default function ProgramShow({ program, tree }: Props) {
     const [currentSubArea, setCurrentSubArea] = useState<SubAreaInfo | null>(null);
     const [expandedSlot, setExpandedSlot]     = useState<string | null>(null);
     const [search, setSearch]                 = useState('');
+    const [viewportWidth, setViewportWidth]   = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
 
     const level = currentSubArea ? 'slots' : currentArea ? 'subareas' : 'areas';
+    const isMobile = viewportWidth < 768;
+
+    useEffect(() => {
+        const handleResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const goBack = () => {
         if (currentSubArea) { setCurrentSubArea(null); setSearch(''); }
@@ -60,7 +70,7 @@ export default function ProgramShow({ program, tree }: Props) {
     };
 
     const crumbStyle: React.CSSProperties = {
-        fontSize: 12, color: '#8892aa', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+        fontSize: isMobile ? 11 : 12, color: '#8892aa', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
     };
     const crumbActiveStyle: React.CSSProperties = { ...crumbStyle, color: '#0f1f3d', fontWeight: 600, cursor: 'default' };
 
@@ -69,9 +79,16 @@ export default function ProgramShow({ program, tree }: Props) {
             <Head title={`${program.code} – File Manager`} />
 
             {/* Header */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20 }}>
-                <div>
-                    <div style={{ fontFamily:"'Playfair Display',serif", fontSize: 20, fontWeight: 700, color:'#0f1f3d' }}>
+            <div style={{
+                display:'flex',
+                justifyContent:'space-between',
+                alignItems: isMobile ? 'stretch' : 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: isMobile ? 10 : 0,
+                marginBottom: 20,
+            }}>
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily:'inherit', fontSize: 20, fontWeight: 700, color:'#0f1f3d' }}>
                         {program.name}
                     </div>
                     {/* Breadcrumbs */}
@@ -89,7 +106,7 @@ export default function ProgramShow({ program, tree }: Props) {
                         </>)}
                     </div>
                 </div>
-                <div style={{ display:'flex', gap: 8 }}>
+                <div style={{ display:'flex', gap: 8, alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
                     {level !== 'areas' && (
                         <button onClick={goBack} style={{
                             display:'flex', alignItems:'center', gap: 6, padding:'8px 14px',
@@ -98,10 +115,10 @@ export default function ProgramShow({ program, tree }: Props) {
                         }}><ArrowLeft size={13}/> Back</button>
                     )}
                     {/* Search */}
-                    <div style={{ display:'flex', alignItems:'center', gap: 8, background:'#fff', border:'1px solid #dde1ed', borderRadius: 8, padding:'6px 12px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap: 8, background:'#fff', border:'1px solid #dde1ed', borderRadius: 8, padding:'6px 12px', flex: isMobile ? 1 : undefined }}>
                         <Search size={13} color="#8892aa" />
                         <input value={search} onChange={e => setSearch(e.target.value)}
-                            placeholder="Search…" style={{ border:'none', outline:'none', fontSize: 12, color:'#0f1f3d', width: 140 }} />
+                            placeholder="Search…" style={{ border:'none', outline:'none', fontSize: 12, color:'#0f1f3d', width: isMobile ? '100%' : 140, minWidth: 0 }} />
                     </div>
                 </div>
             </div>

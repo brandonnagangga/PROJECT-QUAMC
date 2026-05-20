@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\DashboardPreferencesController;
 use App\Http\Controllers\User\DocumentController;
@@ -35,6 +36,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.alias');
     Route::post('/dashboard/preferences', [DashboardPreferencesController::class, 'update'])->name('dashboard.preferences.update');
+    Route::get('/global-search', [GlobalSearchController::class, 'index'])
+        ->middleware('throttle:60,1')
+        ->name('global-search.index');
 
     // ── Areas (global structure) ──
     Route::get('/areas', [AreaController::class, 'index'])->name('areas.index');
@@ -121,10 +125,14 @@ Route::middleware('auth')->group(function () {
 
     // ── Activity Logs ──
     Route::get('/logs', [ActivityLogController::class, 'index'])->name('logs.index');
+    Route::post('/logs/client-event', [ActivityLogController::class, 'storeClientEvent'])
+        ->middleware('throttle:180,1')
+        ->name('logs.client-event');
 
     // ── Settings ──
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::get('/settings/logo', [SettingsController::class, 'logo'])->name('settings.logo');
 
     // ── Reports ──
     Route::get('/reports/readiness', [ReadinessController::class, 'index'])->name('reports.readiness');

@@ -19,7 +19,7 @@ export function UsersSummaryCards({
     ];
 
     return (
-        <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, padding: '18px 22px', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
+        <div data-tour="users-summary" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, padding: '18px 22px', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
                 {summaryCards.map((card, index) => (
                     <div key={card.label} style={{ paddingLeft: index === 0 ? 0 : 18, borderLeft: index === 0 ? 'none' : '1px solid var(--color-border)' }}>

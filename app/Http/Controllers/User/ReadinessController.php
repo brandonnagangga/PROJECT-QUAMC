@@ -11,6 +11,38 @@ use Inertia\Inertia;
 
 class ReadinessController extends Controller
 {
+    private function buildProgramLogoDataUri(?Program $program): ?string
+    {
+        if (!$program || !$program->logo_path) {
+            return null;
+        }
+
+        $paths = [
+            storage_path('app/private/' . $program->logo_path),
+            storage_path('app/' . $program->logo_path),
+        ];
+
+        foreach ($paths as $path) {
+            if (!is_file($path)) {
+                continue;
+            }
+
+            $mime = mime_content_type($path) ?: null;
+            if (!$mime) {
+                continue;
+            }
+
+            $data = @file_get_contents($path);
+            if ($data === false) {
+                continue;
+            }
+
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
+        }
+
+        return null;
+    }
+
     private function buildProgramsData(): array
     {
         $areas = Area::with('subAreas')->orderBy('order_number')->get();
@@ -70,6 +102,7 @@ class ReadinessController extends Controller
                     'id'       => $program->id,
                     'name'     => $program->name,
                     'code'     => $program->code,
+                    'logo_url' => $program->logo_path ? route('programs.logo', $program->id) : null,
                     'total'    => $pSlots,
                     'approved' => $pApproved,
                     'pending'  => $pPending,
@@ -114,6 +147,7 @@ class ReadinessController extends Controller
             'totalItems'    => $data['summary']['totalItems'],
             'approvedItems' => $data['summary']['approved'],
             'generatedAt'   => now()->format('F j, Y g:i A'),
+            'reportLogo'    => null,
         ]);
 
         return $pdf->download('accreditation-readiness-report.pdf');
@@ -167,6 +201,7 @@ class ReadinessController extends Controller
             'id'       => $program->id,
             'name'     => $program->name,
             'code'     => $program->code,
+            'logo_url' => $program->logo_path ? route('programs.logo', $program->id) : null,
             'total'    => $pSlots,
             'approved' => $pApproved,
             'pending'  => $pPending,
@@ -182,6 +217,7 @@ class ReadinessController extends Controller
             'totalItems'    => $pSlots,
             'approvedItems' => $pApproved,
             'generatedAt'   => now()->format('F j, Y g:i A'),
+            'reportLogo'    => $this->buildProgramLogoDataUri($program),
         ]);
 
         return $pdf->download("readiness-{$program->code}.pdf");

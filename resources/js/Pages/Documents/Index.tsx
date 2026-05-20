@@ -115,6 +115,9 @@ export default function DocumentsIndex({
     const [activeStatus, setActiveStatus] = useState('all');
     const [filterMenuOpen, setFilterMenuOpen] = useState(false);
     const [searchFocused, setSearchFocused] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
+        typeof window === 'undefined' ? false : window.innerWidth < 768
+    );
 
     // Folder navigation state
     const [currentProgram, setCurrentProgram] = useState<FolderProgram | null>(null);
@@ -133,6 +136,12 @@ export default function DocumentsIndex({
         ? all_programs
         : programs.map((p) => ({ id: p.id, name: p.name, code: p.code }));
     const selectedProgram = programOptions.find((p) => p.id === filter_program_id) ?? null;
+
+    useEffect(() => {
+        const onResize = () => setIsMobileViewport(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     // Client-side filtering for Folder View
     const filteredPrograms = useMemo(() => {
@@ -424,7 +433,7 @@ export default function DocumentsIndex({
             <Head title="Documents" />
 
             {/* ── Unified Search & Filter bar ── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div data-tour="documents-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'var(--color-panel-bg)', border: searchFocused ? '1px solid #c9a84c' : '1px solid var(--color-border)', borderRadius: 12, boxShadow: searchFocused ? '0 0 0 3px rgba(201,168,76,0.12)' : '0 2px 4px rgba(0,0,0,0.02)', transition: 'border-color 0.15s, box-shadow 0.15s' }}>
                     <Search size={16} color="var(--color-text-secondary)" />
                     <input type="text" placeholder="Search documents, areas, or programs..." value={search}
@@ -544,7 +553,7 @@ export default function DocumentsIndex({
                         }}>{tab.label}</button>
                     ))}
                 </div>
-                <div style={{ display: 'flex', gap: 2, background: 'var(--color-background)', borderRadius: 8, padding: 3 }}>
+                <div data-tour="documents-view-toggle" style={{ display: 'flex', gap: 2, background: 'var(--color-background)', borderRadius: 8, padding: 3 }}>
                     {(['list', 'folder'] as const).map(m => (
                         <button key={m} onClick={() => setViewMode(m)} title={m === 'list' ? 'List View' : 'Folder View'}
                             style={{ width: 30, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -571,7 +580,7 @@ export default function DocumentsIndex({
 
             {/* ═══ LIST VIEW ═══ */}
             {viewMode === 'list' && (
-                <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
+                <div data-tour="documents-content" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                         <thead>
                             <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
@@ -620,7 +629,7 @@ export default function DocumentsIndex({
 
             {/* ═══ FOLDER VIEW ═══ */}
             {viewMode === 'folder' && (
-                <>
+                <div data-tour="documents-content">
                     {(selectedProgram || folderLevel !== 'programs') && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                             <button onClick={goBack} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-panel-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -1063,17 +1072,17 @@ export default function DocumentsIndex({
                             })}
                         </div>
                     )}
-                </>
+                </div>
             )}
 
-            <section style={{ marginTop: 24 }}>
+            <section data-tour="documents-downloads" style={{ marginTop: 24 }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     gap: 12, marginBottom: 12, flexWrap: 'wrap',
                 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
-                            <Download size={16} /> Recent Download Activity
+                            Recent Download Activity
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3 }}>
                             Latest document and evidence file downloads recorded in Activity Logs.
@@ -1093,70 +1102,118 @@ export default function DocumentsIndex({
                     </Link>
                 </div>
 
-                <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                            <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
-                                {['Downloaded File', 'Downloaded By', 'Context', 'IP Address', 'When'].map((header) => (
-                                    <th key={header} style={{
-                                        textAlign: 'left', padding: '10px 14px', fontSize: 10,
-                                        fontWeight: 700, color: 'var(--color-text-secondary)',
-                                        textTransform: 'uppercase' as const, letterSpacing: '0.06em',
-                                    }}>
-                                        {header}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {download_logs.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} style={{ padding: 28, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                                        <Download size={24} style={{ opacity: 0.35, marginBottom: 8 }} />
-                                        <div style={{ fontSize: 12 }}>No downloads recorded yet.</div>
-                                    </td>
+                {isMobileViewport ? (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                        {download_logs.length === 0 ? (
+                            <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: 20, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                <Download size={22} style={{ opacity: 0.35, display: 'block', margin: '0 auto 8px' }} />
+                                <div style={{ fontSize: 12 }}>No downloads recorded yet.</div>
+                            </div>
+                        ) : (
+                            download_logs.map((log) => (
+                                <div key={log.id} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, padding: 12, display: 'grid', gap: 6 }}>
+                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.35 }}>
+                                        {log.filename ?? 'File download'}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                        {downloadEventLabel(log.event)}
+                                    </div>
+                                    <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}>
+                                        {log.document_title ?? log.description ?? 'Supporting evidence'}
+                                    </div>
+                                    {(log.area_name || log.sub_area_name) && (
+                                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                            {[log.area_name, log.sub_area_name].filter(Boolean).join(' / ')}
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, paddingTop: 4, borderTop: '1px solid var(--color-border)' }}>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>By</div>
+                                            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.user_name}</div>
+                                        </div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>When</div>
+                                            <div style={{ fontSize: 11.5, color: 'var(--color-text)' }}>{log.time_ago}</div>
+                                        </div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>IP</div>
+                                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.ip_address ?? '-'}</div>
+                                        </div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</div>
+                                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.created_at}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                ) : (
+                    <div style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                                <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
+                                    {['Downloaded File', 'Downloaded By', 'Context', 'IP Address', 'When'].map((header) => (
+                                        <th key={header} style={{
+                                            textAlign: 'left', padding: '10px 14px', fontSize: 10,
+                                            fontWeight: 700, color: 'var(--color-text-secondary)',
+                                            textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                                        }}>
+                                            {header}
+                                        </th>
+                                    ))}
                                 </tr>
-                            )}
-                            {download_logs.map((log) => (
-                                <tr
-                                    key={log.id}
-                                    style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.12s' }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-background)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <td style={{ padding: '11px 14px', color: 'var(--color-text)' }}>
-                                        <div style={{ fontWeight: 700, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.filename ?? undefined}>
-                                            {log.filename ?? 'File download'}
-                                        </div>
-                                        <div style={{ fontSize: 10.5, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                                            {downloadEventLabel(log.event)}
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--color-text)' }}>
-                                        {log.user_name}
-                                    </td>
-                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
-                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.description ?? undefined}>
-                                            {log.document_title ?? log.description ?? 'Supporting evidence'}
-                                        </div>
-                                        {(log.area_name || log.sub_area_name) && (
-                                            <div style={{ fontSize: 10.5, marginTop: 3 }}>
-                                                {[log.area_name, log.sub_area_name].filter(Boolean).join(' / ')}
+                            </thead>
+                            <tbody>
+                                {download_logs.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} style={{ padding: 28, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                            <Download size={24} style={{ opacity: 0.35, display: 'block', margin: '0 auto 8px' }} />
+                                            <div style={{ fontSize: 12 }}>No downloads recorded yet.</div>
+                                        </td>
+                                    </tr>
+                                )}
+                                {download_logs.map((log) => (
+                                    <tr
+                                        key={log.id}
+                                        style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.12s' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-background)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <td style={{ padding: '11px 14px', color: 'var(--color-text)' }}>
+                                            <div style={{ fontWeight: 700, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.filename ?? undefined}>
+                                                {log.filename ?? 'File download'}
                                             </div>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>
-                                        {log.ip_address ?? '-'}
-                                    </td>
-                                    <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>
-                                        <div style={{ fontSize: 11.5 }}>{log.time_ago}</div>
-                                        <div style={{ fontSize: 10, marginTop: 2 }}>{log.created_at}</div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                            <div style={{ fontSize: 10.5, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                                                {downloadEventLabel(log.event)}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--color-text)' }}>
+                                            {log.user_name}
+                                        </td>
+                                        <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
+                                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.description ?? undefined}>
+                                                {log.document_title ?? log.description ?? 'Supporting evidence'}
+                                            </div>
+                                            {(log.area_name || log.sub_area_name) && (
+                                                <div style={{ fontSize: 10.5, marginTop: 3 }}>
+                                                    {[log.area_name, log.sub_area_name].filter(Boolean).join(' / ')}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>
+                                            {log.ip_address ?? '-'}
+                                        </td>
+                                        <td style={{ padding: '11px 14px', color: 'var(--color-text-secondary)' }}>
+                                            <div style={{ fontSize: 11.5 }}>{log.time_ago}</div>
+                                            <div style={{ fontSize: 10, marginTop: 2 }}>{log.created_at}</div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </section>
         </AppLayout>
     );

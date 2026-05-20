@@ -1,10 +1,12 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import { usePage } from '@inertiajs/react';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
 import { ChartPanel, MetricList, MinimalLineChart } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
 import AnimatedValue from '@/components/dashboard/AnimatedValue';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
+import type { PageProps } from '@/types/models.d';
 
 interface DashboardProps {
     stats: {
@@ -14,6 +16,7 @@ interface DashboardProps {
     programs: { id: number; name: string; code: string; pct: number; areas: { name: string; pct: number; cls: string }[] }[];
     recentDocs: { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string }[];
     activities: { icon: string; bg: string; color: string; text: string; time: string }[];
+    deadlineEvents?: { deadline_at: string; days_left: number; assigned_user_ids?: string[] }[];
     graphData: {
         nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
         links: { source: string; target: string }[];
@@ -36,7 +39,8 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
     archived: { bg: '#eff6ff', color: '#1a4f8a' },
 };
 
-export default function Director({ stats, programs, recentDocs, activities, graphData }: DashboardProps) {
+export default function Director({ stats, programs, recentDocs, activities, graphData, deadlineEvents = [] }: DashboardProps) {
+    const { auth } = usePage<PageProps>().props;
     const approvedCount = Number(stats.approved || 0);
     const pendingCount = Number(stats.pending || 0);
     const readiness = Number(String(stats.readiness).replace('%', '')) || 0;
@@ -67,7 +71,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                         >
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: topBarColors[sc.cls] }} />
                             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#8892aa', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>{sc.label}</div>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: '#0f1f3d', lineHeight: 1 }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 32, fontWeight: 700, color: '#0f1f3d', lineHeight: 1 }}>
                                 <AnimatedValue value={val} />
                             </div>
                             <div style={{ fontSize: 11, color: '#8892aa', marginTop: 6 }}>{sub}</div>
@@ -83,7 +87,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                 })}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="director.readiness_chart">
                     <ChartPanel title="Program Readiness" subtitle="This cycle">
                         <MinimalLineChart
@@ -95,7 +99,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                     </ChartPanel>
                 </DashboardWidgetWrapper>
                 <DashboardWidgetWrapper id="director.calendar">
-                    <CalendarCard />
+                    <CalendarCard deadlines={deadlineEvents} currentUserId={auth.user.id} />
                 </DashboardWidgetWrapper>
             </div>
 
@@ -106,7 +110,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                     {/* PROGRAM READINESS */}
                     <DashboardWidgetWrapper id="director.program_readiness">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Program Readiness</div>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Program Readiness</div>
                             <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
@@ -117,7 +121,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                                             <div style={{ fontSize: 13, fontWeight: 600, color: '#0f1f3d' }}>{p.name}</div>
                                             <div style={{ fontSize: 10, fontWeight: 600, color: '#8892aa', letterSpacing: '0.08em', marginTop: 2 }}>{p.code}</div>
                                         </div>
-                                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
+                                        <div style={{ fontFamily: "'inherit", fontSize: 22, fontWeight: 700, color: '#0f1f3d' }}>
                                             <AnimatedValue value={p.pct} />%
                                         </div>
                                     </div>
@@ -153,11 +157,11 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                     {/* RECENT SUBMISSIONS */}
                     <DashboardWidgetWrapper id="director.recent_submissions">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Submissions</div>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Submissions</div>
                             <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <div className="table-responsive-stack-wrapper" style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                            <table className="table-responsive-stack" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr>
                                         {['Document', 'Area / Item', 'Program', 'Status', 'Submitted'].map(h => (
@@ -176,11 +180,12 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                                             <tr key={d.id} style={{ borderBottom: '1px solid #f0f2f8', cursor: 'pointer', transition: 'background 0.12s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
                                                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                onClick={() => router.visit(`/documents/${d.id}`)}
                                             >
-                                                <td style={{ padding: '12px 18px', fontSize: 12.5, fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</td>
-                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.path}</td>
-                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.prog}</td>
-                                                <td style={{ padding: '12px 18px' }}>
+                                                <td data-label="Document" className="stack-vertical" style={{ padding: '12px 18px', fontSize: 12.5, fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</td>
+                                                <td data-label="Area / Item" style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.path}</td>
+                                                <td data-label="Program" style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa' }}>{d.prog}</td>
+                                                <td data-label="Status" style={{ padding: '12px 18px' }}>
                                                     <span style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: 4,
                                                         padding: '3px 9px', borderRadius: 20, fontSize: 10.5,
@@ -190,7 +195,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                                                         {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa', whiteSpace: 'nowrap' }}>{d.date}</td>
+                                                <td data-label="Submitted" style={{ padding: '12px 18px', fontSize: 11.5, color: '#8892aa', whiteSpace: 'nowrap' }}>{d.date}</td>
                                             </tr>
                                         );
                                     })}
@@ -204,7 +209,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                 <div>
                     <DashboardWidgetWrapper id="director.activity_feed">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Activity</div>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Recent Activity</div>
                         </div>
                         <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
                             <div style={{ padding: '6px 0', maxHeight: 500, overflowY: 'auto' }}>

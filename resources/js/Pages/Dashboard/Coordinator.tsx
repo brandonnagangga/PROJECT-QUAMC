@@ -16,9 +16,11 @@ interface ProgramInfo { id: number; name: string; code: string; pct: number; are
 interface DocInfo { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string; uploader: string; }
 interface ActivityInfo { icon: string; bg: string; color: string; text: string; time: string; }
 interface Stats { programs: string; readiness: string; readinessSub: string; approved: string; approvedSub: string; pending: string; pendingSub: string; }
+interface DeadlineEvent { deadline_at: string; days_left: number; assigned_user_ids?: string[]; }
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; areaItems: any[]; currentRole: string;
+    deadlineEvents?: DeadlineEvent[];
     graphData: {
         nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
         links: { source: string; target: string }[];
@@ -32,7 +34,7 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole, graphData }: Props) {
+export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole, graphData, deadlineEvents = [] }: Props) {
     const { auth } = usePage<PageProps>().props;
     const isProgramCoord = currentRole === 'program-coordinator';
     const approvedCount = Number(stats.approved || 0);
@@ -67,7 +69,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                                 <div style={{ fontSize: 9.5, fontWeight: 600, color: '#8892aa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>
                                     {card.label}
                                 </div>
-                                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: '#0f1f3d' }}>
+                                <div style={{ fontFamily: "'inherit", fontSize: 28, fontWeight: 700, color: '#0f1f3d' }}>
                                     <AnimatedValue value={card.value} />
                                 </div>
                                 <div style={{ fontSize: 11, color: '#8892aa', marginTop: 3 }}>{card.sub}</div>
@@ -81,7 +83,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
             </div>
 
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="coordinator.area_progress_chart">
                     <ChartPanel title="Area Progress" subtitle="Current scope">
                         <MinimalLineChart
@@ -93,7 +95,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                     </ChartPanel>
                 </DashboardWidgetWrapper>
                 <DashboardWidgetWrapper id="coordinator.calendar">
-                    <CalendarCard />
+                    <CalendarCard deadlines={deadlineEvents} currentUserId={auth.user.id} />
                 </DashboardWidgetWrapper>
             </div>
 
@@ -117,21 +119,21 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                 <div>
                     <DashboardWidgetWrapper id="coordinator.documents">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>
                                 {isProgramCoord ? 'Pending Submissions from Area Coordinators' : 'My Submitted Documents'}
                             </div>
                             <a href="/documents" style={{ fontSize: 11, color: '#c9a84c', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
                                 View all <ArrowRight size={12} />
                             </a>
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                        <div className="table-responsive-stack-wrapper" style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
                             {recentDocs.length === 0 ? (
                                 <div style={{ padding: 40, textAlign: 'center' }}>
                                     <FileText size={32} color="#b8bfd4" style={{ marginBottom: 10 }} />
                                     <div style={{ fontSize: 13, color: '#8892aa' }}>No documents yet</div>
                                 </div>
                             ) : (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <table className="table-responsive-stack" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                     <thead>
                                         <tr style={{ background: '#f8f9fc', borderBottom: '1px solid #dde1ed' }}>
                                             {['Document', 'Area / Item', 'Status', 'Version', 'Date'].map(h => (
@@ -148,17 +150,17 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                                     onClick={() => router.visit(`/documents/${doc.id}`)}
                                                 >
-                                                    <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>
+                                                    <td data-label="Document" className="stack-vertical" style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                             <FileText size={13} color="#8892aa" /> {doc.title}
                                                         </div>
                                                     </td>
-                                                    <td style={{ padding: '10px 14px', color: '#4a5470', fontSize: 11 }}>{doc.path}</td>
-                                                    <td style={{ padding: '10px 14px' }}>
+                                                    <td data-label="Area / Item" style={{ padding: '10px 14px', color: '#4a5470', fontSize: 11 }}>{doc.path}</td>
+                                                    <td data-label="Status" style={{ padding: '10px 14px' }}>
                                                         <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
                                                     </td>
-                                                    <td style={{ padding: '10px 14px', color: '#8892aa', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>{doc.ver}</td>
-                                                    <td style={{ padding: '10px 14px', color: '#8892aa', fontSize: 11 }}>{doc.date}</td>
+                                                    <td data-label="Version" style={{ padding: '10px 14px', color: '#8892aa', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>{doc.ver}</td>
+                                                    <td data-label="Date" style={{ padding: '10px 14px', color: '#8892aa', fontSize: 11 }}>{doc.date}</td>
                                                 </tr>
                                             );
                                         })}
@@ -189,7 +191,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                 <div>
                     {/* Area Progress */}
                     <DashboardWidgetWrapper id="coordinator.area_progress_list">
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
+                        <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
                             Area Progress
                         </div>
                         <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
@@ -217,7 +219,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                     {/* Quick upload for Area Coord */}
                     {!isProgramCoord && (
                         <DashboardWidgetWrapper id="coordinator.quick_actions">
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
                                 Quick Actions
                             </div>
                             <a href="/documents/upload" style={{
@@ -235,7 +237,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
 
                     {/* Recent activity */}
                     <DashboardWidgetWrapper id="coordinator.recent_activity">
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14, marginTop: 16 }}>
+                        <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14, marginTop: 16 }}>
                             Recent Activity
                         </div>
                         <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '14px 16px' }}>

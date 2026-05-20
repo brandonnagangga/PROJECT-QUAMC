@@ -5,63 +5,113 @@
     <title>Accreditation Readiness Report</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #1e2640; font-size: 11px; line-height: 1.4; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #1f2937; font-size: 11px; line-height: 1.45; }
 
-        .header { background: #0f1f3d; color: #fff; padding: 28px 32px; margin-bottom: 24px; }
-        .header h1 { font-size: 22px; font-weight: 700; color: #c9a84c; margin-bottom: 4px; }
-        .header p { font-size: 10px; color: rgba(255,255,255,0.6); }
-        .header .score { float: right; font-size: 40px; font-weight: 700; color: #c9a84c; margin-top: -30px; }
+        .header { background: #111827; color: #fff; padding: 22px 30px; margin-bottom: 22px; border-bottom: 2px solid #d1d5db; }
+        .header-row { display: table; width: 100%; table-layout: fixed; }
+        .header-logo-wrap { display: table-cell; width: 88px; vertical-align: top; }
+        .header-main { display: table-cell; vertical-align: top; }
+        .header-logo {
+            width: 76px;
+            height: 76px;
+            border-radius: 0;
+            object-fit: contain;
+            border: none;
+            background: transparent;
+        }
+        .header h1 { font-size: 24px; font-weight: 700; color: #f3f4f6; margin-bottom: 5px; line-height: 1.2; }
+        .header p { font-size: 10px; color: rgba(255,255,255,0.72); }
+        .header .score { float: right; font-size: 26px; font-weight: 700; color: #f3f4f6; margin-top: -2px; }
 
-        .section { margin-bottom: 20px; }
-        .section-title { font-size: 13px; font-weight: 700; color: #0f1f3d; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #c9a84c; }
+        .section { margin-bottom: 18px; }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f1f3d;
+            margin-bottom: 10px;
+            padding: 0 0 7px;
+            border-bottom: 2px solid #e5e7eb;
+            letter-spacing: 0.01em;
+        }
 
-        .summary-grid { display: flex; gap: 12px; margin-bottom: 20px; }
-        .summary-card { flex: 1; padding: 12px; border: 1px solid #dde1ed; border-radius: 8px; text-align: center; }
-        .summary-card .num { font-size: 22px; font-weight: 700; }
-        .summary-card .label { font-size: 9px; color: #8892aa; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
-
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: #f8f9fc; text-align: left; padding: 8px 10px; font-size: 9px; font-weight: 600; color: #8892aa; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #dde1ed; }
-        td { padding: 8px 10px; border-bottom: 1px solid #f0f2f8; font-size: 11px; }
-        tr:nth-child(even) { background: #fafbfe; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 14px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        th {
+            background: #f8fafc;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 9px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        td { padding: 8px 10px; border-bottom: 1px solid #eef2f7; font-size: 11px; }
+        tbody tr:nth-child(even) { background: #fcfdff; }
 
         .bar-container { height: 8px; background: #e8eaf2; border-radius: 4px; overflow: hidden; }
         .bar-fill { height: 100%; border-radius: 4px; }
 
-        .pct-high { color: #1a7a4a; }
-        .pct-mid { color: #c9a84c; }
-        .pct-low { color: #b8bfd4; }
+        .pct-high { color: #111827; }
+        .pct-mid { color: #374151; }
+        .pct-low { color: #9ca3af; }
 
-        .footer { text-align: center; font-size: 9px; color: #b8bfd4; padding-top: 16px; border-top: 1px solid #f0f2f8; margin-top: 24px; }
+        .footer { text-align: center; font-size: 9px; color: #94a3b8; padding-top: 14px; border-top: 1px solid #e5e7eb; margin-top: 22px; }
         .page-break { page-break-before: always; }
+        .program-heading {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f1f3d;
+            margin: 0 0 8px;
+            padding: 8px 10px;
+            background: #f8fafc;
+            border-left: 4px solid #6b7280;
+        }
+        .summary-table td {
+            text-align: center;
+            padding: 12px;
+            border-right: 1px solid #eef2f7;
+        }
+        .summary-table td:last-child { border-right: none; }
+        .summary-num { font-size: 28px; font-weight: 700; line-height: 1; }
+        .summary-label { font-size: 9px; color: #8892aa; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="score">{{ $overallPct }}%</div>
-        <h1>QUAMC — Accreditation Readiness Report</h1>
-        <p>Generated {{ $generatedAt }} · {{ $approvedItems }} of {{ $totalItems }} items approved</p>
+        <div class="header-row">
+            @if(!empty($reportLogo))
+                <div class="header-logo-wrap">
+                    <img src="{{ $reportLogo }}" alt="Program logo" class="header-logo">
+                </div>
+            @endif
+            <div class="header-main">
+                <h1>QUAMC — Accreditation Readiness Report</h1>
+                <p>Generated {{ $generatedAt }} · {{ $approvedItems }} of {{ $totalItems }} items approved</p>
+            </div>
+        </div>
     </div>
 
     <div class="section">
         <div class="section-title">Summary</div>
-        <table>
+        <table class="summary-table">
             <tr>
                 <td style="text-align:center; padding:14px;">
-                    <div style="font-size:28px; font-weight:700; color:#1a7a4a;">{{ $approvedItems }}</div>
-                    <div style="font-size:9px; color:#8892aa;">APPROVED</div>
+                    <div class="summary-num" style="color:#111827;">{{ $approvedItems }}</div>
+                    <div class="summary-label">APPROVED</div>
                 </td>
                 <td style="text-align:center; padding:14px;">
-                    <div style="font-size:28px; font-weight:700; color:#6b3fa0;">{{ $totalItems - $approvedItems }}</div>
-                    <div style="font-size:9px; color:#8892aa;">REMAINING</div>
+                    <div class="summary-num" style="color:#111827;">{{ $totalItems - $approvedItems }}</div>
+                    <div class="summary-label">REMAINING</div>
                 </td>
                 <td style="text-align:center; padding:14px;">
-                    <div style="font-size:28px; font-weight:700; color:#0f1f3d;">{{ $totalItems }}</div>
-                    <div style="font-size:9px; color:#8892aa;">TOTAL ITEMS</div>
+                    <div class="summary-num" style="color:#111827;">{{ $totalItems }}</div>
+                    <div class="summary-label">TOTAL ITEMS</div>
                 </td>
                 <td style="text-align:center; padding:14px;">
-                    <div style="font-size:28px; font-weight:700; color:#c9a84c;">{{ $overallPct }}%</div>
-                    <div style="font-size:9px; color:#8892aa;">READINESS</div>
+                    <div class="summary-num" style="color:#111827;">{{ $overallPct }}%</div>
+                    <div class="summary-label">READINESS</div>
                 </td>
             </tr>
         </table>
@@ -69,7 +119,7 @@
 
     @foreach($programs as $program)
     <div class="section">
-        <div class="section-title">{{ $program['name'] }} ({{ $program['code'] }}) — {{ $program['pct'] }}%</div>
+        <div class="program-heading">{{ $program['name'] }} ({{ $program['code'] }}) — {{ $program['pct'] }}%</div>
         <table>
             <thead>
                 <tr>
@@ -91,7 +141,7 @@
                     </td>
                     <td>
                         <div class="bar-container">
-                            <div class="bar-fill" style="width: {{ max($area['pct'], 2) }}%; background: {{ $area['pct'] >= 80 ? '#1a7a4a' : ($area['pct'] > 0 ? '#c9a84c' : '#b8bfd4') }};"></div>
+                            <div class="bar-fill" style="width: {{ max($area['pct'], 2) }}%; background: {{ $area['pct'] > 0 ? '#6b7280' : '#d1d5db' }};"></div>
                         </div>
                     </td>
                 </tr>

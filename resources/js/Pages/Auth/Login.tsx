@@ -38,16 +38,6 @@ export default function Login() {
     const timersRef = useRef<number[]>([]);
 
     const accountName = useMemo(() => formatAccountName(data.email), [data.email]);
-    const passwordRules = useMemo(
-        () => [
-            { label: 'At least 8 characters', met: data.password.length >= 8 },
-            { label: 'At least 1 number', met: /\d/.test(data.password) },
-            { label: 'At least 1 lowercase letter', met: /[a-z]/.test(data.password) },
-            { label: 'At least 1 uppercase letter', met: /[A-Z]/.test(data.password) },
-            { label: 'At least 1 special characters', met: /[^A-Za-z0-9]/.test(data.password) },
-        ],
-        [data.password]
-    );
 
     useEffect(() => {
         setMounted(true);
@@ -152,20 +142,6 @@ export default function Login() {
                                         </button>
                                     </div>
                                     {errors.password && <p className="auth-error">{errors.password}</p>}
-                                    <div className="auth-password-rules">
-                                        <div className="auth-password-rules__head">
-                                            <span>Must contain:</span>
-                                            <span>{data.password ? 'Password requirements' : 'Enter a password'}</span>
-                                        </div>
-                                        <ul className="auth-password-rules__list">
-                                            {passwordRules.map((rule) => (
-                                                <li key={rule.label} className={`auth-password-rules__item ${rule.met ? 'is-met' : ''}`}>
-                                                    <span className="auth-password-rules__icon">{rule.met ? '✓' : '×'}</span>
-                                                    <span>{rule.label}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
                                 </div>
 
                                 <label className="auth-remember">

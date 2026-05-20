@@ -1037,7 +1037,7 @@ export default function AreasIndex({
             )}
 
             {/* Subtitle + Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div data-tour="areas-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
                 <div style={{ fontSize: 13, color: '#4a5470' }}>
                     {isDirector ? 'Director view — review evidence across all programs.'
                         : isDean ? 'Dean view — review and edit evidence for your program.'
@@ -1071,7 +1071,7 @@ export default function AreasIndex({
             </div>
 
             {/* Program filter + search */}
-            <div style={{
+            <div data-tour="areas-filters" style={{
                 display: 'flex', gap: 12, alignItems: 'center',
                 marginBottom: 20, flexWrap: 'wrap',
             }}>
@@ -1127,7 +1127,7 @@ export default function AreasIndex({
             </div>
 
             {/* Area cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div data-tour="areas-list" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {filteredAreas.length === 0 && (
                     <div style={{
                         textAlign: 'center', padding: '48px 20px',

@@ -43,6 +43,9 @@ class HandleInertiaRequests extends Middleware
             'system_settings' => fn () => $request->user()
                 ? app(SettingsService::class)->getAllSettings()
                 : [],
+            'system_settings_schema' => fn () => $request->user()
+                ? app(SettingsService::class)->getSettingsSchema()
+                : [],
             'dashboard_preferences' => fn () => $request->user()
                 ? ($request->user()->dashboard_preferences ?? [
                     'hidden_widgets' => [],

@@ -17,12 +17,11 @@
         text-align: center;
         padding: 40px;
     }
-    .logo-circle {
-        width: 72px; height: 72px;
-        background: #c9a84c;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 28px; font-weight: 900; color: #0f1f3d;
+    .logo-image {
+        width: 86px;
+        height: 86px;
+        object-fit: contain;
+        display: block;
         margin: 0 auto 24px;
     }
     .org { font-size: 11px; color: rgba(255,255,255,0.45); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 32px; }
@@ -35,7 +34,11 @@
 </style>
 </head>
 <body>
-    <div class="logo-circle">Q</div>
+    @if(!empty($program_logo))
+        <img src="{{ $program_logo }}" alt="{{ $program_code }} Logo" class="logo-image" />
+    @elseif(!empty($app_logo))
+        <img src="{{ $app_logo }}" alt="App Logo" class="logo-image" />
+    @endif
     <div class="org">TCC · QUAMC Accreditation</div>
     <div class="divider"></div>
     <div class="area">{{ $area }}</div>

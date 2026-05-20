@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import {
-    GraduationCap, CheckCircle, Clock, RotateCcw, TrendingUp,
-    PlusCircle, UserPlus, Users, X, Shield, LayoutGrid, List, ChevronRight, ChevronDown, Search, ArrowUpDown, Star, Mail, Phone, Building2,
+    CheckCircle, Clock, RotateCcw, TrendingUp,
+    PlusCircle, UserPlus, Users, X, Shield, LayoutGrid, List, ChevronRight, ChevronDown, Search, ArrowUpDown, Star, Pencil,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface AreaInfo { id: number; name: string; order_number: number; pct: number; }
 interface ProgramUser { id: string; name: string; email: string; role: string; slug: string; }
@@ -22,6 +22,14 @@ interface Props {
     authRole: string;
     unassignedUsers: UnassignedUser[];
 }
+
+type SortMode = 'name-asc' | 'readiness-desc' | 'code-asc';
+
+const sortOptions: Array<{ id: SortMode; label: string }> = [
+    { id: 'name-asc', label: 'Sort: Name (A-Z)' },
+    { id: 'code-asc', label: 'Sort: Code (A-Z)' },
+    { id: 'readiness-desc', label: 'Sort: Readiness (High-Low)' },
+];
 
 function OpenEvidenceTreeButton({ onClick }: { onClick: () => void }) {
     return (
@@ -66,8 +74,41 @@ function compactProgramName(name: string): string {
         .trim();
 }
 
-function getProgramAvatar(seed: string): string {
-    return `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(seed)}&radius=50&backgroundType=gradientLinear&backgroundColor=f2d9c8,e37b3f`;
+function getProgramInitialsSeed(program: ProgramInfo): string {
+    const compactName = compactProgramName(program.name);
+    const words = compactName
+        .replace(/&/g, ' and ')
+        .split(/[\s-]+/)
+        .map((word) => word.replace(/[^a-z0-9]/gi, ''))
+        .filter(Boolean);
+
+    if (words.length >= 2) {
+        return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+    }
+
+    if (words.length === 1) {
+        const codeSuffix = program.code.replace(/^BS/i, '');
+        return (codeSuffix || words[0]).slice(0, 2).toUpperCase();
+    }
+
+    return program.code.slice(0, 2).toUpperCase();
+}
+
+function getProgramAvatar(program: ProgramInfo): string {
+    const params = new URLSearchParams({
+        seed: getProgramInitialsSeed(program),
+        radius: '50',
+        size: '96',
+        backgroundType: 'solid',
+        backgroundColor: 'e5e7eb',
+        textColor: '374151',
+    });
+
+    return `https://api.dicebear.com/9.x/initials/svg?${params.toString()}`;
+}
+
+function getProgramAvatarSrc(program: ProgramInfo): string {
+    return program.logo_url ?? getProgramAvatar(program);
 }
 
 const areaColors = ['#1a7a4a', '#185FA5', '#c9a84c', '#6b3fa0', '#e07a00', '#9b1c1c', '#185FA5', '#9b1c1c', '#1a7a4a', '#c9a84c'];
@@ -89,9 +130,14 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
     });
     const [expandedProgramId, setExpandedProgramId] = useState<number | null>(programs[0]?.id ?? null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortMode, setSortMode] = useState<'name-asc' | 'readiness-desc' | 'code-asc'>('name-asc');
+    const [sortMode, setSortMode] = useState<SortMode>('name-asc');
+    const [sortMenuOpen, setSortMenuOpen] = useState(false);
     const [favoriteProgramIds, setFavoriteProgramIds] = useState<number[]>([]);
-    const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
+    const [mobileDetailsProgramId, setMobileDetailsProgramId] = useState<number | null>(null);
+    const sortMenuRef = useRef<HTMLDivElement>(null);
+    const [viewportWidth, setViewportWidth] = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
 
     // Add Program modal
     const [showAddProgram, setShowAddProgram] = useState(false);
@@ -102,6 +148,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
     // Add User to Program modal
     const [addUserProgramId, setAddUserProgramId] = useState<number | null>(null);
     const [selectedUserId, setSelectedUserId] = useState('');
+    const logoUpdateInputRef = useRef<HTMLInputElement>(null);
 
     const handleAddProgram = () => {
         if (!newProgram.name || !newProgram.code) return;
@@ -125,6 +172,19 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
         router.post(`/programs/${addUserProgramId}/users`, { user_id: selectedUserId }, {
             preserveScroll: true,
             onSuccess: () => { setAddUserProgramId(null); setSelectedUserId(''); },
+        });
+    };
+
+    const handleUpdateProgramLogo = (programId: number, file?: File) => {
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('logo', file);
+        router.post(`/programs/${programId}/logo`, fd, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                if (logoUpdateInputRef.current) logoUpdateInputRef.current.value = '';
+            },
         });
     };
 
@@ -163,9 +223,40 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
         window.localStorage.setItem('quamc.programs.favorites', JSON.stringify(favoriteProgramIds));
     }, [favoriteProgramIds]);
 
-    const toggleFavorite = (programId: number) => {
+    useEffect(() => {
+        const handleResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (!sortMenuOpen) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+                setSortMenuOpen(false);
+            }
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setSortMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [sortMenuOpen]);
+
+    const toggleFavorite = (programId: number | string) => {
+        const normalizedId = Number(programId);
         setFavoriteProgramIds((prev) =>
-            prev.includes(programId) ? prev.filter((id) => id !== programId) : [...prev, programId]
+            prev.includes(normalizedId) ? prev.filter((id) => id !== normalizedId) : [...prev, normalizedId]
         );
     };
 
@@ -203,7 +294,20 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
         [favoritePrograms, nonFavoritePrograms]
     );
 
-    const selectedProgram = visiblePrograms.find((program) => program.id === selectedProgramId) ?? null;
+    const isMobile = viewportWidth < 900;
+    const isTablet = viewportWidth >= 900 && viewportWidth < 1280;
+    const mobileDetailsProgram = visiblePrograms.find((program) => Number(program.id) === mobileDetailsProgramId) ?? null;
+
+    useEffect(() => {
+        if (!mobileDetailsProgramId) return;
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [mobileDetailsProgramId]);
+
+    const selectedSortLabel = sortOptions.find((option) => option.id === sortMode)?.label ?? sortOptions[0].label;
 
     const renderProgramDetails = (program: ProgramInfo) => (
         <>
@@ -307,11 +411,12 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
         <AppLayout title="Programs" breadcrumb="Program Overview">
             <Head title="Programs" />
 
-            <div style={{ marginBottom: 14 }}>
+            <div data-tour="programs-toolbar" style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 4, border: '1px solid var(--color-border)', borderRadius: 12, background: 'var(--color-panel-bg)' }}>
                         <button
                             type="button"
+                            data-tour="programs-view-card"
                             onClick={() => setViewMode('grid')}
                             style={{
                                 display: 'inline-flex',
@@ -332,6 +437,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                         </button>
                         <button
                             type="button"
+                            data-tour="programs-view-list"
                             onClick={() => setViewMode('list')}
                             style={{
                                 display: 'inline-flex',
@@ -370,17 +476,97 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             }}
                         />
                     </div>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 40, border: '1px solid var(--color-border)', borderRadius: 12, padding: '0 12px', background: 'var(--color-panel-bg)' }}>
-                        <ArrowUpDown size={13} color="var(--color-text-secondary)" />
-                        <select
-                            value={sortMode}
-                            onChange={(event) => setSortMode(event.target.value as 'name-asc' | 'readiness-desc' | 'code-asc')}
-                            style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--color-text)', fontSize: 12, fontWeight: 600, outline: 'none' }}
+                    <div ref={sortMenuRef} style={{ position: 'relative', flex: '0 0 286px', maxWidth: '100%' }}>
+                        <button
+                            type="button"
+                            aria-haspopup="listbox"
+                            aria-expanded={sortMenuOpen}
+                            onClick={() => setSortMenuOpen((prev) => !prev)}
+                            style={{
+                                width: '100%',
+                                height: 40,
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 12,
+                                padding: '0 12px',
+                                background: 'var(--color-panel-bg)',
+                                color: 'var(--color-text)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                outline: 'none',
+                                boxShadow: sortMenuOpen ? '0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent)' : 'none',
+                            }}
                         >
-                            <option value="name-asc">Sort: Name (A-Z)</option>
-                            <option value="code-asc">Sort: Code (A-Z)</option>
-                            <option value="readiness-desc">Sort: Readiness (High-Low)</option>
-                        </select>
+                            <ArrowUpDown size={13} color="var(--color-text-secondary)" />
+                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                                {selectedSortLabel}
+                            </span>
+                            <ChevronDown
+                                size={14}
+                                color="var(--color-text-secondary)"
+                                style={{ flexShrink: 0, transition: 'transform 0.18s ease', transform: sortMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                            />
+                        </button>
+                        {sortMenuOpen && (
+                            <div
+                                role="listbox"
+                                aria-label="Sort programs"
+                                style={{
+                                    position: 'absolute',
+                                    top: 46,
+                                    left: 0,
+                                    width: '100%',
+                                    minWidth: 286,
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 12,
+                                    background: 'var(--color-surface)',
+                                    boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)',
+                                    zIndex: 60,
+                                    overflow: 'hidden',
+                                    padding: 4,
+                                }}
+                            >
+                                {sortOptions.map((option) => {
+                                    const active = option.id === sortMode;
+
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={active}
+                                            onClick={() => {
+                                                setSortMode(option.id);
+                                                setSortMenuOpen(false);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                minHeight: 40,
+                                                border: 'none',
+                                                borderRadius: 8,
+                                                padding: '9px 10px',
+                                                background: active ? 'var(--color-hover)' : 'transparent',
+                                                color: 'var(--color-text)',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: 12,
+                                                fontSize: 12.5,
+                                                fontWeight: active ? 700 : 600,
+                                                textAlign: 'left',
+                                            }}
+                                        >
+                                            <span>{option.label}</span>
+                                            {active && <CheckCircle size={14} color="var(--color-primary)" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                         {favoriteProgramIds.length} favorites · {visiblePrograms.length} shown
@@ -411,22 +597,29 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
             </div>
 
             {viewMode === 'grid' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: selectedProgram ? 'minmax(0, 1.55fr) minmax(460px, 1fr)' : '1fr', gap: 12, alignItems: 'start' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
-                        {visiblePrograms.map((program) => {
-                        const ready = program.pct > 0;
-                        const statusLabel = ready ? 'Active' : 'Prospect';
-                        const statusBg = ready ? '#dff3ea' : '#f6ecde';
-                        const statusColor = ready ? '#0d996a' : '#d9831f';
+                <div data-tour="programs-list" style={{
+                    display: 'grid',
+                    gridTemplateColumns: !isMobile && mobileDetailsProgram ? 'minmax(0, 1.55fr) minmax(380px, 1fr)' : '1fr',
+                    gap: 12,
+                    alignItems: 'start',
+                }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 1 : isTablet ? 2 : 3}, minmax(0, 1fr))`, gap: 14 }}>
+                        {visiblePrograms.map((program, index) => {
+                        const programId = Number(program.id);
+                        const isFavorite = favoriteProgramIds.includes(programId);
                         return (
                             <article
                                 key={program.id}
-                                onClick={() => setSelectedProgramId(program.id)}
+                                data-tour={index === 0 ? 'programs-first-card' : undefined}
+                                onClick={() => {
+                                    const id = Number(program.id);
+                                    setMobileDetailsProgramId((current) => current === id ? null : id);
+                                }}
                                 style={{
-                                    minHeight: 192,
+                                    minHeight: 160,
                                     cursor: 'pointer',
                                     borderRadius: 14,
-                                    border: selectedProgramId === program.id ? '2px solid #111827' : '1px solid #d8dee8',
+                                    border: '1px solid #d8dee8',
                                     background: '#ffffff',
                                     boxShadow: 'none',
                                     overflow: 'hidden',
@@ -441,16 +634,16 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                     e.currentTarget.style.borderColor = '#bfc8d6';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = selectedProgramId === program.id ? '#111827' : '#d8dee8';
+                                    e.currentTarget.style.borderColor = '#d8dee8';
                                 }}
                             >
                                 <button
                                     type="button"
                                     onClick={(event) => {
                                         event.stopPropagation();
-                                        toggleFavorite(program.id);
+                                        toggleFavorite(programId);
                                     }}
-                                    title={favoriteProgramIds.includes(program.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                                     style={{
                                         position: 'absolute',
                                         right: 12,
@@ -465,10 +658,10 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                         cursor: 'pointer',
                                         transition: 'all 0.18s ease',
                                         background: '#ffffff',
-                                        color: favoriteProgramIds.includes(program.id) ? '#111827' : '#6b7280',
+                                        color: isFavorite ? '#111827' : '#6b7280',
                                     }}
                                 >
-                                    <Star size={13} />
+                                    <Star size={13} fill={isFavorite ? 'currentColor' : 'none'} />
                                 </button>
 
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minHeight: 56, paddingRight: 34 }}>
@@ -480,7 +673,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                         flexShrink: 0,
                                     }}>
                                         <img
-                                            src={getProgramAvatar(program.code)}
+                                            src={getProgramAvatarSrc(program)}
                                             alt={program.code}
                                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                         />
@@ -488,132 +681,104 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                         <div style={{
                                             fontSize: 16,
-                                            fontWeight: 500,
-                                            color: '#222',
+                                            fontWeight: 600,
+                                            color: 'var(--color-text)',
                                             lineHeight: 1.25,
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical',
-                                            overflow: 'hidden',
-                                            minHeight: 40,
                                         }}>
-                                            {`Bachelor ${compactProgramName(program.name)}`} <span style={{ color: '#f4b000', fontSize: 13, verticalAlign: 'text-top' }}>★</span>
+                                            {program.name}
                                         </div>
-                                        <div style={{ fontSize: 14, color: '#666', marginTop: 2, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {program.code}
+                                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {program.code} · {program.totalAreas} areas · {program.totalSlots} evidence items
                                         </div>
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gap: 8, marginTop: 2, minHeight: 78 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#6b7280', fontSize: 14 }}>
-                                        <Building2 size={14} />
-                                        <span>QUAMC · Program</span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#6b7280', fontSize: 14 }}>
-                                        <Mail size={14} />
-                                        <span>{program.code.toLowerCase()}@quamc.local</span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#6b7280', fontSize: 14 }}>
-                                        <Phone size={14} />
-                                        <span>{program.totalSlots} evidence items</span>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
-                                    <div style={{ display: 'flex', gap: 6 }}>
-                                        <span style={{ borderRadius: 999, padding: '2px 10px', fontSize: 12, color: '#2563eb', border: '1px solid #c5d6ff', background: '#eef4ff' }}>Program</span>
-                                        <span style={{ borderRadius: 999, padding: '2px 10px', fontSize: 12, color: '#ef476f', border: '1px solid #ffd0dc', background: '#ffeef3' }}>{program.totalAreas} areas</span>
-                                    </div>
-                                    <span style={{ borderRadius: 999, padding: '2px 12px', fontSize: 12, color: statusColor, background: statusBg }}>{statusLabel}</span>
+                                <div style={{ marginTop: 8, borderTop: '1px solid #eef2f7', paddingTop: 8, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                                    <div style={{ fontSize: 11, color: '#475569' }}><strong>Readiness:</strong> {program.pct}%</div>
+                                    <div style={{ fontSize: 11, color: '#475569' }}><strong>Approved:</strong> {program.approvedItems}</div>
+                                    <div style={{ fontSize: 11, color: '#475569' }}><strong>Pending:</strong> {program.pendingItems}</div>
+                                    <div style={{ fontSize: 11, color: '#475569' }}><strong>Returned:</strong> {program.returnedItems}</div>
                                 </div>
                             </article>
                         );
                     })}
                     </div>
 
-                    {selectedProgram && (
-                        <aside style={{ border: '1px solid #e2e8f0', borderRadius: 12, background: '#ffffff', overflow: 'hidden', position: 'sticky', top: 12, maxHeight: 'calc(100vh - 110px)', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Program Details</div>
+                    {!isMobile && mobileDetailsProgram && (
+                        <aside data-tour="programs-grid-details" style={{
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 12,
+                            background: '#ffffff',
+                            overflow: 'hidden',
+                            position: 'sticky',
+                            top: 12,
+                            maxHeight: 'calc(100vh - 110px)',
+                            display: 'grid',
+                            gridTemplateRows: 'auto 1fr',
+                        }}>
+                            <div style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid var(--color-border)' }}>
+                                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>Program Details</div>
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedProgramId(null)}
-                                    style={{ border: 'none', background: 'transparent', color: '#334155', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+                                    onClick={() => setMobileDetailsProgramId(null)}
+                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                                     aria-label="Close details"
                                 >
-                                    ×
+                                    <X size={18} />
                                 </button>
                             </div>
-                            <div
-                                style={{
-                                    padding: 16,
-                                    display: 'grid',
-                                    gap: 14,
-                                    overflowY: 'auto',
-                                    overscrollBehavior: 'contain',
-                                    WebkitOverflowScrolling: 'touch',
-                                }}
-                            >
-                                <div style={{ display: 'grid', justifyItems: 'center', gap: 8 }}>
-                                    <div
-                                        style={{
-                                            width: 72,
-                                            height: 72,
-                                            borderRadius: '50%',
-                                            overflow: 'hidden',
-                                        }}
-                                    >
-                                        <img
-                                            src={getProgramAvatar(selectedProgram.code)}
-                                            alt={selectedProgram.code}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                        />
+
+                            <div style={{ padding: 16, display: 'grid', gap: 12, overflowY: 'auto' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                                        <img src={getProgramAvatarSrc(mobileDetailsProgram)} alt={mobileDetailsProgram.code} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                        {isAdmin && (
+                                            <button
+                                                type="button"
+                                                onClick={() => logoUpdateInputRef.current?.click()}
+                                                title="Edit logo"
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: 1,
+                                                    bottom: 1,
+                                                    width: 18,
+                                                    height: 18,
+                                                    borderRadius: '50%',
+                                                    border: '1px solid #d1d5db',
+                                                    background: '#ffffff',
+                                                    color: '#374151',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    padding: 0,
+                                                }}
+                                            >
+                                                <Pencil size={10} />
+                                            </button>
+                                        )}
                                     </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a' }}>{selectedProgram.name}</div>
-                                        <div style={{ marginTop: 6, display: 'inline-flex', borderRadius: 999, padding: '3px 10px', background: '#edf4fb', color: '#1a3260', fontSize: 12, fontWeight: 600 }}>
-                                            {selectedProgram.pct}% readiness
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.2 }}>{mobileDetailsProgram.name}</div>
+                                        <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--color-text-secondary)' }}>
+                                            {mobileDetailsProgram.code} · {mobileDetailsProgram.totalAreas} areas · {mobileDetailsProgram.totalSlots} evidence items
                                         </div>
                                     </div>
                                 </div>
 
-                                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12, display: 'grid', gap: 8 }}>
-                                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b' }}>PROGRAM INFO</div>
-                                    <div style={{ display: 'grid', gap: 6, color: '#334155', fontSize: 14 }}>
-                                        <div><strong>Code:</strong> {selectedProgram.code}</div>
-                                        <div><strong>Areas:</strong> {selectedProgram.totalAreas}</div>
-                                        <div><strong>Evidence Items:</strong> {selectedProgram.totalSlots}</div>
-                                        <div><strong>Approved:</strong> {selectedProgram.approvedItems}</div>
-                                        <div><strong>Pending:</strong> {selectedProgram.pendingItems}</div>
-                                        <div><strong>Returned:</strong> {selectedProgram.returnedItems}</div>
-                                    </div>
+                                <div style={{ border: '1px solid var(--color-border)', borderRadius: 12, padding: 12, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                                    <div style={{ fontSize: 12, color: '#475569' }}><strong>Readiness:</strong> {mobileDetailsProgram.pct}%</div>
+                                    <div style={{ fontSize: 12, color: '#475569' }}><strong>Approved:</strong> {mobileDetailsProgram.approvedItems}</div>
+                                    <div style={{ fontSize: 12, color: '#475569' }}><strong>Pending:</strong> {mobileDetailsProgram.pendingItems}</div>
+                                    <div style={{ fontSize: 12, color: '#475569' }}><strong>Returned:</strong> {mobileDetailsProgram.returnedItems}</div>
                                 </div>
 
                                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12, display: 'grid', gap: 8 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b' }}>AREA COMPLETION</div>
-                                        <button
-                                            type="button"
-                                            onClick={() => router.visit(`/programs/${selectedProgram.id}`)}
-                                            style={{
-                                                border: '1px solid #c9d4e5',
-                                                background: '#f8fbff',
-                                                color: '#1a3260',
-                                                borderRadius: 8,
-                                                height: 28,
-                                                padding: '0 10px',
-                                                fontSize: 11,
-                                                fontWeight: 700,
-                                                letterSpacing: '0.02em',
-                                                cursor: 'pointer',
-                                            }}
-                                        >
-                                            Visit Area
-                                        </button>
                                     </div>
                                     <div style={{ display: 'grid', gap: 6 }}>
-                                        {selectedProgram.areas.slice(0, 6).map((area, idx) => (
+                                        {mobileDetailsProgram.areas.slice(0, 6).map((area, idx) => (
                                             <div key={area.id}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#475569', marginBottom: 3 }}>
                                                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{area.name}</span>
@@ -629,11 +794,11 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
 
                                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
                                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>USERS</div>
-                                    {selectedProgram.users.length === 0 ? (
+                                    {mobileDetailsProgram.users.length === 0 ? (
                                         <div style={{ fontSize: 12, color: '#64748b' }}>No users assigned.</div>
                                     ) : (
                                         <div style={{ display: 'grid', gap: 6 }}>
-                                            {selectedProgram.users.slice(0, 6).map((u) => (
+                                            {mobileDetailsProgram.users.slice(0, 6).map((u) => (
                                                 <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                                                     <span style={{ color: '#334155', fontWeight: 600 }}>{u.name}</span>
                                                     <span style={{ color: '#64748b' }}>{u.role}</span>
@@ -642,13 +807,43 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                         </div>
                                     )}
                                 </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => router.visit(`/programs/${mobileDetailsProgram.id}`)}
+                                    style={{
+                                        border: '1px solid #c9d4e5',
+                                        background: '#f8fbff',
+                                        color: '#1a3260',
+                                        borderRadius: 10,
+                                        height: 38,
+                                        padding: '0 12px',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Visit Area
+                                </button>
+                                {isAdmin && (
+                                    <input
+                                        ref={logoUpdateInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={(event) => handleUpdateProgramLogo(mobileDetailsProgram.id, event.target.files?.[0])}
+                                    />
+                                )}
                             </div>
                         </aside>
                     )}
                 </div>
             ) : (
-                <div style={{ display: 'grid', gap: 12 }}>
-                    {visiblePrograms.map(program => (
+                <div data-tour="programs-list" style={{ display: 'grid', gap: 12 }}>
+                    {visiblePrograms.map((program, index) => {
+                    const programId = Number(program.id);
+                    const isFavorite = favoriteProgramIds.includes(programId);
+                    return (
                     <div key={program.id} style={{
                         background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14,
                         overflow: 'hidden', transition: 'box-shadow 0.2s',
@@ -668,21 +863,17 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                         }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                                 <div style={{
-                                    width: 44, height: 44, borderRadius: 10,
-                                    background: program.logo_url ? 'transparent' : '#0f1f3d',
+                                    width: 44, height: 44, borderRadius: '50%',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     overflow: 'hidden', flexShrink: 0,
-                                    border: program.logo_url ? '2px solid #dde1ed' : 'none',
+                                    border: '2px solid #dde1ed',
                                 }}>
-                                    {program.logo_url
-                                        ? <img src={program.logo_url} alt={program.code} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
-                                        : <GraduationCap size={20} color="#c9a84c" />
-                                    }
+                                    <img src={getProgramAvatarSrc(program)} alt={program.code} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                 </div>
                                 <div>
                                     {viewMode === 'grid' ? (
                                         <Link href={`/programs/${program.id}`} style={{ textDecoration: 'none' }}>
-                                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer' }}
+                                            <div style={{ fontFamily: "'inherit", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-link)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text)'}
                                             >
@@ -690,7 +881,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                             </div>
                                         </Link>
                                     ) : (
-                                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)' }}>
+                                        <div style={{ fontFamily: "'inherit", fontSize: 16, fontWeight: 600, color: 'var(--color-text)' }}>
                                             {program.name}
                                         </div>
                                     )}
@@ -704,23 +895,23 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                     type="button"
                                     onClick={(event) => {
                                         event.stopPropagation();
-                                        toggleFavorite(program.id);
+                                        toggleFavorite(programId);
                                     }}
-                                    title={favoriteProgramIds.includes(program.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                                     style={{
                                         width: 30,
                                         height: 30,
                                         borderRadius: 8,
                                         border: '1px solid var(--color-border)',
-                                        background: favoriteProgramIds.includes(program.id) ? 'var(--color-button-primary-bg)' : 'var(--color-panel-bg)',
-                                        color: favoriteProgramIds.includes(program.id) ? 'var(--color-button-primary-text)' : 'var(--color-text-secondary)',
+                                        background: isFavorite ? 'var(--color-button-primary-bg)' : 'var(--color-panel-bg)',
+                                        color: isFavorite ? 'var(--color-button-primary-text)' : 'var(--color-text-secondary)',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    <Star size={14} />
+                                    <Star size={14} fill={isFavorite ? 'currentColor' : 'none'} />
                                 </button>
                                 {isAdmin && (
                                     <button onClick={(event) => { event.stopPropagation(); setAddUserProgramId(program.id); setSelectedUserId(''); }} style={{
@@ -734,7 +925,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                                 )}
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{
-                                        fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700,
+                                        fontFamily: "'inherit", fontSize: 28, fontWeight: 700,
                                         color: program.pct >= 80 ? '#1a7a4a' : program.pct > 0 ? '#c9a84c' : '#b8bfd4',
                                     }}>{program.pct}%</div>
                                     <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Readiness</div>
@@ -750,6 +941,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             <>
                                 <button
                                     type="button"
+                                    data-tour={index === 0 ? 'programs-list-details-toggle' : undefined}
                                     onClick={() => setExpandedProgramId((current) => current === program.id ? null : program.id)}
                                     style={{
                                         width: '100%',
@@ -777,7 +969,166 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                             </>
                         )}
                     </div>
-                ))}
+                );
+                })}
+                </div>
+            )}
+
+            {viewMode === 'grid' && isMobile && mobileDetailsProgram && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 220,
+                        background: 'var(--color-panel-bg)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                        justifyContent: 'flex-start',
+                        padding: 0,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: '100%',
+                            maxHeight: '100%',
+                            borderRadius: 0,
+                            border: 'none',
+                            background: 'var(--color-panel-bg)',
+                            boxShadow: 'none',
+                            overflow: 'auto',
+                        }}
+                    >
+                    <div style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>Program Details</div>
+                        <button
+                            type="button"
+                            onClick={() => setMobileDetailsProgramId(null)}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            aria-label="Close details"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                                <img src={getProgramAvatarSrc(mobileDetailsProgram)} alt={mobileDetailsProgram.code} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                {isAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => logoUpdateInputRef.current?.click()}
+                                        title="Edit logo"
+                                        style={{
+                                            position: 'absolute',
+                                            right: 1,
+                                            bottom: 1,
+                                            width: 18,
+                                            height: 18,
+                                            borderRadius: '50%',
+                                            border: '1px solid #d1d5db',
+                                            background: '#ffffff',
+                                            color: '#374151',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                        }}
+                                    >
+                                        <Pencil size={10} />
+                                    </button>
+                                )}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.2 }}>{mobileDetailsProgram.name}</div>
+                                <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--color-text-secondary)' }}>
+                                    {mobileDetailsProgram.code} · {mobileDetailsProgram.totalAreas} areas · {mobileDetailsProgram.totalSlots} evidence items
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ border: '1px solid var(--color-border)', borderRadius: 12, padding: 12, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                            <div style={{ fontSize: 12, color: '#475569' }}><strong>Readiness:</strong> {mobileDetailsProgram.pct}%</div>
+                            <div style={{ fontSize: 12, color: '#475569' }}><strong>Approved:</strong> {mobileDetailsProgram.approvedItems}</div>
+                            <div style={{ fontSize: 12, color: '#475569' }}><strong>Pending:</strong> {mobileDetailsProgram.pendingItems}</div>
+                            <div style={{ fontSize: 12, color: '#475569' }}><strong>Returned:</strong> {mobileDetailsProgram.returnedItems}</div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12, display: 'grid', gap: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b' }}>PROGRAM INFO</div>
+                            <div style={{ display: 'grid', gap: 6, color: '#334155', fontSize: 14 }}>
+                                <div><strong>Code:</strong> {mobileDetailsProgram.code}</div>
+                                <div><strong>Areas:</strong> {mobileDetailsProgram.totalAreas}</div>
+                                <div><strong>Evidence Items:</strong> {mobileDetailsProgram.totalSlots}</div>
+                                <div><strong>Approved:</strong> {mobileDetailsProgram.approvedItems}</div>
+                                <div><strong>Pending:</strong> {mobileDetailsProgram.pendingItems}</div>
+                                <div><strong>Returned:</strong> {mobileDetailsProgram.returnedItems}</div>
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12, display: 'grid', gap: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b' }}>AREA COMPLETION</div>
+                            <div style={{ display: 'grid', gap: 6 }}>
+                                {mobileDetailsProgram.areas.slice(0, 6).map((area, idx) => (
+                                    <div key={area.id}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#475569', marginBottom: 3 }}>
+                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{area.name}</span>
+                                            <span style={{ fontWeight: 700 }}>{area.pct}%</span>
+                                        </div>
+                                        <div style={{ height: 5, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden' }}>
+                                            <div style={{ width: `${Math.max(area.pct, 2)}%`, height: '100%', background: areaColors[idx % areaColors.length] }} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>USERS</div>
+                            {mobileDetailsProgram.users.length === 0 ? (
+                                <div style={{ fontSize: 12, color: '#64748b' }}>No users assigned.</div>
+                            ) : (
+                                <div style={{ display: 'grid', gap: 6 }}>
+                                    {mobileDetailsProgram.users.slice(0, 6).map((u) => (
+                                        <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                                            <span style={{ color: '#334155', fontWeight: 600 }}>{u.name}</span>
+                                            <span style={{ color: '#64748b' }}>{u.role}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => router.visit(`/programs/${mobileDetailsProgram.id}`)}
+                            style={{
+                                border: '1px solid #c9d4e5',
+                                background: '#f8fbff',
+                                color: '#1a3260',
+                                borderRadius: 10,
+                                height: 38,
+                                padding: '0 12px',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Visit Area
+                        </button>
+                        {isAdmin && (
+                            <input
+                                ref={logoUpdateInputRef}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(event) => handleUpdateProgramLogo(mobileDetailsProgram.id, event.target.files?.[0])}
+                            />
+                        )}
+                    </div>
+                    </div>
                 </div>
             )}
 
@@ -787,7 +1138,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                     onClick={() => setShowAddProgram(false)}>
                     <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 28, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <PlusCircle size={18} /> Add New Program
                             </div>
                             <button onClick={() => setShowAddProgram(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>
@@ -847,7 +1198,7 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
                     onClick={() => setAddUserProgramId(null)}>
                     <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 16, fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <UserPlus size={18} /> Assign User to Program
                             </div>
                             <button onClick={() => setAddUserProgramId(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4 }}>

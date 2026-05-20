@@ -15,6 +15,35 @@ use setasign\Fpdi\Fpdi;
 
 class AreaSurveyExportService
 {
+    private function appLogoDataUri(): ?string
+    {
+        $path = (string) \App\Models\Setting::getValue('appLogoPath', '');
+        if ($path === '') {
+            return null;
+        }
+
+        $candidates = [
+            storage_path('app/private/' . $path),
+            storage_path('app/' . $path),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_file($candidate)) {
+                continue;
+            }
+
+            $mime = mime_content_type($candidate) ?: null;
+            $data = @file_get_contents($candidate);
+            if (!$mime || $data === false) {
+                continue;
+            }
+
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
+        }
+
+        return null;
+    }
+
     /**
      * Export an entire Area as an organised survey PDF.
      *
@@ -321,6 +350,7 @@ class AreaSurveyExportService
             'program_name'  => $program?->name ?? '',
             'program_code'  => $program?->code ?? '',
             'program_logo'  => $program?->logoDataUri(),   // null if no logo
+            'app_logo'      => $this->appLogoDataUri(),
             'institution'   => strtoupper($institution),
             'date'          => now()->format('F j, Y'),
         ])->render();

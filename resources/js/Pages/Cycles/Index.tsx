@@ -83,9 +83,9 @@ export default function CyclesIndex({ cycles }: Props) {
             <Head title="Accreditation Cycles" />
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div data-tour="cycles-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
+                    <div style={{ fontFamily: "'inherit", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
                         Accreditation Cycles
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
@@ -104,7 +104,7 @@ export default function CyclesIndex({ cycles }: Props) {
 
             {/* Create/Edit Form Modal */}
             {showForm && (
-                <div style={{
+                <div data-tour="cycles-list" style={{
                     background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14,
                     padding: 24, marginBottom: 24, position: 'relative',
                 }}>
@@ -189,7 +189,7 @@ export default function CyclesIndex({ cycles }: Props) {
                     </div>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+                <div data-tour="cycles-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
                     {cycles.map(cycle => (
                         <div key={cycle.id} style={{
                             background: 'var(--color-panel-bg)', border: cycle.is_active ? '2px solid #c9a84c' : '1px solid var(--color-panel-border)',
@@ -211,7 +211,7 @@ export default function CyclesIndex({ cycles }: Props) {
                                     </div>
                                     <div>
                                         <div style={{
-                                            fontFamily: "'Playfair Display', serif", fontSize: 15,
+                                            fontFamily: "'inherit", fontSize: 15,
                                             fontWeight: 600, color: 'var(--color-text)',
                                         }}>{cycle.name}</div>
                                         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>

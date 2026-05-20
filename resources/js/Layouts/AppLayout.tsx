@@ -1,9 +1,10 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { ReactNode, useState, useEffect, useRef } from 'react';
+import { ReactNode, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ACTIONS, EVENTS, Joyride, STATUS, type EventData, type Step } from 'react-joyride';
 import {
     LayoutDashboard, FileText, Layers, GraduationCap, Upload,
     User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, PanelLeft, Megaphone, Palette, ChevronRight,
-    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, Layout, RotateCcw, Download, Undo2
+    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, Layout, RotateCcw, Download, Undo2, CircleHelp
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { showSuccess, showError, showInfo, confirmAction, confirmSaveDiscard } from '@/utils/toast';
@@ -22,6 +23,14 @@ interface AppLayoutProps {
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+interface ClientActivityPayload {
+    event: 'ui.page_viewed' | 'ui.menu_navigated' | 'ui.button_clicked' | 'ui.link_clicked';
+    targetLabel?: string;
+    targetRole?: string;
+    href?: string | null;
+    path?: string;
 }
 
 const ALL = ['admin', 'director', 'dean', 'program-coordinator', 'area-coordinator'];
@@ -79,7 +88,11 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
         : viewingCycle?.academic_year ?? activeCycle?.academic_year ?? 'Uploads locked';
     const canManageCycles = userRoleSlug === 'admin' || userRoleSlug === 'director';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [themeSidebarOpen, setThemeSidebarOpen] = useState(false);
+    const [tourOpen, setTourOpen] = useState(false);
+    const [tourStepIndex, setTourStepIndex] = useState(0);
     const [now, setNow] = useState(new Date());
     const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
 
@@ -138,16 +151,479 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showResults, setShowResults] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const [searchMode, setSearchMode] = useState<'search' | 'recent'>('search');
+    const [searchFocusTick, setSearchFocusTick] = useState(0);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installModalOpen, setInstallModalOpen] = useState(false);
     const [settingsModalOpen, setSettingsModalOpen] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
+    const savedSystemSettings = ((page.props as any).system_settings as Record<string, string> | undefined) ?? {};
     const [settingsForm, setSettingsForm] = useState<Record<string, string>>(
-        ((page.props as any).system_settings as Record<string, string> | undefined) ?? {}
+        savedSystemSettings
     );
+    const [settingsFiles, setSettingsFiles] = useState<Record<string, File | null>>({});
+    const hasSettingsChanges = useMemo(() => {
+        if (Object.values(settingsFiles).some(Boolean)) {
+            return true;
+        }
+
+        const keys = new Set([...Object.keys(savedSystemSettings), ...Object.keys(settingsForm)]);
+        for (const key of keys) {
+            if ((settingsForm[key] ?? '') !== (savedSystemSettings[key] ?? '')) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [savedSystemSettings, settingsFiles, settingsForm]);
+    const settingsSchema = ((page.props as any).system_settings_schema ?? []) as any[];
+    const appDisplayName = settingsForm.appName || settingsForm.systemName || 'QUAMC';
+    const appDetails = settingsForm.appDetails || 'Quality Assurance Center';
+    const appLogoUrl = settingsForm.appLogoUrl || '';
+    const appInitial = appDisplayName.trim().charAt(0).toUpperCase() || 'Q';
+
+    const startTour = useCallback(() => {
+        setTourStepIndex(0);
+        setShowResults(false);
+        setIsUserMenuOpen(false);
+        setThemeSidebarOpen(false);
+        setMobileSidebarOpen(false);
+        setTourOpen(true);
+    }, []);
+
+    const tourSteps = useMemo<Step[]>(() => {
+        const commonSteps: Step[] = [
+            {
+                target: isMobileViewport ? '[data-tour="mobile-navigation-toggle"]' : '[data-tour="main-navigation"]',
+                title: isMobileViewport ? 'Navigation Menu' : 'Main Navigation',
+                content: isMobileViewport
+                    ? 'Open the navigation menu when you need to move between dashboards, documents, programs, standards, reports, users, cycles, and logs.'
+                    : 'Use this menu to move between dashboards, documents, programs, standards, reports, users, cycles, and logs.',
+                placement: isMobileViewport ? 'bottom' : 'right',
+            },
+            {
+                target: '[data-tour="global-search"]',
+                title: 'Global Search',
+                content: 'Search across documents, programs, users, cycles, and standards from anywhere in the system.',
+                placement: 'bottom',
+            },
+        ];
+
+        if (isDashboard) {
+            const sharedDashboardSteps: Step[] = [
+                ...commonSteps,
+                {
+                    target: '[data-tour="cycle-switcher"]',
+                    title: 'Accreditation Cycle',
+                    content: 'Check the active cycle or switch the reporting period.',
+                    placement: 'bottom',
+                },
+            ];
+
+            const dashboardStepsByRole: Record<string, Step[]> = {
+                admin: [
+                    {
+                        target: '[data-tour="dashboard-edit"]',
+                        title: 'Dashboard Layout',
+                        content: 'Enter edit mode to hide, restore, or save dashboard cards for your admin workspace.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="admin.system_overview_cards"]',
+                        title: 'System Overview',
+                        content: 'These cards summarize approved documents, pending reviews, registered users, and activity logs.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="admin.deadline_calendar"]',
+                        title: 'Deadline Calendar',
+                        content: 'Review upcoming accreditation dates and cycle deadlines before they become overdue.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="admin.program_oversight"]',
+                        title: 'Program Oversight',
+                        content: 'Monitor readiness by program, filter risk levels, and generate oversight reports.',
+                        placement: 'top',
+                    },
+                ],
+                director: [
+                    {
+                        target: '[data-tour="director.readiness_chart"]',
+                        title: 'Program Readiness',
+                        content: 'Track readiness trends across programs in the current cycle.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="director.calendar"]',
+                        title: 'Deadline Calendar',
+                        content: 'Review accreditation deadlines and due dates.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="director.program_readiness"]',
+                        title: 'Readiness by Program',
+                        content: 'Inspect readiness and area-level progress per program.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="director.recent_submissions"]',
+                        title: 'Recent Submissions',
+                        content: 'Check newly submitted evidence and its review state.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="director.activity_feed"]',
+                        title: 'Activity Feed',
+                        content: 'Monitor recent system activity and user actions.',
+                        placement: 'left',
+                    },
+                ],
+                dean: [
+                    {
+                        target: '[data-tour="dean.area_completion_chart"]',
+                        title: 'Area Completion',
+                        content: 'See completion trends for your current program scope.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="dean.calendar"]',
+                        title: 'Deadline Calendar',
+                        content: 'Check upcoming deadlines and due dates.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="dean.documents_for_review"]',
+                        title: 'Documents for Review',
+                        content: 'Review submissions coming from coordinators.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="dean.area_completion_list"]',
+                        title: 'Area Completion List',
+                        content: 'Compare completion levels across areas.',
+                        placement: 'left',
+                    },
+                ],
+                'program-coordinator': [
+                    {
+                        target: '[data-tour="coordinator.area_progress_chart"]',
+                        title: 'Area Progress',
+                        content: 'Track progress for your assigned area scope.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="coordinator.calendar"]',
+                        title: 'Deadline Calendar',
+                        content: 'Review deadlines and due dates for your scope.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="coordinator.documents"]',
+                        title: 'Documents Workspace',
+                        content: 'Review evidence submissions and statuses.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="coordinator.area_progress_list"]',
+                        title: 'Area Progress List',
+                        content: 'Check detailed progress per area.',
+                        placement: 'left',
+                    },
+                    {
+                        target: '[data-tour="coordinator.recent_activity"]',
+                        title: 'Recent Activity',
+                        content: 'Follow recent workflow actions in your scope.',
+                        placement: 'left',
+                    },
+                ],
+                'area-coordinator': [
+                    {
+                        target: '[data-tour="coordinator.area_progress_chart"]',
+                        title: 'Area Progress',
+                        content: 'Track progress for your assigned area scope.',
+                        placement: 'bottom',
+                    },
+                    {
+                        target: '[data-tour="coordinator.calendar"]',
+                        title: 'Deadline Calendar',
+                        content: 'Review deadlines and due dates for your scope.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="coordinator.documents"]',
+                        title: 'Documents Workspace',
+                        content: 'Review evidence submissions and statuses.',
+                        placement: 'top',
+                    },
+                    {
+                        target: '[data-tour="coordinator.quick_actions"]',
+                        title: 'Quick Actions',
+                        content: 'Jump to upload and evidence tasks quickly.',
+                        placement: 'left',
+                    },
+                    {
+                        target: '[data-tour="coordinator.recent_activity"]',
+                        title: 'Recent Activity',
+                        content: 'Follow recent workflow actions in your scope.',
+                        placement: 'left',
+                    },
+                ],
+            };
+
+            return [...sharedDashboardSteps, ...(dashboardStepsByRole[userRoleSlug] ?? [])];
+        }
+
+        const pageSteps: Record<string, Step[]> = {
+            '/documents': [
+                {
+                    target: '[data-tour="documents-toolbar"]',
+                    title: 'Document Filters',
+                    content: 'Search evidence, areas, and programs, then switch between document views.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="documents-view-toggle"]',
+                    title: 'View Mode',
+                    content: 'Use list view for records or folder view for the evidence tree.',
+                    placement: 'left',
+                },
+                {
+                    target: '[data-tour="documents-content"]',
+                    title: 'Document Workspace',
+                    content: 'Open program folders, inspect uploaded files, and follow evidence status.',
+                    placement: 'top',
+                },
+                {
+                    target: '[data-tour="documents-downloads"]',
+                    title: 'Download Activity',
+                    content: 'Review recent file downloads and jump to the full activity log.',
+                    placement: 'top',
+                },
+            ],
+            '/areas': [
+                {
+                    target: '[data-tour="areas-header"]',
+                    title: 'Area Workspace',
+                    content: 'Use these actions to manage reviews, structure access, and area-level operations.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="areas-filters"]',
+                    title: 'Program Filters',
+                    content: 'Switch program scope and search areas or sub-areas quickly.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="areas-list"]',
+                    title: 'Area Cards',
+                    content: 'Open an area to inspect sub-areas, deadlines, notes, and evidence actions.',
+                    placement: 'top',
+                },
+            ],
+            '/areas/management': [
+                {
+                    target: '[data-tour="areas-management-header"]',
+                    title: 'Structure Management',
+                    content: 'Create and maintain the global accreditation structure from this header.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="areas-management-summary"]',
+                    title: 'Structure Summary',
+                    content: 'Review area, sub-area, and item totals, then use search to locate entries.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="areas-management-list"]',
+                    title: 'Area Tree',
+                    content: 'Expand each area to manage sub-areas, items, ordering, and deadlines.',
+                    placement: 'top',
+                },
+            ],
+            '/programs': [
+                {
+                    target: '[data-tour="programs-toolbar"]',
+                    title: 'Program Controls',
+                    content: 'Switch views, search programs, sort readiness, and create new programs.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="programs-view-card"]',
+                    title: 'Card View',
+                    content: 'Start in Card View to browse compact program cards.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="programs-first-card"]',
+                    title: 'Open Program Details (Card)',
+                    content: 'Click a card to open the Program Details panel on the right (desktop) or full screen (mobile).',
+                    placement: 'top',
+                },
+                {
+                    target: '[data-tour="programs-view-list"]',
+                    title: 'Switch to List Mode',
+                    content: 'Switch to List Mode for a row-based program view.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="programs-list-details-toggle"]',
+                    title: 'Open Details in List Mode',
+                    content: 'Use this toggle to expand or collapse detailed program information in list rows.',
+                    placement: 'top',
+                },
+            ],
+            '/standards': [
+                {
+                    target: '[data-tour="standards-upload"]',
+                    title: 'Upload Standards',
+                    content: 'Add reference PDFs with area, sub-area, and document type metadata for indexing.',
+                    placement: 'right',
+                },
+                {
+                    target: '[data-tour="standards-library"]',
+                    title: 'Standards Library',
+                    content: 'Check uploaded standards, index status, rubric linkage, and metadata.',
+                    placement: 'left',
+                },
+            ],
+            '/reports/readiness': [
+                {
+                    target: '[data-tour="reports-export"]',
+                    title: 'Export Report',
+                    content: 'Generate a PDF snapshot of the current readiness report.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="reports-overall"]',
+                    title: 'Overall Readiness',
+                    content: 'This card shows the overall accreditation readiness percentage.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="reports-summary"]',
+                    title: 'Status Summary',
+                    content: 'Compare approved, pending, returned, and not-started evidence counts.',
+                    placement: 'top',
+                },
+                {
+                    target: '[data-tour="reports-programs"]',
+                    title: 'Program Breakdown',
+                    content: 'Review readiness by program and export program-specific reports.',
+                    placement: 'top',
+                },
+            ],
+            '/users': [
+                {
+                    target: '[data-tour="users-actions"]',
+                    title: 'User Actions',
+                    content: 'Export the directory, create users, or assign coordinators depending on your role.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="users-summary"]',
+                    title: 'User Summary',
+                    content: 'Track total users, new accounts, tenure, active programs, and active users.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="users-table"]',
+                    title: 'User Table',
+                    content: 'Search, filter, select users, and open row actions from this table.',
+                    placement: 'top',
+                },
+            ],
+            '/cycles': [
+                {
+                    target: '[data-tour="cycles-header"]',
+                    title: 'Cycle Management',
+                    content: 'Create accreditation cycles for academic-year document tracking.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="cycles-list"]',
+                    title: 'Cycle Cards',
+                    content: 'Activate, archive, edit, or delete cycles from these cards.',
+                    placement: 'top',
+                },
+            ],
+            '/logs': [
+                {
+                    target: '[data-tour="logs-search"]',
+                    title: 'Activity Search',
+                    content: 'Search users or activity entries to narrow the audit trail.',
+                    placement: 'bottom',
+                },
+                {
+                    target: '[data-tour="logs-list"]',
+                    title: 'Activity Results',
+                    content: 'Open a user audit trail or inspect detailed activity records.',
+                    placement: 'top',
+                },
+            ],
+        };
+
+        return pageSteps[currentPath] ?? [];
+    }, [currentPath, isDashboard, isMobileViewport, userRoleSlug]);
+
+    const handleTourEvent = useCallback((data: EventData) => {
+        if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED || data.action === ACTIONS.CLOSE) {
+            setTourOpen(false);
+            setTourStepIndex(0);
+            return;
+        }
+
+        if (data.type === EVENTS.STEP_AFTER || data.type === EVENTS.TARGET_NOT_FOUND) {
+            const nextStepIndex = data.index + (data.action === ACTIONS.PREV ? -1 : 1);
+            setTourStepIndex(Math.max(0, nextStepIndex));
+        }
+    }, []);
     const searchRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
+    const lastTrackedPageRef = useRef('');
+
+    const cleanActivityText = (value: string | null | undefined, limit = 140) => {
+        const cleaned = String(value ?? '').replace(/\s+/g, ' ').trim();
+        return cleaned ? cleaned.slice(0, limit) : undefined;
+    };
+
+    const currentClientPath = () => {
+        if (typeof window === 'undefined') return page.url;
+        return `${window.location.pathname}${window.location.search}`;
+    };
+
+    const getCsrfToken = () => {
+        if (typeof document === 'undefined') return '';
+        return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    };
+
+    const trackActivity = useCallback((payload: ClientActivityPayload) => {
+        if (!user || typeof window === 'undefined') return;
+
+        const body = {
+            event: payload.event,
+            target_label: cleanActivityText(payload.targetLabel, 140),
+            target_role: cleanActivityText(payload.targetRole, 80),
+            path: cleanActivityText(payload.path ?? currentClientPath(), 255),
+            href: cleanActivityText(payload.href, 255),
+            page_title: cleanActivityText(title, 140),
+        };
+
+        void fetch('/logs/client-event', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(body),
+        }).catch(() => undefined);
+    }, [title, user]);
     
     // Determine icon color based on theme
     const getIconColor = (isActive: boolean) => {
@@ -167,6 +643,21 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     useEffect(() => {
         syncFromServer((page.props as any).dashboard_preferences);
     }, [(page.props as any).dashboard_preferences]);
+
+    useEffect(() => {
+        if (tourSteps.length === 0) {
+            setTourOpen(false);
+            setTourStepIndex(0);
+            return;
+        }
+
+        setTourStepIndex((current) => Math.min(current, tourSteps.length - 1));
+    }, [tourSteps.length]);
+
+    useEffect(() => {
+        setTourOpen(false);
+        setTourStepIndex(0);
+    }, [currentPath, userRoleSlug]);
 
     useEffect(() => {
         if (isDashboard || !isEditMode) {
@@ -194,6 +685,36 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
         if (typeof window === 'undefined') return;
         window.localStorage.setItem('quamc.sidebar.collapsed', String(sidebarCollapsed));
     }, [sidebarCollapsed]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const mediaQuery = window.matchMedia('(max-width: 767px)');
+        const syncViewportState = () => {
+            setIsMobileViewport(mediaQuery.matches);
+            if (!mediaQuery.matches) {
+                setMobileSidebarOpen(false);
+            }
+        };
+
+        syncViewportState();
+        mediaQuery.addEventListener('change', syncViewportState);
+
+        return () => mediaQuery.removeEventListener('change', syncViewportState);
+    }, []);
+
+    useEffect(() => {
+        if (!mobileSidebarOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setMobileSidebarOpen(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [mobileSidebarOpen]);
 
     useEffect(() => {
         const id = window.setInterval(() => setNow(new Date()), 60000);
@@ -225,28 +746,133 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
     // Global Search Effect
     useEffect(() => {
-        if (searchQuery.length < 2) {
+        const normalizedQuery = searchQuery.trim().slice(0, 80);
+        const shouldLoadRecent = normalizedQuery.length < 2;
+
+        if (shouldLoadRecent && searchFocusTick === 0) {
             setSearchResults([]);
             setShowResults(false);
+            setSearchError('');
+            setIsSearching(false);
+            setSearchMode('recent');
             return;
         }
 
+        const controller = new AbortController();
+        let active = true;
+        let timedOut = false;
+        const timeoutId = window.setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, 6000);
+
         const delayDebounceFn = setTimeout(async () => {
             setIsSearching(true);
+            setSearchError('');
             try {
-                const res = await fetch(`/global-search?q=${encodeURIComponent(searchQuery)}`);
+                const params = new URLSearchParams();
+                if (!shouldLoadRecent) {
+                    params.set('q', normalizedQuery);
+                }
+                const queryString = params.toString();
+                const res = await fetch(queryString ? `/global-search?${queryString}` : '/global-search', {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                    signal: controller.signal,
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Search failed with ${res.status}`);
+                }
+
                 const data = await res.json();
-                setSearchResults(data.results || []);
+                setSearchResults(Array.isArray(data.results) ? data.results : []);
+                setSearchError(typeof data.message === 'string' ? data.message : '');
+                setSearchMode(data.mode === 'recent' ? 'recent' : 'search');
                 setShowResults(true);
             } catch (err) {
-                console.error('Search error:', err);
-            } finally {
-                setIsSearching(false);
-            }
-        }, 300);
+                if (!active) {
+                    return;
+                }
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+                if ((err as Error).name === 'AbortError' && !timedOut) {
+                    return;
+                }
+
+                if ((err as Error).name === 'AbortError' && timedOut) {
+                    setSearchResults([]);
+                    setSearchError('Search took too long. Try a shorter query.');
+                    setShowResults(true);
+                } else {
+                    console.error('Search error:', err);
+                    setSearchResults([]);
+                    setSearchError('Search is temporarily unavailable.');
+                    setShowResults(true);
+                }
+            } finally {
+                window.clearTimeout(timeoutId);
+                if (active) {
+                    setIsSearching(false);
+                }
+            }
+        }, shouldLoadRecent ? 150 : 300);
+
+        return () => {
+            active = false;
+            window.clearTimeout(timeoutId);
+            clearTimeout(delayDebounceFn);
+            controller.abort();
+        };
+    }, [searchQuery, searchFocusTick]);
+
+    useEffect(() => {
+        const path = currentClientPath();
+        if (!path || lastTrackedPageRef.current === path) return;
+
+        lastTrackedPageRef.current = path;
+        trackActivity({
+            event: 'ui.page_viewed',
+            targetLabel: title,
+            targetRole: 'page',
+            path,
+        });
+    }, [page.url, title, trackActivity]);
+
+    useEffect(() => {
+        const getElementLabel = (element: HTMLElement) => {
+            const ariaLabel = element.getAttribute('aria-label');
+            const titleText = element.getAttribute('title');
+            const text = element.textContent;
+            return cleanActivityText(ariaLabel || titleText || text || element.getAttribute('href') || 'Unlabeled control');
+        };
+
+        const handleTrackedClick = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            const element = target?.closest<HTMLElement>('button, a, [role="button"]');
+            if (!element || !document.body.contains(element)) return;
+            if (element.closest('[data-activity-ignore="true"]')) return;
+
+            const isMenuNavigation = Boolean(element.closest('.app-nav'));
+            const tagName = element.tagName.toLowerCase();
+            const href = element instanceof HTMLAnchorElement
+                ? element.getAttribute('href')
+                : element.getAttribute('data-href');
+            const label = getElementLabel(element);
+
+            if (!label) return;
+
+            trackActivity({
+                event: isMenuNavigation ? 'ui.menu_navigated' : tagName === 'a' ? 'ui.link_clicked' : 'ui.button_clicked',
+                targetLabel: label,
+                targetRole: isMenuNavigation ? 'menu' : element.getAttribute('role') || tagName,
+                href,
+            });
+        };
+
+        document.addEventListener('click', handleTrackedClick, true);
+        return () => document.removeEventListener('click', handleTrackedClick, true);
+    }, [trackActivity]);
 
     // Click outside popovers to close
     useEffect(() => {
@@ -280,6 +906,9 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
         const path = href.split('?')[0];
         return path === '/' || path === '/dashboard';
     };
+
+    const sidebarIsCollapsed = sidebarCollapsed && !mobileSidebarOpen;
+    const showSidebarLabels = mobileSidebarOpen || !sidebarCollapsed;
 
     const attemptNavigate = async (href: string) => {
         const leavingDashboardWithUnsavedChanges =
@@ -351,13 +980,41 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
         setSettingsForm((prev) => ({ ...prev, [key]: value }));
     };
 
+    const handleSettingsFileChange = (key: string, file: File | null) => {
+        setSettingsFiles((prev) => ({ ...prev, [key]: file }));
+    };
+
+    const handleSettingsReset = () => {
+        setSettingsForm(savedSystemSettings);
+        setSettingsFiles({});
+    };
+
     const handleSettingsSave = () => {
+        if (!hasSettingsChanges || settingsSaving) return;
+
         setSettingsSaving(true);
-        router.post('/settings', settingsForm, {
+        const hasFiles = Object.values(settingsFiles).some(Boolean);
+        const payload = hasFiles
+            ? Object.entries(settingsForm).reduce((formData, [key, value]) => {
+                formData.append(key, value ?? '');
+                return formData;
+            }, new FormData())
+            : settingsForm;
+
+        if (hasFiles && payload instanceof FormData) {
+            Object.entries(settingsFiles).forEach(([key, file]) => {
+                if (file) {
+                    payload.append(key, file);
+                }
+            });
+        }
+
+        router.post('/settings', payload, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
                 setSettingsSaving(false);
+                setSettingsFiles({});
                 showSuccess('Settings saved successfully.');
                 setSettingsModalOpen(false);
             },
@@ -431,27 +1088,44 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
             {/* SIDEBAR */}
             <aside
-                className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${selectedThemePresetId === 'default' ? 'is-default-preset' : ''}`}
+                id="app-sidebar"
+                className={`app-sidebar ${sidebarIsCollapsed ? 'collapsed' : ''} ${mobileSidebarOpen ? 'mobile-open' : ''} ${selectedThemePresetId === 'default' ? 'is-default-preset' : ''}`}
             >
                 <div className="app-sidebar-deco-1" />
                 <div className="app-sidebar-deco-2" />
 
                 {/* Brand */}
                 <div className="app-brand">
-                    <div className="app-brand-icon">Q</div>
-                    {!sidebarCollapsed && (
+                    <div className={`app-brand-icon ${appLogoUrl ? 'app-brand-icon--image' : ''}`}>
+                        {appLogoUrl ? (
+                            <img
+                                src={appLogoUrl}
+                                alt=""
+                                style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 'inherit' }}
+                            />
+                        ) : appInitial}
+                    </div>
+                    {showSidebarLabels && (
                         <>
-                            <div className="app-brand-title">QUAMC</div>
-                            <div className="app-brand-subtitle">Quality Assurance Center</div>
+                            <div className="app-brand-title">{appDisplayName}</div>
+                            <div className="app-brand-subtitle">{appDetails}</div>
                         </>
                     )}
+                    <button
+                        type="button"
+                        className="app-mobile-sidebar-close"
+                        aria-label="Close navigation menu"
+                        onClick={() => setMobileSidebarOpen(false)}
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
                 {/* Nav */}
-                <nav className="app-nav">
+                <nav className="app-nav" data-tour="main-navigation">
                     {navItems.map((section, si) => (
                         <div key={si}>
-                            {!sidebarCollapsed && <div className="app-nav-section-label">{section.label}</div>}
+                            {showSidebarLabels && <div className="app-nav-section-label">{section.label}</div>}
                             {section.items.map((item) => {
                                 const active = isActive(item.href);
                                 const Icon = item.icon;
@@ -460,9 +1134,12 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                         key={item.screen} 
                                         href={item.href} 
                                         className={`app-nav-item ${active ? 'active' : ''}`}
-                                        title={sidebarCollapsed ? item.name : undefined}
+                                        title={!showSidebarLabels ? item.name : undefined}
                                         onClick={(e) => {
                                             e.preventDefault();
+                                            if (isMobileViewport) {
+                                                setMobileSidebarOpen(false);
+                                            }
                                             void attemptNavigate(item.href);
                                         }}
                                     >
@@ -470,13 +1147,13 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                         <div className="app-nav-item-icon">
                                             <Icon size={15} color={getIconColor(active)} />
                                         </div>
-                                        {!sidebarCollapsed && (
+                                        {showSidebarLabels && (
                                             <span style={{
                                                 fontSize: 15, fontWeight: 600, fontFamily: "'Inter', sans-serif", flex: 1,
                                                 color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-muted)',
                                             }}>{item.name}</span>
                                         )}
-                                        {!sidebarCollapsed && 'badge' in item && item.badge !== null && item.badge !== undefined && (
+                                        {showSidebarLabels && 'badge' in item && item.badge !== null && item.badge !== undefined && (
                                             <span style={{
                                                 background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)',
                                                 fontSize: 10, fontWeight: 700, padding: '1px 6px',
@@ -501,13 +1178,13 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                         <div className="app-user-avatar">
                             {user ? getInitials(user.name) : 'U'}
                         </div>
-                        {!sidebarCollapsed && (
+                        {showSidebarLabels && (
                             <div className="app-user-info">
                                 <div className="app-user-name">{user?.name ?? 'User'}</div>
                                 <div className="app-user-role">{user?.roles?.[0]?.name ?? 'Role'}</div>
                             </div>
                         )}
-                        {!sidebarCollapsed && <ChevronRight size={14} className="app-user-trigger-chevron" />}
+                        {showSidebarLabels && <ChevronRight size={14} className="app-user-trigger-chevron" />}
                     </button>
 
                     <button
@@ -517,7 +1194,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                         title="Log out"
                     >
                         <LogOut size={15} />
-                        {!sidebarCollapsed && <span>Log out</span>}
+                        {showSidebarLabels && <span>Log out</span>}
                     </button>
 
                     {isUserMenuOpen && (
@@ -551,17 +1228,6 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                     <span>Install app</span>
                                 </button>
                             )}
-                            <button
-                                type="button"
-                                className="app-user-menu-item app-user-menu-item-danger"
-                                onClick={async () => {
-                                    setIsUserMenuOpen(false);
-                                    await handleLogout();
-                                }}
-                            >
-                                <LogOut size={14} />
-                                <span>Log out</span>
-                            </button>
                         </div>
                     )}
                 </div>
@@ -576,9 +1242,19 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                             <button
                                 type="button"
                                 className="app-icon-btn"
-                                title="Layout"
+                                data-tour="mobile-navigation-toggle"
+                                title={isMobileViewport ? 'Open navigation menu' : 'Layout'}
+                                aria-controls="app-sidebar"
+                                aria-expanded={isMobileViewport ? mobileSidebarOpen : !sidebarCollapsed}
                                 style={{ width: 28, height: 28 }}
-                                onClick={() => setSidebarCollapsed((current) => !current)}
+                                onClick={() => {
+                                    if (isMobileViewport) {
+                                        setMobileSidebarOpen(true);
+                                        return;
+                                    }
+
+                                    setSidebarCollapsed((current) => !current);
+                                }}
                             >
                                 <PanelLeft size={15} />
                             </button>
@@ -587,14 +1263,32 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                 {title}
                             </div>
 
-                            <div ref={searchRef} className="app-search" style={{ marginLeft: 8, height: 32, minWidth: 200 }}>
+                            <div
+                                ref={searchRef}
+                                className="app-search"
+                                data-tour="global-search"
+                                style={{
+                                    marginLeft: isMobileViewport ? 4 : 8,
+                                    height: 32,
+                                    minWidth: isMobileViewport ? 0 : 200,
+                                    maxWidth: isMobileViewport ? 180 : undefined,
+                                }}
+                            >
                                 <Search size={14} />
                                 <input 
                                     type="text" 
-                                    placeholder="Search everything..." 
+                                    placeholder={isMobileViewport ? 'Search...' : 'Search everything...'} 
                                     value={searchQuery}
+                                    maxLength={80}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                                    onFocus={() => {
+                                        setShowResults(true);
+                                        if (searchQuery.trim().length < 2 && searchResults.length === 0) {
+                                            setSearchMode('recent');
+                                            setIsSearching(true);
+                                        }
+                                        setSearchFocusTick((tick) => tick + 1);
+                                    }}
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
@@ -614,30 +1308,61 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                             <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                                                 <Loader2 size={14} className="animate-spin" /> Searching...
                                             </div>
+                                        ) : searchError ? (
+                                            <div style={{ padding: '16px', color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                                                {searchError}
+                                            </div>
                                         ) : searchResults.length > 0 ? (
-                                            searchResults.map((res, i) => {
-                                                const Icon = res.type === 'document' ? File : res.type === 'program' ? ProgramIcon : Folder;
-                                                return (
-                                                    <div key={i} onClick={() => handleResultClick(res.href)} style={{
-                                                        padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-                                                        borderBottom: i === searchResults.length - 1 ? 'none' : '1px solid var(--color-border)',
-                                                    }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                                        <div style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--color-background)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                            <Icon size={12} color="var(--color-text-secondary)" />
+                                            <>
+                                                <div style={{ padding: '4px 16px 8px', fontSize: 10, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 0 }}>
+                                                    {searchMode === 'recent' ? '3 most recent' : 'Top results'}
+                                                </div>
+                                                {searchResults.map((res, i) => {
+                                                    const Icon =
+                                                        res.type === 'document' ? File :
+                                                        res.type === 'program' ? ProgramIcon :
+                                                        res.type === 'user' ? User :
+                                                        res.type === 'cycle' ? Calendar :
+                                                        res.type === 'standard' ? FileText :
+                                                        Folder;
+                                                    return (
+                                                        <div key={res.id ?? i} onClick={() => handleResultClick(res.href)} style={{
+                                                            padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                                                            borderBottom: i === searchResults.length - 1 ? 'none' : '1px solid var(--color-border)',
+                                                        }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                                            <div style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--color-background)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <Icon size={12} color="var(--color-text-secondary)" />
+                                                            </div>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.title}</div>
+                                                                <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    {res.subtitle ? `${res.type} • ${res.subtitle}` : res.type}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.title}</div>
-                                                            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'capitalize' }}>{res.type}</div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
+                                                    );
+                                                })}
+                                            </>
                                         ) : (
-                                            <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12 }}>No results found</div>
+                                            <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                                                {searchMode === 'recent' ? 'No recent items yet' : 'No results found'}
+                                            </div>
                                         )}
                                     </div>
                                 )}
                             </div>
+
+                            {tourSteps.length > 0 && (
+                                <button
+                                    type="button"
+                                    className="app-tour-help-btn"
+                                    title="Start page tutorial"
+                                    aria-label="Start page tutorial"
+                                    onClick={startTour}
+                                >
+                                    <CircleHelp size={17} />
+                                </button>
+                            )}
 
                             <Link 
                                 href="/notifications" 
@@ -650,7 +1375,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                 }}
                             >
                                 <Megaphone size={15} color={currentPath === '/notifications' ? 'var(--color-text)' : '#6b7280'} />
-                                {page.props.notifications_count > 0 && (
+                                {(page.props.notifications_count ?? 0) > 0 && (
                                     <span style={{
                                         position: 'absolute', top: 2, right: 2, width: 8, height: 8,
                                         background: '#ef4444', borderRadius: '50%', border: '2px solid var(--color-panel-bg)'
@@ -665,6 +1390,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                 <Link
                                     href="/cycles"
                                     className={`app-cycle-pill ${viewingCycle?.is_active ? 'active' : 'viewing'}`}
+                                    data-tour="cycle-switcher"
                                     title="Manage accreditation cycles"
                                     onClick={(e) => {
                                         e.preventDefault();
@@ -683,6 +1409,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                             ) : (
                                 <div
                                     className={`app-cycle-pill ${viewingCycle?.is_active ? 'active' : 'viewing'}`}
+                                    data-tour="cycle-switcher"
                                     title="Current accreditation cycle"
                                 >
                                     <Calendar size={14} />
@@ -712,6 +1439,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                     <button
                                         type="button"
                                         className={`app-icon-btn ${isEditMode ? 'active' : ''}`}
+                                        data-tour="dashboard-edit"
                                         title="Edit Dashboard Layout"
                                         style={{ 
                                             width: 30, height: 30, marginRight: 4,
@@ -959,10 +1687,133 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
             <SettingsModal
                 open={settingsModalOpen}
                 saving={settingsSaving}
+                hasChanges={hasSettingsChanges}
                 settings={settingsForm}
-                onClose={() => setSettingsModalOpen(false)}
+                schema={settingsSchema}
+                onClose={() => {
+                    setSettingsFiles({});
+                    setSettingsModalOpen(false);
+                }}
                 onSave={handleSettingsSave}
+                onReset={handleSettingsReset}
                 onChange={handleSettingsChange}
+                onFileChange={handleSettingsFileChange}
+            />
+            <Joyride
+                run={tourOpen && tourSteps.length > 0}
+                stepIndex={tourStepIndex}
+                steps={tourSteps}
+                continuous
+                scrollToFirstStep
+                onEvent={handleTourEvent}
+                locale={{
+                    back: 'Back',
+                    close: 'Close tutorial',
+                    last: 'Done',
+                    next: 'Next',
+                    nextWithProgress: 'Next ({current} of {total})',
+                    skip: 'Skip',
+                }}
+                options={{
+                    arrowColor: 'var(--color-panel-bg)',
+                    backgroundColor: 'var(--color-panel-bg)',
+                    buttons: ['skip', 'back', 'close', 'primary'],
+                    closeButtonAction: 'skip',
+                    dismissKeyAction: 'close',
+                    overlayClickAction: false,
+                    overlayColor: 'rgba(15, 23, 42, 0.46)',
+                    primaryColor: '#2563eb',
+                    scrollDuration: 260,
+                    scrollOffset: 78,
+                    showProgress: true,
+                    skipBeacon: true,
+                    spotlightPadding: 8,
+                    spotlightRadius: 10,
+                    targetWaitTimeout: 1600,
+                    textColor: 'var(--color-text)',
+                    width: 340,
+                    zIndex: 260,
+                }}
+                styles={{
+                    floater: {
+                        filter: 'drop-shadow(0 24px 40px rgba(15, 23, 42, 0.22))',
+                        maxWidth: 'calc(100vw - 32px)',
+                    },
+                    spotlight: {
+                        stroke: '#2563eb',
+                        strokeWidth: 2,
+                    },
+                    tooltip: {
+                        border: '1px solid var(--color-panel-border)',
+                        borderRadius: 8,
+                        boxShadow: 'none',
+                        maxWidth: 'calc(100vw - 32px)',
+                        padding: 14,
+                    },
+                    tooltipContainer: {
+                        lineHeight: 1.48,
+                        textAlign: 'left',
+                    },
+                    tooltipTitle: {
+                        color: 'var(--color-text)',
+                        fontSize: 15,
+                        fontWeight: 700,
+                        lineHeight: 1.25,
+                        margin: '0 32px 8px 0',
+                    },
+                    tooltipContent: {
+                        color: 'var(--color-text-secondary)',
+                        fontSize: 12.5,
+                        padding: '0 0 14px',
+                    },
+                    tooltipFooter: {
+                        alignItems: 'center',
+                        display: 'flex',
+                        gap: 8,
+                        justifyContent: 'flex-end',
+                    },
+                    buttonBack: {
+                        background: 'var(--color-panel-bg)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 8,
+                        color: 'var(--color-text)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        marginLeft: 0,
+                        marginRight: 0,
+                        minHeight: 34,
+                        padding: '0 12px',
+                    },
+                    buttonPrimary: {
+                        backgroundColor: '#2563eb',
+                        border: '1px solid #2563eb',
+                        borderRadius: 8,
+                        color: '#ffffff',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        minHeight: 34,
+                        padding: '0 12px',
+                    },
+                    buttonSkip: {
+                        color: 'var(--color-text-secondary)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        minHeight: 34,
+                        padding: '0 10px',
+                    },
+                    buttonClose: {
+                        alignItems: 'center',
+                        borderRadius: 8,
+                        color: 'var(--color-text-secondary)',
+                        display: 'inline-flex',
+                        height: 28,
+                        justifyContent: 'center',
+                        padding: 0,
+                        right: 8,
+                        top: 8,
+                        width: 28,
+                    },
+                }}
             />
             {installModalOpen && deferredInstallPrompt && (
                 <div

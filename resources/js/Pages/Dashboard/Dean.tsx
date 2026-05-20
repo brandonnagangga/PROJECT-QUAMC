@@ -16,9 +16,11 @@ interface ProgramInfo { id: number; name: string; code: string; pct: number; are
 interface DocInfo { id: string; title: string; path: string; prog: string; ver: string; status: string; date: string; uploader: string; }
 interface ActivityInfo { icon: string; bg: string; color: string; text: string; time: string; }
 interface Stats { programs: string; readiness: string; readinessSub: string; approved: string; approvedSub: string; pending: string; pendingSub: string; }
+interface DeadlineEvent { deadline_at: string; days_left: number; assigned_user_ids?: string[]; }
 interface Props {
     stats: Stats; programs: ProgramInfo[]; recentDocs: DocInfo[];
     activities: ActivityInfo[]; currentRole: string;
+    deadlineEvents?: DeadlineEvent[];
     graphData: {
         nodes: { id: string; label: string; type: 'area' | 'subarea' | 'program' }[];
         links: { source: string; target: string }[];
@@ -32,11 +34,11 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
     draft: { bg: '#f0f2f8', color: '#8892aa', label: 'Draft' },
 };
 
-export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole, graphData }: Props) {
+export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole, graphData, deadlineEvents = [] }: Props) {
     const { auth } = usePage<PageProps>().props;
     const approvedCount = Number(stats.approved || 0);
     const pendingCount = Number(stats.pending || 0);
-    const areaData = (programs[0]?.areas ?? []).slice(0, 6).map((area) => ({ label: area.name, value: area.pct }));
+    const areaData = (programs[0]?.areas ?? []).slice(0, 6).map((area, index) => ({ label: `Area ${index + 1}`, value: area.pct }));
     const comparisonSeries = areaData.map((area, index) => ({
         label: area.label,
         value: Math.max(0, area.value - ((index % 2) * 8 + 5)),
@@ -64,7 +66,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                                 <div style={{ fontSize: 9.5, fontWeight: 600, color: '#8892aa', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>
                                     {card.label}
                                 </div>
-                                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: '#0f1f3d' }}>
+                                <div style={{ fontSize: 28, fontWeight: 700, color: '#0f1f3d' }}>
                                     <AnimatedValue value={card.value} />
                                 </div>
                                 <div style={{ fontSize: 11, color: '#8892aa', marginTop: 3 }}>{card.sub}</div>
@@ -77,9 +79,9 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.65fr', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="dean.area_completion_chart">
-                    <ChartPanel title="Area Completion" subtitle="This term">
+                    <ChartPanel title="Area Completion" subtitle="This term" fullHeight>
                         <MinimalLineChart
                             primary={areaData}
                             secondary={comparisonSeries}
@@ -89,7 +91,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                     </ChartPanel>
                 </DashboardWidgetWrapper>
                 <DashboardWidgetWrapper id="dean.calendar">
-                    <CalendarCard />
+                    <CalendarCard deadlines={deadlineEvents} currentUserId={auth.user.id} />
                 </DashboardWidgetWrapper>
             </div>
 
@@ -112,15 +114,15 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                 <div>
                     <DashboardWidgetWrapper id="dean.documents_for_review">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>
+                            <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>
                                 Documents for Review
                             </div>
                             <a href="/documents" style={{ fontSize: 11, color: '#c9a84c', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
                                 View all <ArrowRight size={12} />
                             </a>
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <div className="table-responsive-stack-wrapper" style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, overflow: 'hidden' }}>
+                            <table className="table-responsive-stack" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                 <thead>
                                     <tr style={{ background: '#f8f9fc', borderBottom: '1px solid #dde1ed' }}>
                                         {['Document', 'Area / Item', 'Program', 'Status', 'Date'].map(h => (
@@ -137,20 +139,20 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                                                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                                 onClick={() => router.visit(`/documents/${doc.id}`)}
                                             >
-                                                <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>
+                                                <td data-label="Document" className="stack-vertical" style={{ padding: '10px 14px', fontWeight: 500, color: '#0f1f3d' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                         <FileText size={13} color="#8892aa" /> {doc.title}
                                                         <span style={{ fontSize: 10, color: '#b8bfd4' }}>{doc.ver}</span>
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '10px 14px', color: '#4a5470', fontSize: 11 }}>{doc.path}</td>
-                                                <td style={{ padding: '10px 14px' }}>
+                                                <td data-label="Area / Item" style={{ padding: '10px 14px', color: '#4a5470', fontSize: 11 }}>{doc.path}</td>
+                                                <td data-label="Program" style={{ padding: '10px 14px' }}>
                                                     <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#0f1f3d', color: '#c9a84c', fontWeight: 600 }}>{doc.prog}</span>
                                                 </td>
-                                                <td style={{ padding: '10px 14px' }}>
+                                                <td data-label="Status" style={{ padding: '10px 14px' }}>
                                                     <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
                                                 </td>
-                                                <td style={{ padding: '10px 14px', color: '#8892aa', fontSize: 11 }}>{doc.date}</td>
+                                                <td data-label="Date" style={{ padding: '10px 14px', color: '#8892aa', fontSize: 11 }}>{doc.date}</td>
                                             </tr>
                                         );
                                     })}
@@ -163,7 +165,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                 {/* Right sidebar — activity + area completion */}
                 <div>
                     <DashboardWidgetWrapper id="dean.area_completion_list">
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
+                        <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
                             Area Completion
                         </div>
                         <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
@@ -177,18 +179,18 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                     </DashboardWidgetWrapper>
 
                     <DashboardWidgetWrapper id="dean.return_rate_stats">
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
+                        <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d', marginBottom: 14 }}>
                             Return Rate Stats
                         </div>
                         <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: 16, textAlign: 'center' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
                                 <div>
-                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#1a7a4a' }}>{stats.approved}</div>
+                                    <div style={{ fontFamily: "'inherit", fontSize: 24, fontWeight: 700, color: '#1a7a4a' }}>{stats.approved}</div>
                                     <div style={{ fontSize: 10, color: '#8892aa' }}>Forwarded</div>
                                 </div>
                                 <div style={{ width: 1, background: '#f0f2f8' }} />
                                 <div>
-                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#9b1c1c' }}>0</div>
+                                    <div style={{ fontFamily: "'inherit", fontSize: 24, fontWeight: 700, color: '#9b1c1c' }}>0</div>
                                     <div style={{ fontSize: 10, color: '#8892aa' }}>Returned</div>
                                 </div>
                             </div>

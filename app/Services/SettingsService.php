@@ -11,24 +11,24 @@ class SettingsService
      */
     public function getAllSettings(): array
     {
-        $defaults = [
-            'institution' => 'State University',
-            'academicYear' => '2024-2025',
-            'accreditationBody' => 'AACCUP',
-            'systemName' => 'QUAMC',
-            'sessionTimeout' => '60',
-            'maxFileSize' => '50',
-            'allowedExtensions' => 'pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png',
-            'storageLimit' => '10',
-            'emailNotifications' => '1',
-            'documentSubmitted' => '1',
-            'documentApproved' => '1',
-            'documentReturned' => '1',
-            'deadlineReminder' => '1',
-        ];
+        $defaults = config('system_settings.defaults', []);
 
         $saved = Setting::allAsArray();
-        return array_merge($defaults, $saved);
+        $settings = array_merge($defaults, $saved);
+        $logoPath = (string) ($settings['appLogoPath'] ?? '');
+        $settings['appLogoUrl'] = $logoPath !== ''
+            ? route('settings.logo', [], false) . '?v=' . md5($logoPath)
+            : '';
+
+        return $settings;
+    }
+
+    /**
+     * Get the settings schema used by the UI.
+     */
+    public function getSettingsSchema(): array
+    {
+        return config('system_settings.schema', []);
     }
 
     /**

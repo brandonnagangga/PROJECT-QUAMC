@@ -47,8 +47,8 @@ export default function StandardsIndex({ standards, areas }: Props) {
             <Head title="Standards" />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 20 }}>
-                <section style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 22 }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: 'var(--color-text)', marginBottom: 8 }}>
+                <section data-tour="standards-upload" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 22 }}>
+                    <div style={{ fontFamily: "'inherit", fontSize: 20, color: 'var(--color-text)', marginBottom: 8 }}>
                         Reference Standards
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 18 }}>
@@ -128,7 +128,7 @@ export default function StandardsIndex({ standards, areas }: Props) {
                     </form>
                 </section>
 
-                <section style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 22 }}>
+                <section data-tour="standards-library" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 22 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', marginBottom: 14 }}>Indexed Standard Library</div>
                     <div style={{ display: 'grid', gap: 10 }}>
                         {standards.map((standard) => (

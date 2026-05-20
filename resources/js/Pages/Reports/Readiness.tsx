@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import { useEffect, useState } from 'react';
 import {
     CheckCircle, Clock, RotateCcw, FileText, Download,
     TrendingUp, BarChart3, Award
@@ -11,6 +12,7 @@ interface AreaData {
 }
 interface ProgramData {
     id: number; name: string; code: string;
+    logo_url: string | null;
     total: number; approved: number; pending: number;
     returned: number; draft: number; pct: number; areas: AreaData[];
 }
@@ -23,27 +25,42 @@ interface Props { programs: ProgramData[]; summary: Summary; }
 const areaColors = ['#1a7a4a', '#185FA5', '#c9a84c', '#6b3fa0', '#e07a00', '#9b1c1c', '#185FA5', '#9b1c1c', '#1a7a4a', '#c9a84c'];
 
 export default function Readiness({ programs, summary }: Props) {
+    const [viewportWidth, setViewportWidth] = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
+    const isMobile = viewportWidth < 768;
+    const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
+
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     return (
         <AppLayout title="Readiness Report" breadcrumb="Reports › Accreditation Readiness">
             <Head title="Accreditation Readiness Report" />
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div data-tour="reports-export" style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 0, marginBottom: 24 }}>
                 <a href="/reports/readiness/export" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                     background: 'var(--color-button-primary-bg)', color: 'var(--color-button-primary-text)', textDecoration: 'none',
                     fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
+                    width: isMobile ? '100%' : 'auto',
+                    justifyContent: 'center',
                 }}>
                     <Download size={14} /> Export PDF
                 </a>
             </div>
 
             {/* Overall Score Card */}
-            <div style={{
+            <div data-tour="reports-overall" style={{
                 background: 'linear-gradient(135deg, #0f1f3d 0%, #1a3362 100%)',
                 borderRadius: 16, padding: '32px 36px', marginBottom: 24,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between',
+                flexDirection: isMobile ? 'column' : 'row',
                 color: '#fff', position: 'relative', overflow: 'hidden',
             }}>
                 <div style={{
@@ -54,7 +71,7 @@ export default function Readiness({ programs, summary }: Props) {
                     <div style={{ fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
                         Overall Readiness
                     </div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 56, fontWeight: 700, color: '#c9a84c', lineHeight: 1 }}>
+                    <div style={{ fontFamily: "'inherit", fontSize: 56, fontWeight: 700, color: '#c9a84c', lineHeight: 1 }}>
                         {summary.overallPct}%
                     </div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 8 }}>
@@ -63,7 +80,7 @@ export default function Readiness({ programs, summary }: Props) {
                 </div>
 
                 {/* Progress ring */}
-                <div style={{ position: 'relative', width: 120, height: 120 }}>
+                <div style={{ position: 'relative', width: 120, height: 120, marginTop: isMobile ? 10 : 0, alignSelf: isMobile ? 'center' : 'auto' }}>
                     <svg width="120" height="120" viewBox="0 0 120 120">
                         <circle cx="60" cy="60" r="50" stroke="rgba(255,255,255,0.1)" strokeWidth="10" fill="none" />
                         <circle cx="60" cy="60" r="50" stroke="#c9a84c" strokeWidth="10" fill="none"
@@ -82,7 +99,7 @@ export default function Readiness({ programs, summary }: Props) {
             </div>
 
             {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+            <div data-tour="reports-summary" style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, 1fr)`, gap: 14, marginBottom: 24 }}>
                 {[
                     { icon: CheckCircle, label: 'Approved', count: summary.approved, color: '#1a7a4a', bg: '#e8f5ee' },
                     { icon: Clock, label: 'Pending Review', count: summary.pending, color: '#6b3fa0', bg: '#f3eeff' },
@@ -91,7 +108,7 @@ export default function Readiness({ programs, summary }: Props) {
                 ].map(s => (
                     <div key={s.label} style={{
                         background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12,
-                        padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14,
+                        padding: '14px 14px', display: 'flex', alignItems: 'center', gap: 10,
                     }}>
                         <div style={{
                             width: 42, height: 42, borderRadius: 10, background: s.bg,
@@ -100,7 +117,7 @@ export default function Readiness({ programs, summary }: Props) {
                             <s.icon size={18} color={s.color} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: "'Playfair Display', serif" }}>{s.count}</div>
+                            <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: s.color, fontFamily: "'inherit" }}>{s.count}</div>
                             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{s.label}</div>
                         </div>
                     </div>
@@ -108,25 +125,37 @@ export default function Readiness({ programs, summary }: Props) {
             </div>
 
             {/* Per-Program Breakdown */}
-            <div style={{ display: 'grid', gap: 20 }}>
+            <div data-tour="reports-programs" style={{ display: 'grid', gap: 20 }}>
                 {programs.map(program => (
                     <div key={program.id} style={{
                         background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, overflow: 'hidden',
                     }}>
                         {/* Program header */}
                         <div style={{
-                            padding: '18px 24px', borderBottom: '1px solid var(--color-border)',
+                            padding: '14px 16px', borderBottom: '1px solid var(--color-border)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            flexDirection: isMobile ? 'column' : 'row',
+                            gap: isMobile ? 10 : 0,
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <div style={{
-                                    width: 40, height: 40, borderRadius: 8, background: '#0f1f3d',
+                                    width: 48, height: 48, borderRadius: 8, background: '#f8fafc',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    border: '1px solid var(--color-border)', overflow: 'hidden',
+                                    flexShrink: 0,
                                 }}>
-                                    <BarChart3 size={18} color="#c9a84c" />
+                                    {program.logo_url ? (
+                                        <img
+                                            src={program.logo_url}
+                                            alt={`${program.code} logo`}
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                                        />
+                                    ) : (
+                                        <BarChart3 size={18} color="#6b7280" />
+                                    )}
                                 </div>
                                 <div>
-                                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>
+                                    <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>
                                         {program.name}
                                     </div>
                                     <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
@@ -134,7 +163,7 @@ export default function Readiness({ programs, summary }: Props) {
                                     </div>
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
                                 <a
                                     href={`/reports/readiness/export/${program.id}`}
                                     title={`Export ${program.code} Readiness PDF`}
@@ -149,14 +178,14 @@ export default function Readiness({ programs, summary }: Props) {
                                     <Download size={12} /> Export {program.code} PDF
                                 </a>
                                 <div style={{
-                                    fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700,
+                                    fontFamily: "'inherit", fontSize: isMobile ? 22 : 26, fontWeight: 700,
                                     color: program.pct >= 80 ? '#1a7a4a' : program.pct > 0 ? '#c9a84c' : '#b8bfd4',
                                 }}>{program.pct}%</div>
                             </div>
                         </div>
 
                         {/* Mini stats */}
-                        <div style={{ padding: '14px 24px', display: 'flex', gap: 20, borderBottom: '1px solid var(--color-border)' }}>
+                        <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 10, borderBottom: '1px solid var(--color-border)' }}>
                             {[
                                 { label: 'Approved', val: program.approved, color: '#1a7a4a' },
                                 { label: 'Pending', val: program.pending, color: '#6b3fa0' },
@@ -172,8 +201,8 @@ export default function Readiness({ programs, summary }: Props) {
                         </div>
 
                         {/* Area bars */}
-                        <div style={{ padding: '16px 24px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                        <div style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : isTablet ? 3 : 5}, 1fr)`, gap: 8 }}>
                                 {program.areas.map((area, ai) => (
                                     <div key={ai} style={{
                                         padding: '10px 12px', background: 'var(--color-background)', borderRadius: 8,

@@ -160,6 +160,9 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
         [filteredRows]
     );
 
+    const formatRiskLabel = (risk: RiskFilter) =>
+        risk === 'all' ? 'All Risk' : `${risk[0].toUpperCase()}${risk.slice(1)} Risk`;
+
     return (
         <div
             style={{
@@ -178,6 +181,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: 12,
+                    flexWrap: 'wrap',
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
@@ -233,7 +237,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                                 gap: 6,
                             }}
                         >
-                            <span>Filter: {riskFilter === 'all' ? 'All Risk' : `${riskFilter[0].toUpperCase()}${riskFilter.slice(1)} Risk`}</span>
+                            <span>Filter: {formatRiskLabel(riskFilter)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>▾</span>
                         </button>
                         {riskMenuOpen && (
@@ -253,7 +257,7 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                             >
                                 {(['all', 'low', 'medium', 'high'] as const).map((option) => {
                                     const active = riskFilter === option;
-                                    const label = option === 'all' ? 'All Risk' : `${option[0].toUpperCase()}${option.slice(1)} Risk`;
+                                    const label = formatRiskLabel(option);
                                     return (
                                         <button
                                             key={option}
@@ -370,8 +374,8 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                 </button>
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+            <div className="table-responsive-stack-wrapper" style={{ overflowX: 'auto' }}>
+                <table className="table-responsive-stack" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
                             {['Program', 'Readiness', 'Areas Ready', 'Pending Areas', 'At Risk', 'Status', 'Risk'].map((header) => (
@@ -404,11 +408,12 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                         )}
                         {filteredRows.map((row) => (
                             <tr key={row.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--color-text)', fontWeight: 500 }}>{row.program}</td>
-                                <td style={{ padding: '12px 16px', color: '#0f766e', fontWeight: 600 }}>{row.readiness}%</td>
-                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.areasReady}</td>
-                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.pendingAreas}</td>
+                                <td data-label="Program" className="stack-vertical" style={{ padding: '12px 16px', fontSize: 14, color: 'var(--color-text)', fontWeight: 500 }}>{row.program}</td>
+                                <td data-label="Readiness" style={{ padding: '12px 16px', color: '#0f766e', fontWeight: 600 }}>{row.readiness}%</td>
+                                <td data-label="Areas Ready" style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.areasReady}</td>
+                                <td data-label="Pending Areas" style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.pendingAreas}</td>
                                 <td
+                                    data-label="At Risk"
                                     style={{
                                         padding: '12px 16px',
                                         color: row.atRiskAreas > 0 ? '#b45309' : 'var(--color-text-secondary)',
@@ -417,8 +422,8 @@ export function ProgramOversightTable({ programs = [] }: { programs?: ProgramRea
                                 >
                                     {row.atRiskAreas}
                                 </td>
-                                <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.status}</td>
-                                <td style={{ padding: '12px 16px' }}>
+                                <td data-label="Status" style={{ padding: '12px 16px', color: 'var(--color-text-secondary)' }}>{row.status}</td>
+                                <td data-label="Risk" style={{ padding: '12px 16px' }}>
                                     <span
                                         style={{
                                             fontSize: 12,

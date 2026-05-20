@@ -32,7 +32,7 @@ export const themes = {
       accent: '#c9a84c', // Gold accent for themed mode
     },
     fonts: {
-      heading: 'Playfair Display, serif',
+      heading: 'inherit',
       body: 'DM Sans, sans-serif',
     },
   },
@@ -48,7 +48,7 @@ export const themes = {
         text: '#111827',
       },
       fonts: {
-        heading: 'Playfair Display, serif',
+        heading: 'inherit',
         body: 'DM Sans, sans-serif',
       },
       decorations: {},
@@ -64,7 +64,7 @@ export const themes = {
         text: '#1A1A1A',
       },
       fonts: {
-        heading: 'Playfair Display, serif',
+        heading: 'inherit',
         body: 'DM Sans, sans-serif',
       },
       decorations: {
@@ -83,7 +83,7 @@ export const themes = {
         text: '#1A1A1A',
       },
       fonts: {
-        heading: 'Playfair Display, serif',
+        heading: 'inherit',
         body: 'DM Sans, sans-serif',
       },
       decorations: {
@@ -102,7 +102,7 @@ export const themes = {
         text: '#1A1A1A',
       },
       fonts: {
-        heading: 'Playfair Display, serif',
+        heading: 'inherit',
         body: 'DM Sans, sans-serif',
       },
       decorations: {
@@ -120,7 +120,7 @@ export const themes = {
         text: '#FFFFFF',
       },
       fonts: {
-        heading: 'Playfair Display, serif',
+        heading: 'inherit',
         body: 'DM Sans, sans-serif',
       },
       decorations: {

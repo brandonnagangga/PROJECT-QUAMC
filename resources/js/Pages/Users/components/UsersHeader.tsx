@@ -17,7 +17,7 @@ export function UsersHeader({
     const isMinimalist = theme.mode === 'minimalist';
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div data-tour="users-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button onClick={onExport} style={toolbarGhostButton}><Download size={14} /> Export Directory</button>
                 {authRole === 'admin' && <button onClick={onCreate} style={getToolbarPrimaryButton(isMinimalist)}><UserPlus size={14} /> Add a New User</button>}

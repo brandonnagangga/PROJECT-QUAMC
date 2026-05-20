@@ -997,7 +997,7 @@ export default function AreasManagement({ areas }: Props) {
 
             <div className="grid gap-[18px] max-sm:gap-3.5 [&_a]:touch-manipulation [&_button]:touch-manipulation [&_a:focus-visible]:!outline [&_button:focus-visible]:!outline [&_input:focus-visible]:!outline [&_textarea:focus-visible]:!outline [&_a:focus-visible]:!outline-[3px] [&_button:focus-visible]:!outline-[3px] [&_input:focus-visible]:!outline-[3px] [&_textarea:focus-visible]:!outline-[3px] [&_a:focus-visible]:!outline-blue-600/30 [&_button:focus-visible]:!outline-blue-600/30 [&_input:focus-visible]:!outline-blue-600/30 [&_textarea:focus-visible]:!outline-blue-600/30 [&_a:focus-visible]:!outline-offset-2 [&_button:focus-visible]:!outline-offset-2 [&_input:focus-visible]:!outline-offset-2 [&_textarea:focus-visible]:!outline-offset-2 motion-reduce:[&_*]:!transition-none motion-reduce:[&_*]:!animate-none">
             {/* ── Subtitle & Actions ── */}
-            <div className="rounded-xl border border-slate-200 bg-white p-[18px] shadow-[0_10px_24px_rgba(15,23,42,0.06)] [background-image:linear-gradient(135deg,rgba(15,31,61,0.04),rgba(26,122,74,0.04))] max-sm:p-3.5" style={{
+            <div data-tour="areas-management-header" className="rounded-xl border border-slate-200 bg-white p-[18px] shadow-[0_10px_24px_rgba(15,23,42,0.06)] [background-image:linear-gradient(135deg,rgba(15,31,61,0.04),rgba(26,122,74,0.04))] max-sm:p-3.5" style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
                 marginBottom: 18, gap: 12, flexWrap: 'wrap',
             }}>
@@ -1045,7 +1045,7 @@ export default function AreasManagement({ areas }: Props) {
             </div>
 
             {/* ── Summary strip + Search ── */}
-            <div className="!mb-0 max-sm:w-full" style={{
+            <div data-tour="areas-management-summary" className="!mb-0 max-sm:w-full" style={{
                 display: 'flex', gap: 12, marginBottom: 18,
                 flexWrap: 'wrap', alignItems: 'stretch',
             }}>
@@ -1098,7 +1098,7 @@ export default function AreasManagement({ areas }: Props) {
             </div>
 
             {/* ── Area list ── */}
-            <div className="!gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div data-tour="areas-management-list" className="!gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {areas.length === 0 && (
                     <div className="!border-slate-200 !shadow-[0_10px_24px_rgba(15,23,42,0.06)]" style={{
                         textAlign: 'center', padding: '60px 24px',

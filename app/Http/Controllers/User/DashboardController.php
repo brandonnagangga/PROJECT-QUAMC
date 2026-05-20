@@ -28,7 +28,9 @@ class DashboardController extends Controller
         $readinessTrend = $this->buildReadinessTrend($user, $role?->slug, 365);
 
         // ── Programs with area completion (based on doc slots: 3 per sub-area) ──
-        $programs = Program::where('is_active', true)->get()
+        $activePrograms = Program::where('is_active', true)->orderBy('code')->get();
+
+        $programs = $activePrograms
             ->map(function ($program) {
                 $areas = Area::orderBy('order_number')->get()->map(function ($area) use ($program) {
                     $subAreaIds = $area->subAreas()->pluck('id');
@@ -153,6 +155,22 @@ class DashboardController extends Controller
                 'days_left'   => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
             ]);
 
+        $activeProgramCodes = $activePrograms->pluck('code')->values();
+        $deadlineEvents = Area::where('is_archived', false)
+            ->with('assignments:id,area_id,user_id')
+            ->whereNotNull('deadline_at')
+            ->orderBy('deadline_at')
+            ->get()
+            ->map(fn($a) => [
+                'id'             => $a->id,
+                'name'           => $a->name,
+                'deadline_at'    => $a->deadline_at->format('Y-m-d'),
+                'days_left'      => (int) ceil(($a->deadline_at->timestamp - now()->timestamp) / 86400),
+                'program_codes'  => $activeProgramCodes->all(),
+                'program_count'  => $activeProgramCodes->count(),
+                'assigned_user_ids' => $a->assignments->pluck('user_id')->values()->all(),
+            ]);
+
         // ── Open returns (replaces the old pending-submission lists) ──
         $openReturns = $this->buildOpenReturns($user, $role?->slug);
 
@@ -174,6 +192,7 @@ class DashboardController extends Controller
             'areaItems'         => $areaItems,
             'upcomingDeadlines' => $upcomingDeadlines,
             'overdueDeadlines'  => $overdueDeadlines,
+            'deadlineEvents'    => $deadlineEvents,
             'currentRole'       => $role?->slug ?? 'director',
             'userCount'         => User::count(),
             'logCount'          => ActivityLog::count(),

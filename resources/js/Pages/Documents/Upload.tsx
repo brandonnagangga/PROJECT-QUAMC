@@ -104,7 +104,7 @@ export default function UploadPage({ programs, areas, my_program_id, assigned_ar
 
                     {/* Header */}
                     <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#0f1f3d' }}>
+                        <div style={{ fontFamily: "'inherit", fontSize: 20, fontWeight: 700, color: '#0f1f3d' }}>
                             Upload Evidence
                         </div>
                         <div style={{ fontSize: 12, color: '#8892aa', marginTop: 3 }}>
@@ -250,7 +250,7 @@ export default function UploadPage({ programs, areas, my_program_id, assigned_ar
 
                 {/* ── AREA PROGRESS SIDEBAR ── */}
                 <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 600, color: '#0f1f3d', marginBottom: 12 }}>Area Progress</div>
+                    <div style={{ fontFamily: "'inherit", fontSize: 14, fontWeight: 600, color: '#0f1f3d', marginBottom: 12 }}>Area Progress</div>
                     <div style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '6px 0' }}>
                         {areaItems.map((ai, i) => (
                             <div key={i} style={{ padding: '10px 16px', borderBottom: i < areaItems.length - 1 ? '1px solid #f0f2f8' : 'none' }}>

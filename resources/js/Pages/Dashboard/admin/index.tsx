@@ -1,35 +1,27 @@
 import { Head } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Activity, FileText, Shield, Users } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { ProgramOversightTable } from './ProgramOversightTable';
-import { ReadinessTrendPanel } from './ReadinessTrendPanel';
-import { RecentUploadsPanel } from './RecentUploadsPanel';
+import { DeadlineCalendarPanel } from './DeadlineCalendarPanel';
 import { SystemOverviewCards } from './SystemOverviewCards';
 import DashboardWidgetWrapper from '@/components/dashboard/DashboardWidgetWrapper';
 import type { AdminDashboardProps, MetricCard } from './types';
-
-function parsePercent(value: string | number | null | undefined): number {
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    if (typeof value !== 'string') return 0;
-
-    const numeric = parseFloat(value.replace('%', '').trim());
-    return Number.isFinite(numeric) ? numeric : 0;
-}
+import type { PageProps } from '@/types/models.d';
 
 export default function AdminDashboard({
     stats,
     userCount,
     logCount,
-    readinessTrend = [],
     programs = [],
-    recentDocs = [],
+    deadlineEvents = [],
 }: AdminDashboardProps) {
+    const { auth } = usePage<PageProps>().props;
     const approvedCount = Number(stats.approved ?? 0);
     const pendingCount = Number(stats.pending ?? 0);
     const totalDocs = approvedCount + pendingCount;
     const approvalRate = totalDocs > 0 ? Math.round((approvedCount / totalDocs) * 100) : 0;
-    const readinessPercent = Math.max(0, Math.min(100, parsePercent(stats.readiness)));
 
     const systemMetrics = useMemo<MetricCard[]>(
         () => [
@@ -77,14 +69,11 @@ export default function AdminDashboard({
                 <SystemOverviewCards metrics={systemMetrics} />
             </DashboardWidgetWrapper>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                <DashboardWidgetWrapper id="admin.readiness_trend">
-                    <ReadinessTrendPanel readinessTrend={readinessTrend} readinessPercent={readinessPercent} />
-                </DashboardWidgetWrapper>
-                <DashboardWidgetWrapper id="admin.recent_uploads">
-                    <RecentUploadsPanel recentDocs={recentDocs} />
-                </DashboardWidgetWrapper>
-            </div>
+            <DashboardWidgetWrapper id="admin.deadline_calendar">
+                <div style={{ marginBottom: 24 }}>
+                    <DeadlineCalendarPanel deadlines={deadlineEvents} currentUserId={auth.user.id} />
+                </div>
+            </DashboardWidgetWrapper>
 
             <DashboardWidgetWrapper id="admin.program_oversight">
                 <ProgramOversightTable programs={programs} />

@@ -143,7 +143,7 @@ export default function DocumentShow({ document, availableStandards, latestEvalu
 
                 <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, margin: 0, color: '#0f1f3d' }}>
+                        <h1 style={{ fontFamily: "'inherit", fontSize: 22, margin: 0, color: '#0f1f3d' }}>
                             {document.title}
                         </h1>
                         <span style={chip('#' + document.doc_type, '#eef4ff', '#185FA5')}>{document.doc_type}</span>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -36,6 +37,9 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             RateLimiter::clear($key);
             $request->session()->regenerate();
+            ActivityLogService::log($request->user(), 'auth.login', null, [
+                'path' => '/login',
+            ], $request->ip());
             
             // Validate redirect URL is internal only
             $intended = $request->session()->get('url.intended', '/dashboard');
@@ -58,6 +62,11 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        ActivityLogService::log($user, 'auth.logout', null, [
+            'path' => $request->headers->get('referer') ?: '/',
+        ], $request->ip());
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

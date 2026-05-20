@@ -10,6 +10,35 @@ use setasign\Fpdi\Fpdi;
 
 class SubAreaPdfExportService
 {
+    private function appLogoDataUri(): ?string
+    {
+        $path = (string) \App\Models\Setting::getValue('appLogoPath', '');
+        if ($path === '') {
+            return null;
+        }
+
+        $candidates = [
+            storage_path('app/private/' . $path),
+            storage_path('app/' . $path),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_file($candidate)) {
+                continue;
+            }
+
+            $mime = mime_content_type($candidate) ?: null;
+            $data = @file_get_contents($candidate);
+            if (!$mime || $data === false) {
+                continue;
+            }
+
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
+        }
+
+        return null;
+    }
+
     /**
      * Main export method.
      * Returns the path to the final merged PDF (temp file).
@@ -94,6 +123,8 @@ class SubAreaPdfExportService
             'sub_area'   => $subArea->name,
             'program'    => $program?->name ?? 'Unknown Program',
             'program_code' => $program?->code ?? '',
+            'program_logo' => $program?->logoDataUri(),
+            'app_logo'   => $this->appLogoDataUri(),
             'date'       => now()->format('F j, Y'),
         ])->render();
 

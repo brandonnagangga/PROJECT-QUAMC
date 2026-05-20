@@ -7,18 +7,11 @@
     html, body { width: 210mm; height: 297mm; background: #ffffff; font-family: 'DejaVu Sans', Arial, sans-serif; color: #0f1f3d; }
     table.page { width: 210mm; height: 297mm; border-collapse: collapse; }
     td.center { vertical-align: middle; text-align: center; padding: 40px; }
-    .logo-circle {
-        width: 88px; height: 88px; background: #0f1f3d;
-        border-radius: 50%; margin: 0 auto 20px;
-        border: 3px solid #c9a84c;
-        padding-top: 18px;
-    }
-    .logo-letter { font-size: 38px; font-weight: 900; color: #c9a84c; line-height: 1; }
     .program-logo {
-        width: 100px; height: 100px; border-radius: 50%;
+        width: 100px; height: 100px; border-radius: 0;
         object-fit: contain; margin: 0 auto 20px; display: block;
-        border: 3px solid #c9a84c; background: #fff;
-        padding: 6px;
+        border: none; background: transparent;
+        padding: 0;
     }
     .org { font-size: 9px; color: #8892aa; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
 
@@ -42,13 +35,13 @@
     <table class="page">
         <tr>
             <td class="center">
-            {{-- Program logo or fallback Q circle --}}
+            {{-- Program logo, then app logo, then no logo --}}
             @if(!empty($program_logo))
                 <img src="{{ $program_logo }}" class="program-logo" alt="{{ $program_code }} Logo" />
+            @elseif(!empty($app_logo))
+                <img src="{{ $app_logo }}" class="program-logo" alt="App Logo" />
             @else
-                <div class="logo-circle">
-                    <span class="logo-letter">Q</span>
-                </div>
+                <div style="height: 100px; margin-bottom: 20px;"></div>
             @endif
 
                 <div class="org">{{ $institution }}</div>
