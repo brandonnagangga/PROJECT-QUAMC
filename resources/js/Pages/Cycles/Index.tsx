@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Calendar, Plus, CheckCircle, Trash2, Edit3, FileText, Star, X, Archive
 } from 'lucide-react';
@@ -22,6 +22,13 @@ export default function CyclesIndex({ cycles }: Props) {
         name: '', academic_year: '', start_date: '', end_date: '',
         description: '', is_active: false,
     });
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const resetForm = () => {
         setForm({ name: '', academic_year: '', start_date: '', end_date: '', description: '', is_active: false });
@@ -83,7 +90,7 @@ export default function CyclesIndex({ cycles }: Props) {
             <Head title="Accreditation Cycles" />
 
             {/* Header */}
-            <div data-tour="cycles-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div data-tour="cycles-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 24, flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
                 <div>
                     <div style={{ fontFamily: "'inherit", fontSize: 22, fontWeight: 700, color: 'var(--color-text)' }}>
                         Accreditation Cycles
@@ -117,7 +124,7 @@ export default function CyclesIndex({ cycles }: Props) {
                     <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)', marginBottom: 16 }}>
                         {editId ? 'Edit Cycle' : 'Create New Cycle'}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
                         <div>
                             <label style={labelStyle}>Cycle Name</label>
                             <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
@@ -162,7 +169,7 @@ export default function CyclesIndex({ cycles }: Props) {
                             </div>
                         )}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
                         <button onClick={resetForm} style={{
                             padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)',
                             background: 'var(--color-button-secondary-bg)', cursor: 'pointer', fontSize: 12, color: 'var(--color-button-secondary-text)',
@@ -231,7 +238,7 @@ export default function CyclesIndex({ cycles }: Props) {
                             </div>
 
                             {/* Stats */}
-                            <div style={{ padding: '14px 20px', display: 'flex', gap: 20 }}>
+                            <div style={{ padding: '14px 20px', display: 'flex', gap: 20, flexDirection: isMobile ? 'column' : 'row' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <FileText size={13} color="#8892aa" />
                                     <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
@@ -248,7 +255,7 @@ export default function CyclesIndex({ cycles }: Props) {
                             {/* Actions */}
                             <div style={{
                                 padding: '12px 20px', borderTop: '1px solid var(--color-border)',
-                                display: 'flex', justifyContent: 'flex-end', gap: 8,
+                                display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap',
                             }}>
                                 {!cycle.is_active && (
                                     <button onClick={() => handleActivate(cycle)} style={{

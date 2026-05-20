@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import { useEffect, useState } from 'react';
 
 interface AreaOption {
     id: number;
@@ -36,6 +37,13 @@ export default function StandardsIndex({ standards, areas }: Props) {
     });
 
     const selectedArea = areas.find((area) => String(area.id) === form.data.area_id);
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 900);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 900);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -46,7 +54,7 @@ export default function StandardsIndex({ standards, areas }: Props) {
         <AppLayout title="Standards" breadcrumb="Standards">
             <Head title="Standards" />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.1fr', gap: 20 }}>
                 <section data-tour="standards-upload" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 14, padding: 22 }}>
                     <div style={{ fontFamily: "'inherit", fontSize: 20, color: 'var(--color-text)', marginBottom: 8 }}>
                         Reference Standards

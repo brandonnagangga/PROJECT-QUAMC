@@ -26,7 +26,9 @@ export default function CalendarCard({
     deadlines?: DeadlineLike[];
     currentUserId?: string;
 }) {
-    const [date, setDate] = useState(new Date());
+    const today = new Date();
+    const [date, setDate] = useState(today);
+    const [activeStartDate, setActiveStartDate] = useState<Date>(today);
     const [scope, setScope] = useState<'all' | 'mine'>('all');
     const [tooltip, setTooltip] = useState<{ key: string; events: DeadlineLike[]; date: Date; loading: boolean } | null>(null);
     const tooltipLoadTimerRef = useRef<number | null>(null);
@@ -44,6 +46,11 @@ export default function CalendarCard({
         whileElementsMounted: autoUpdate,
         middleware: [offset(8), flip(), shift({ padding: 8 })],
     });
+    const isSameDay = date.toDateString() === today.toDateString();
+    const isSameMonth =
+        activeStartDate.getFullYear() === today.getFullYear() &&
+        activeStartDate.getMonth() === today.getMonth();
+    const showTodayButton = !isSameDay || !isSameMonth;
 
     return (
         <div style={{
@@ -94,12 +101,38 @@ export default function CalendarCard({
                         );
                     })}
                 </div>
+                {showTodayButton && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const now = new Date();
+                            setDate(now);
+                            setActiveStartDate(now);
+                        }}
+                        style={{
+                            border: '1px solid #dde1ed',
+                            background: '#ffffff',
+                            color: '#334155',
+                            borderRadius: 999,
+                            padding: '4px 10px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Today
+                    </button>
+                )}
             </div>
             
             <div className="dashboard-calendar">
                 <Calendar
                     onChange={(value) => setDate(value as Date)}
                     value={date}
+                    activeStartDate={activeStartDate}
+                    onActiveStartDateChange={({ activeStartDate: nextStartDate }) => {
+                        if (nextStartDate) setActiveStartDate(nextStartDate);
+                    }}
                     locale="en-US"
                     tileContent={({ date: tileDate, view }) => {
                         if (view !== 'month') return null;

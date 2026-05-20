@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Bell, FileText, CheckCircle, AlertCircle, RotateCcw, Check, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface NotificationInfo {
     id: string; type: string; message: string; is_read: boolean;
@@ -20,6 +20,13 @@ const defaultIcon = { icon: Bell, bg: '#f0f2f8', color: '#8892aa' };
 
 export default function NotificationsIndex({ notifications, unreadCount }: Props) {
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const filtered = filter === 'unread'
         ? notifications.filter(n => !n.is_read)
@@ -30,7 +37,7 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
             <Head title="Notifications" />
 
             {/* Toolbar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 20, flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 2, background: '#f0f2f8', borderRadius: 8, padding: 3 }}>
                         {(['all', 'unread'] as const).map(f => (
@@ -73,7 +80,7 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
                             display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px',
                             borderBottom: i < filtered.length - 1 ? '1px solid #f0f2f8' : 'none',
                             background: notif.is_read ? 'transparent' : '#fafbfe',
-                            transition: 'background 0.12s', cursor: 'pointer',
+                            transition: 'background 0.12s', cursor: 'pointer', flexWrap: isMobile ? 'wrap' : 'nowrap',
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fc'}
                         onMouseLeave={(e) => e.currentTarget.style.background = notif.is_read ? 'transparent' : '#fafbfe'}
@@ -104,7 +111,7 @@ export default function NotificationsIndex({ notifications, unreadCount }: Props
                             </div>
 
                             {/* Time + unread dot */}
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ textAlign: isMobile ? 'left' : 'right', flexShrink: 0, marginLeft: isMobile ? 50 : 0 }}>
                                 <div style={{ fontSize: 10.5, color: '#8892aa' }}>{notif.time_ago}</div>
                                 <div style={{ fontSize: 9.5, color: '#b8bfd4' }}>{notif.created_at}</div>
                             </div>

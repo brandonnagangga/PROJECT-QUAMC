@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import { GraduationCap, Target, CheckCircle, Clock } from 'lucide-react';
 import { ChartPanel, MetricList, MinimalLineChart } from '@/components/dashboard/charts';
 import CalendarCard from '@/components/dashboard/CalendarCard';
@@ -41,6 +42,16 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
 
 export default function Director({ stats, programs, recentDocs, activities, graphData, deadlineEvents = [] }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
+    const [viewportWidth, setViewportWidth] = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
+    const isMobile = viewportWidth < 768;
+    const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     const approvedCount = Number(stats.approved || 0);
     const pendingCount = Number(stats.pending || 0);
     const readiness = Number(String(stats.readiness).replace('%', '')) || 0;
@@ -55,7 +66,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
             <Head title="Dashboard" />
 
             {/* STAT CARDS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 14, marginBottom: 24 }}>
                 {statCards.map((sc) => {
                     const Icon = sc.icon;
                     const val = (stats as any)[sc.key];
@@ -87,7 +98,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                 })}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="director.readiness_chart">
                     <ChartPanel title="Program Readiness" subtitle="This cycle">
                         <MinimalLineChart
@@ -105,7 +116,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
 
 
             {/* TWO COLUMN */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isTablet || isMobile ? '1fr' : '1fr 360px', gap: 16 }}>
                 <div>
                     {/* PROGRAM READINESS */}
                     <DashboardWidgetWrapper id="director.program_readiness">
@@ -113,7 +124,7 @@ export default function Director({ stats, programs, recentDocs, activities, grap
                             <div style={{ fontFamily: "'inherit", fontSize: 15, fontWeight: 600, color: '#0f1f3d' }}>Program Readiness</div>
                             <span style={{ fontSize: 12, color: '#c9a84c', cursor: 'pointer', fontWeight: 500 }}>View all →</span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 1 : 2}, minmax(0, 1fr))`, gap: 14, marginBottom: 24 }}>
                             {programs.map((p) => (
                                 <div key={p.id} style={{ background: '#fff', border: '1px solid #dde1ed', borderRadius: 12, padding: '16px 18px' }}>
                                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>

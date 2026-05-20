@@ -410,6 +410,16 @@ export default function ProgramsIndex({ programs, authRole, unassignedUsers }: P
     return (
         <AppLayout title="Programs" breadcrumb="Program Overview">
             <Head title="Programs" />
+            <style>{`
+                @keyframes liquid-race-flow {
+                    0% { background-position: 0% 50%; }
+                    100% { background-position: 200% 50%; }
+                }
+                @keyframes liquid-race-pulse {
+                    0%, 100% { filter: brightness(0.96); }
+                    50% { filter: brightness(1.08); }
+                }
+            `}</style>
 
             <div data-tour="programs-toolbar" style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, HardDrive, Save, Settings, Shield, X } from 'lucide-react';
 import { showSuccess } from '@/utils/toast';
 
@@ -56,6 +56,13 @@ const sections: SettingsSection[] = [
 export default function SettingsIndex({ settings: initial }: Props) {
     const [settings, setSettings] = useState(initial);
     const [saving, setSaving] = useState(false);
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const isOn = (key: string) => settings[key] === '1' || settings[key] === 'true';
 
@@ -90,7 +97,8 @@ export default function SettingsIndex({ settings: initial }: Props) {
                 <div
                     style={{
                         width: 'min(980px, 100%)',
-                        height: 'min(760px, calc(100vh - 180px))',
+                        height: isMobile ? 'auto' : 'min(760px, calc(100vh - 180px))',
+                        minHeight: isMobile ? 'calc(100vh - 130px)' : undefined,
                         borderRadius: 16,
                         background: 'var(--color-panel-bg)',
                         border: '1px solid var(--color-panel-border)',
@@ -125,7 +133,7 @@ export default function SettingsIndex({ settings: initial }: Props) {
                             >
                                 <X size={18} />
                             </button>
-                            <h2 style={{ margin: 0, fontSize: 30, fontWeight: 700, color: 'var(--color-text)', letterSpacing: -0.4 }}>
+                            <h2 style={{ margin: 0, fontSize: isMobile ? 22 : 30, fontWeight: 700, color: 'var(--color-text)', letterSpacing: -0.4 }}>
                                 Settings
                             </h2>
                         </div>
@@ -198,10 +206,11 @@ export default function SettingsIndex({ settings: initial }: Props) {
                                                 style={{
                                                     display: 'flex',
                                                     justifyContent: 'space-between',
-                                                    alignItems: 'center',
+                                                    alignItems: isMobile ? 'flex-start' : 'center',
                                                     borderBottom: '1px solid var(--color-border)',
                                                     padding: '14px 0',
                                                     gap: 16,
+                                                    flexDirection: isMobile ? 'column' : 'row',
                                                 }}
                                             >
                                                 <label style={{ fontSize: 15, color: 'var(--color-text)', fontWeight: 500 }}>{field.label}</label>
@@ -246,7 +255,7 @@ export default function SettingsIndex({ settings: initial }: Props) {
                                                             }))
                                                         }
                                                         style={{
-                                                            width: field.type === 'number' ? 170 : 260,
+                                                            width: isMobile ? '100%' : field.type === 'number' ? 170 : 260,
                                                             background: 'var(--color-background)',
                                                             color: 'var(--color-text)',
                                                             border: '1px solid var(--color-border)',

@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import {
     FileText, Clock, CheckCircle, RotateCcw, Upload, Target,
     ArrowRight, AlertCircle
@@ -36,6 +37,16 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
 
 export default function CoordinatorDashboard({ stats, programs, recentDocs, activities, areaItems, currentRole, graphData, deadlineEvents = [] }: Props) {
     const { auth } = usePage<PageProps>().props;
+    const [viewportWidth, setViewportWidth] = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
+    const isMobile = viewportWidth < 768;
+    const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     const isProgramCoord = currentRole === 'program-coordinator';
     const approvedCount = Number(stats.approved || 0);
     const pendingCount = Number(stats.pending || 0);
@@ -52,7 +63,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
             <Head title="Dashboard" />
 
             {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 14, marginBottom: 24 }}>
                 {[
                     { label: isProgramCoord ? 'ASSIGNED AREAS' : 'MY DOCUMENTS', value: stats.programs, sub: isProgramCoord ? 'Areas under your scope' : 'Total submitted', icon: Target, accent: '#0f1f3d' },
                     { label: 'AREA PROGRESS', value: stats.readiness, sub: stats.readinessSub, icon: Target, accent: '#c9a84c' },
@@ -83,7 +94,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
             </div>
 
 
-            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="coordinator.area_progress_chart">
                     <ChartPanel title="Area Progress" subtitle="Current scope">
                         <MinimalLineChart
@@ -114,7 +125,7 @@ export default function CoordinatorDashboard({ stats, programs, recentDocs, acti
                 </DashboardWidgetWrapper>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isTablet || isMobile ? '1fr' : '1fr 300px', gap: 20 }}>
                 {/* Document list */}
                 <div>
                     <DashboardWidgetWrapper id="coordinator.documents">

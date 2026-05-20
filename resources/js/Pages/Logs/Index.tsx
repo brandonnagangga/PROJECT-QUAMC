@@ -16,7 +16,7 @@ import {
     Search,
     User as UserIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ActivityUser {
     id: string;
@@ -113,6 +113,13 @@ const initials = (name: string) => name
 export default function LogsIndex({ users = [], logs = [], selectedUser = null }: Props) {
     const [search, setSearch] = useState('');
     const [filterEvent, setFilterEvent] = useState('');
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 900);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 900);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
     const events = [...new Set(logs.map((log) => log.event))];
     const userNeedle = search.toLowerCase();
@@ -173,7 +180,7 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                         </div>
                     </div>
 
-                    <div data-tour="logs-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+                    <div data-tour="logs-list" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
                         {filteredUsers.map((user) => (
                             <Link
                                 key={user.id}
@@ -242,7 +249,7 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                 </>
             ) : (
                 <>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                             <Link
                                 href="/logs"
@@ -281,7 +288,7 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                                 <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{selectedUser!.email} • {selectedUser!.role}</div>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--color-text-secondary)', fontSize: 12, flexWrap: 'wrap' }}>
                             <span>{selectedUser!.activity_count} activities</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <Clock size={13} /> {selectedUser!.latest_activity_ago ?? 'No logs yet'}
@@ -293,7 +300,7 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                         <div style={{
                             display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
                             border: '1.5px solid var(--color-border)', borderRadius: 8,
-                            background: 'var(--color-panel-bg)', flex: 1, maxWidth: 420,
+                            background: 'var(--color-panel-bg)', flex: 1, maxWidth: isMobile ? '100%' : 420,
                         }}>
                             <Search size={14} color="#8892aa" />
                             <input
@@ -322,6 +329,7 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                     </div>
 
                     <div data-tour="logs-list" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
+                        {!isMobile ? (
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                             <thead>
                                 <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
@@ -392,6 +400,33 @@ export default function LogsIndex({ users = [], logs = [], selectedUser = null }
                                 })}
                             </tbody>
                         </table>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 10, padding: 10 }}>
+                                {filteredLogs.length === 0 && (
+                                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>No activity logs for this user yet</div>
+                                )}
+                                {filteredLogs.map((log) => {
+                                    const eventStyle = eventColors[log.event] || defaultEvent;
+                                    const Icon = eventStyle.icon;
+                                    const targetLabel = log.target_label || log.changes?.target_label || log.model_type || '-';
+                                    const targetPath = log.href || log.path || log.changes?.href || log.changes?.path || null;
+                                    return (
+                                        <div key={log.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: eventStyle.bg, color: eventStyle.color }}>
+                                                    <Icon size={12} /> {formatEventName(log.event)}
+                                                </span>
+                                                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{log.time_ago}</div>
+                                            </div>
+                                            {log.description && <div style={{ marginTop: 6, color: 'var(--color-text-secondary)', fontSize: 11, lineHeight: 1.35 }}>{log.description}</div>}
+                                            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text)' }}>{targetLabel}</div>
+                                            {targetPath && <div style={{ marginTop: 3, fontSize: 10.5, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{targetPath}</div>}
+                                            <div style={{ marginTop: 8, fontSize: 10.5, color: 'var(--color-text-secondary)', fontFamily: "'DM Mono', monospace" }}>{log.ip_address || '-'}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </>
             )}

@@ -3,6 +3,7 @@ import {
     Search,
     Shield, Square, ToggleLeft, ToggleRight, Trash2, Users
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { checkboxButtonStyle, filterSelectStyle, menuItemStyle, roleBadgeStyles, searchBoxStyle, searchInputStyle, statusStyles, tdStyle, thStyle } from '../styles';
 import type { AssignmentInfo, ProgramInfo, RoleInfo, UserInfo } from '../types';
 
@@ -49,27 +50,35 @@ export function UsersTable({
     onToggleStatus: (user: UserInfo) => void;
     onAssignArea: (userId: string) => void;
 }) {
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 900);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 900);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     return (
         <div data-tour="users-table" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 20, overflow: 'visible', boxShadow: '0 16px 36px rgba(15, 23, 42, 0.04)' }}>
-            <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ padding: '18px 20px', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid var(--color-border)', flexDirection: isMobile ? 'column' : 'row' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--color-text-secondary)' }}>
                     <Users size={16} color="#4f46e5" />
                     <span>Total Users:</span>
                     <strong style={{ color: 'var(--color-text)' }}>{users.length} users</strong>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={searchBoxStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ ...searchBoxStyle, width: isMobile ? '100%' : searchBoxStyle.width }}>
                         <Search size={14} color="#64748b" />
                         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users" style={searchInputStyle} />
                     </div>
-                    <div style={{ ...searchBoxStyle, width: 132 }}>
+                    <div style={{ ...searchBoxStyle, width: isMobile ? 'calc(50% - 5px)' : 132, minWidth: isMobile ? 150 : undefined }}>
                         <Filter size={14} color="#64748b" />
                         <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={filterSelectStyle}>
                             <option value="">Filter</option>
                             {roles.map(role => <option key={role.id} value={role.slug}>{role.name}</option>)}
                         </select>
                     </div>
-                    <div style={{ ...searchBoxStyle, width: 132 }}>
+                    <div style={{ ...searchBoxStyle, width: isMobile ? 'calc(50% - 5px)' : 132, minWidth: isMobile ? 150 : undefined }}>
                         <Filter size={14} color="#64748b" />
                         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
                             <option value="">Status</option>
@@ -79,7 +88,7 @@ export function UsersTable({
                     </div>
                 </div>
             </div>
-
+            {!isMobile ? (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-background)' }}>
@@ -164,6 +173,38 @@ export function UsersTable({
                     })}
                 </tbody>
             </table>
+            ) : (
+                <div style={{ display: 'grid', gap: 10, padding: 12 }}>
+                    {users.map((user) => {
+                        const roleSlug = user.roles[0]?.slug || '';
+                        const roleStyle = roleBadgeStyles[roleSlug] || { bg: '#f1f5f9', color: '#475569' };
+                        const userAssignments = assignments.filter(a => a.user_id === user.id);
+                        const program = programs.find(p => p.id === user.program_id);
+                        const initials = user.name.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase();
+                        const status = user.is_active ? statusStyles.active : statusStyles.inactive;
+                        const isCurrentUser = user.id === currentUserId;
+                        return (
+                            <div key={user.id} style={{ border: '1px solid var(--color-border)', borderRadius: 12, padding: 12, display: 'grid', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <button onClick={() => toggleUserSelection(user.id)} style={checkboxButtonStyle}>{selectedIds.includes(user.id) ? <CheckSquare size={15} color="#4f46e5" /> : <Square size={15} color="#d5dbe7" />}</button>
+                                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--color-background)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{initials}</div>
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{user.name}</div>
+                                        <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}>{user.email}</div>
+                                    </div>
+                                    {isCurrentUser && <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 999, padding: '2px 8px' }}>You</span>}
+                                </div>
+                                <div style={{ fontSize: 11.5, color: roleStyle.color }}>{user.roles.map(role => role.name).join(', ')}</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}>{program ? `${program.name} (${program.code})` : 'No program'} • {userAssignments.length} area(s)</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, border: `1px solid ${status.border}`, background: status.bg, color: status.color }}>{user.is_active ? 'Active' : 'Inactive'}</span>
+                                    <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)' }}><Calendar size={12} style={{ display: 'inline-block', verticalAlign: 'middle' }} /> {user.created_at}</div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

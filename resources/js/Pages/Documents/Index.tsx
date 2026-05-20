@@ -433,7 +433,7 @@ export default function DocumentsIndex({
             <Head title="Documents" />
 
             {/* ── Unified Search & Filter bar ── */}
-            <div data-tour="documents-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div data-tour="documents-toolbar" style={{ display: 'flex', alignItems: isMobileViewport ? 'stretch' : 'center', gap: 12, marginBottom: 20, flexDirection: isMobileViewport ? 'column' : 'row' }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'var(--color-panel-bg)', border: searchFocused ? '1px solid #c9a84c' : '1px solid var(--color-border)', borderRadius: 12, boxShadow: searchFocused ? '0 0 0 3px rgba(201,168,76,0.12)' : '0 2px 4px rgba(0,0,0,0.02)', transition: 'border-color 0.15s, box-shadow 0.15s' }}>
                     <Search size={16} color="var(--color-text-secondary)" />
                     <input type="text" placeholder="Search documents, areas, or programs..." value={search}
@@ -532,7 +532,7 @@ export default function DocumentsIndex({
             </div>
 
             {/* ── Header bar: tabs + view toggle ── */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: isMobileViewport ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: 16, flexDirection: isMobileViewport ? 'column' : 'row', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, minWidth: 0, flexWrap: 'wrap' }}>
                     {breadcrumbs.map((bc, i) => (
                         <span key={`${bc.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -581,6 +581,7 @@ export default function DocumentsIndex({
             {/* ═══ LIST VIEW ═══ */}
             {viewMode === 'list' && (
                 <div data-tour="documents-content" style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-panel-border)', borderRadius: 12, overflow: 'hidden' }}>
+                    {!isMobileViewport ? (
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                         <thead>
                             <tr style={{ background: 'var(--color-background)', borderBottom: '1px solid var(--color-border)' }}>
@@ -624,6 +625,31 @@ export default function DocumentsIndex({
                             )}
                         </tbody>
                     </table>
+                    ) : (
+                        <div style={{ display: 'grid', gap: 10, padding: 10 }}>
+                            {documents.map((doc) => {
+                                const st = statusConfig[doc.status] || statusConfig.draft;
+                                return (
+                                    <div key={doc.id} onClick={() => router.visit(`/documents/${doc.id}`)} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 10, cursor: 'pointer' }}>
+                                        <div style={{ fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                            <FileText size={14} color="var(--color-text-secondary)" /> {doc.title}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>{doc.path}</div>
+                                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, background: '#0f1f3d', color: '#c9a84c', fontWeight: 600 }}>{doc.prog}</span>
+                                            <span style={{ fontSize: 10.5, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                <st.icon size={10} /> {st.label}
+                                            </span>
+                                        </div>
+                                        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--color-text-secondary)' }}>{doc.ver} • {doc.date}</div>
+                                    </div>
+                                );
+                            })}
+                            {documents.length === 0 && (
+                                <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>No documents found.</div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 

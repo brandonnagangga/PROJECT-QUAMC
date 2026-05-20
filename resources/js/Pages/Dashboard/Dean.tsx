@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import {
     GraduationCap, Target, FileText, Clock, CheckCircle, RotateCcw,
     TrendingUp, ArrowRight
@@ -36,6 +37,16 @@ const statusColors: Record<string, { bg: string; color: string; label: string }>
 
 export default function DeanDashboard({ stats, programs, recentDocs, activities, currentRole, graphData, deadlineEvents = [] }: Props) {
     const { auth } = usePage<PageProps>().props;
+    const [viewportWidth, setViewportWidth] = useState<number>(() =>
+        typeof window === 'undefined' ? 1280 : window.innerWidth
+    );
+    const isMobile = viewportWidth < 768;
+    const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     const approvedCount = Number(stats.approved || 0);
     const pendingCount = Number(stats.pending || 0);
     const areaData = (programs[0]?.areas ?? []).slice(0, 6).map((area, index) => ({ label: `Area ${index + 1}`, value: area.pct }));
@@ -49,7 +60,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
             <Head title="Dashboard" />
 
             {/* Stat Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 4}, minmax(0, 1fr))`, gap: 14, marginBottom: 24 }}>
                 {[
                     { label: 'MY PROGRAMS', value: stats.programs, sub: 'Under my college', icon: GraduationCap, accent: '#0f1f3d' },
                     { label: 'AREA COMPLETION', value: stats.readiness, sub: stats.readinessSub, icon: Target, accent: '#c9a84c' },
@@ -79,7 +90,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '40% 60%', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '40% 60%', gap: 16, marginBottom: 24 }}>
                 <DashboardWidgetWrapper id="dean.area_completion_chart">
                     <ChartPanel title="Area Completion" subtitle="This term" fullHeight>
                         <MinimalLineChart
@@ -109,7 +120,7 @@ export default function DeanDashboard({ stats, programs, recentDocs, activities,
                 </DashboardWidgetWrapper>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isTablet || isMobile ? '1fr' : '1fr 320px', gap: 20 }}>
                 {/* Documents forwarded by Program Coordinators */}
                 <div>
                     <DashboardWidgetWrapper id="dean.documents_for_review">

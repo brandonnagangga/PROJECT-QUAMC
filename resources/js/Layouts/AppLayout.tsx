@@ -4,7 +4,7 @@ import { ACTIONS, EVENTS, Joyride, STATUS, type EventData, type Step } from 'rea
 import {
     LayoutDashboard, FileText, Layers, GraduationCap, Upload,
     User, List, Settings, LogOut, BarChart3, Calendar, FolderCog, PanelLeft, Megaphone, Palette, ChevronRight,
-    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, Layout, RotateCcw, Download, Undo2, CircleHelp
+    Search, X, Loader2, File, Folder, GraduationCap as ProgramIcon, RotateCcw, Download, Undo2, CircleHelp
 } from 'lucide-react';
 import type { PageProps } from '@/types/models.d';
 import { showSuccess, showError, showInfo, confirmAction, confirmSaveDiscard } from '@/utils/toast';
@@ -183,6 +183,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     const appDetails = settingsForm.appDetails || 'Quality Assurance Center';
     const appLogoUrl = settingsForm.appLogoUrl || '';
     const appInitial = appDisplayName.trim().charAt(0).toUpperCase() || 'Q';
+    const dashboardEditEnabled = false;
 
     const startTour = useCallback(() => {
         setTourStepIndex(0);
@@ -224,12 +225,6 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
             const dashboardStepsByRole: Record<string, Step[]> = {
                 admin: [
-                    {
-                        target: '[data-tour="dashboard-edit"]',
-                        title: 'Dashboard Layout',
-                        content: 'Enter edit mode to hide, restore, or save dashboard cards for your admin workspace.',
-                        placement: 'bottom',
-                    },
                     {
                         target: '[data-tour="admin.system_overview_cards"]',
                         title: 'System Overview',
@@ -583,6 +578,13 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
     const searchRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const lastTrackedPageRef = useRef('');
+
+    useEffect(() => {
+        if (!dashboardEditEnabled && isEditMode) {
+            commitEditMode(false);
+            router.post('/dashboard/preferences', { is_edit_mode: false }, { preserveState: true, preserveScroll: true });
+        }
+    }, [dashboardEditEnabled, isEditMode, commitEditMode]);
 
     const cleanActivityText = (value: string | null | undefined, limit = 140) => {
         const cleaned = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -1434,23 +1436,8 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                                 <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{appVersion}</span>
                             </div>
 
-                            {isDashboard && (
-                                <>
-                                    <button
-                                        type="button"
-                                        className={`app-icon-btn ${isEditMode ? 'active' : ''}`}
-                                        data-tour="dashboard-edit"
-                                        title="Edit Dashboard Layout"
-                                        style={{ 
-                                            width: 30, height: 30, marginRight: 4,
-                                            background: isEditMode ? 'var(--color-button-primary-bg)' : 'transparent',
-                                            color: isEditMode ? 'var(--color-button-primary-text)' : 'inherit'
-                                        }}
-                                        onClick={toggleEditMode}
-                                    >
-                                        <Layout size={16} />
-                                    </button>
-                                </>
+                            {isDashboard && dashboardEditEnabled && (
+                                <></>
                             )}
 
                             <button
@@ -1467,7 +1454,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
 
                     {/* CONTENT */}
                     <div className="app-content app-connected-content">
-                        {isDashboard && isEditMode && (
+                        {isDashboard && dashboardEditEnabled && isEditMode && (
                             <div
                                 style={{
                                     position: 'fixed',
@@ -1495,7 +1482,7 @@ export default function AppLayout({ children, title = 'Dashboard', breadcrumb }:
                         )}
                         {children}
 
-                        {isDashboard && isEditMode && (
+                        {isDashboard && dashboardEditEnabled && isEditMode && (
                             <aside
                                 style={{
                                     position: 'fixed',
